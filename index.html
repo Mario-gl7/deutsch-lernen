@@ -503,67 +503,63 @@ body {
 
   <div class="home-content">
     <div class="home-greeting">¡Hola, <span id="greetName"></span>! 👋</div>
-    <div class="home-sub">¿Qué practicamos hoy?</div>
+    <div class="home-sub" id="homeStats">Cargando…</div>
 
-    <div class="home-grid">
-      <div class="home-card green" onclick="goApp('vocab')">
+    <!-- TWO MAIN SECTIONS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+
+      <div class="home-card green" onclick="goSection('vocab')" style="grid-column:1">
         <div class="home-card-icon">📚</div>
         <div class="home-card-title">Vocabulario</div>
-        <div class="home-card-desc">Consulta y gestiona tus palabras</div>
+        <div class="home-card-desc">Palabras, parejas y crucigrama</div>
       </div>
-      <div class="home-card blue" onclick="goApp('match')">
-        <div class="home-card-icon">🃏</div>
-        <div class="home-card-title">Parejas</div>
-        <div class="home-card-desc">Conecta alemán con español</div>
-      </div>
-      <div class="home-card orange" onclick="goApp('cross')">
-        <div class="home-card-icon">✏️</div>
-        <div class="home-card-title">Crucigrama</div>
-        <div class="home-card-desc">Pistas en español, escribe en alemán</div>
-      </div>
-      <div class="home-card purple" onclick="showInstallModal()">
-        <div class="home-card-icon">📲</div>
-        <div class="home-card-title">Instalar</div>
-        <div class="home-card-desc">Añadir a pantalla de inicio</div>
+
+      <div class="home-card" onclick="goSection('grammar')"
+           style="grid-column:2;border-color:var(--purple);box-shadow:0 4px 0 #a055cc;opacity:0.7">
+        <div class="home-card-icon">📖</div>
+        <div class="home-card-title" style="color:var(--purple)">Gramática</div>
+        <div class="home-card-desc">Próximamente</div>
       </div>
     </div>
 
+    <!-- STATS BAR -->
     <div class="home-stats">
       <div class="stat-item">
         <div class="stat-num" id="statTotal">0</div>
         <div class="stat-lbl">Palabras</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num" id="statNomen">0</div>
-        <div class="stat-lbl">Nomen</div>
+        <div class="stat-num" id="statHard">0</div>
+        <div class="stat-lbl">🔴 Difícil</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num" id="statVerb">0</div>
-        <div class="stat-lbl">Verbos</div>
+        <div class="stat-num" id="statDue">0</div>
+        <div class="stat-lbl">📅 Pendientes</div>
       </div>
       <div class="stat-item">
-        <div class="stat-num" id="statOther">0</div>
-        <div class="stat-lbl">Otros</div>
+        <div class="stat-num" id="statMastered">0</div>
+        <div class="stat-lbl">🟢 Dominadas</div>
       </div>
     </div>
 
     <button class="logout-btn" onclick="doLogout()">← Cerrar sesión</button>
+    <button class="logout-btn" style="margin-top:6px;color:var(--purple);border-color:var(--purple)" onclick="showInstallModal()">📲 Instalar app</button>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════
-     PAGE: APP (vocab/match/cross)
+     PAGE: VOCABULARIO (vocab/match/cross)
 ════════════════════════════════════════ -->
-<div class="page" id="page-app">
+<div class="page" id="page-vocab-section">
   <div class="back-header">
     <button class="back-btn" onclick="goHome()">← Inicio</button>
-    <div class="back-header-title" id="appPageTitle">Vocabulario</div>
+    <div class="back-header-title">📚 Vocabulario</div>
     <button class="theme-btn" id="themeBtnApp" onclick="toggleTheme()">☀️</button>
   </div>
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('vocab')" id="tab-vocab">
-      <span>📚</span>Vocab
+      <span>📋</span>Lista
     </button>
     <button class="tab" onclick="showTab('match')" id="tab-match">
       <span>🃏</span>Parejas
@@ -576,8 +572,8 @@ body {
   <!-- VOCAB SCREEN -->
   <div class="screen active" id="screen-vocab">
     <div class="vocab-actions">
-      <button class="vocab-action-btn add" onclick="showAddModal()">＋ Añadir palabra</button>
-      <button class="vocab-action-btn imp" onclick="showImportModal()">⬆ Importar CSV</button>
+      <button class="vocab-action-btn add" onclick="showAddModal()">＋ Añadir</button>
+      <button class="vocab-action-btn imp" onclick="showImportModal()">⬆ Importar</button>
     </div>
     <div class="filter-bar" id="filterBar"></div>
     <div class="filter-bar" id="vocabDiffBar" style="margin-top:-6px"></div>
@@ -594,7 +590,32 @@ body {
 
   <!-- CROSSWORD SCREEN -->
   <div class="screen" id="screen-cross">
+    <!-- Crossword source selector -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="filter-btn active" id="cwSrcBtn-smart" onclick="setCwSource('smart')">🧠 Inteligente</button>
+      <button class="filter-btn" id="cwSrcBtn-bag" onclick="setCwSource('bag')">🎒 Bolsa de parejas
+        <span id="cwBagCount" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">0</span>
+      </button>
+    </div>
     <div id="crossContent"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE: GRAMÁTICA (placeholder)
+════════════════════════════════════════ -->
+<div class="page" id="page-grammar-section">
+  <div class="back-header">
+    <button class="back-btn" onclick="goHome()">← Inicio</button>
+    <div class="back-header-title">📖 Gramática</div>
+    <button class="theme-btn" id="themeBtnGrammar" onclick="toggleTheme()">☀️</button>
+  </div>
+  <div style="text-align:center;padding:60px 24px">
+    <div style="font-size:52px;margin-bottom:16px">🚧</div>
+    <div style="font-size:20px;font-weight:900;color:var(--purple);margin-bottom:8px">Próximamente</div>
+    <div style="font-size:14px;font-weight:700;color:var(--text2);line-height:1.6">
+      Esta sección está en construcción.<br>Aquí añadirás ejercicios de gramática alemana.
+    </div>
   </div>
 </div>
 
@@ -723,8 +744,13 @@ body {
 // Replace these two values after creating
 // your project at supabase.com
 // ═══════════════════════════════════════
-const SUPABASE_URL = 'https://rplehltqclmdcmwkqxko.supabase.co/rest/v1/';
-const SUPABASE_ANON_KEY = 'sb_publishable_iF3ivUafJrJmDUKc2U0pfw_CWqnGnYf';
+const SUPABASE_URL = (() => {
+  // Paste your Project URL here — remove any trailing /rest/v1 or trailing slash
+  let u = 'SUPABASE_URL_HERE';
+  u = u.replace(/\/(rest\/v1|auth\/v1)\/?$/, '').replace(/\/$/, '');
+  return u;
+})();
+const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY_HERE';
 
 // Lazy-load Supabase SDK
 let _supabase = null;
@@ -812,6 +838,7 @@ function onLoginSuccess(user) {
   document.getElementById('homeUserName').textContent = displayName;
   document.getElementById('greetName').textContent = displayName;
   updateStats();
+  updateBagCount();
   showPage('home');
 }
 
@@ -856,14 +883,56 @@ async function doLogout() {
 // ═══════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════
-function goApp(tab) {
-  showPage('app');
-  showTab(tab);
+function goSection(section) {
+  if (section === 'vocab') {
+    showPage('vocab-section');
+    showTab('vocab');
+  } else if (section === 'grammar') {
+    showPage('grammar-section');
+  }
 }
 
 function goHome() {
   updateStats();
   showPage('home');
+}
+
+// ═══════════════════════════════════════
+// WORD BAG  — words used in Parejas
+// Stored per user, cleared when used for crossword
+// ═══════════════════════════════════════
+function getBag() {
+  try { return JSON.parse(localStorage.getItem('bag_' + (currentEmail||'default'))) || []; }
+  catch(e) { return []; }
+}
+function saveBag(bag) {
+  localStorage.setItem('bag_' + (currentEmail||'default'), JSON.stringify(bag));
+}
+function addToBag(wordDE) {
+  const bag = getBag();
+  if (!bag.includes(wordDE)) { bag.push(wordDE); saveBag(bag); }
+  updateBagCount();
+}
+function clearBag() {
+  saveBag([]);
+  updateBagCount();
+}
+function updateBagCount() {
+  const n = getBag().length;
+  const el = document.getElementById('cwBagCount');
+  if (el) el.textContent = n;
+}
+
+// ═══════════════════════════════════════
+// CROSSWORD SOURCE
+// ═══════════════════════════════════════
+let cwSource = 'smart'; // 'smart' | 'bag'
+function setCwSource(src) {
+  cwSource = src;
+  document.querySelectorAll('[id^="cwSrcBtn-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('cwSrcBtn-' + src);
+  if (btn) btn.classList.add('active');
+  buildCrossword();
 }
 
 // ═══════════════════════════════════════
@@ -1005,10 +1074,12 @@ function displayDE(w) {
 // ═══════════════════════════════════════
 function updateStats() {
   const words = getWords();
+  const p = getProgress();
+  const now = Date.now();
   document.getElementById('statTotal').textContent = words.length;
-  document.getElementById('statNomen').textContent = words.filter(w => w.tipo === 'Nomen').length;
-  document.getElementById('statVerb').textContent = words.filter(w => w.tipo === 'Verb').length;
-  document.getElementById('statOther').textContent = words.filter(w => !['Nomen','Verb'].includes(w.tipo)).length;
+  document.getElementById('statHard').textContent = Object.values(p).filter(e=>e.difficulty===1).length;
+  document.getElementById('statDue').textContent = Object.values(p).filter(e=>e.seen>0 && e.nextReview<=now).length;
+  document.getElementById('statMastered').textContent = Object.values(p).filter(e=>e.seen>=3 && e.correct/e.seen>=0.8).length;
 }
 
 // ═══════════════════════════════════════
@@ -1027,10 +1098,8 @@ function showTab(name) {
   });
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
-  const titles = {vocab:'Vocabulario', match:'Parejas', cross:'Crucigrama'};
-  document.getElementById('appPageTitle').textContent = titles[name];
   if (name === 'match') renderMatchFilters();
-  if (name === 'cross') buildCrossword();
+  if (name === 'cross') { updateBagCount(); buildCrossword(); }
   if (name === 'vocab') renderVocab();
 }
 
@@ -1334,6 +1403,8 @@ function selectCard(lang, idx) {
     if (isMatch) {
       s.matched.add(s.selectedDE);
       [deEl,esEl].forEach(x => { x.classList.remove('selected'); x.classList.add('matched'); });
+      // Add to crossword bag
+      if (wordDE) addToBag(wordDE);
       s.selectedDE = null; s.selectedES = null;
       if (s.matched.size === s.total) setTimeout(renderMatch, 600);
     } else {
@@ -1487,15 +1558,40 @@ function confirmImport() {
 // ═══════════════════════════════════════
 // ═══════════════════════════════════════
 function buildCrossword() {
-  const words = getWords();
-  const candidates = shuffle(words).map(w => ({
+  const allWords = getWords();
+  let pool;
+
+  if (cwSource === 'bag') {
+    const bag = getBag();
+    if (bag.length === 0) {
+      document.getElementById('crossContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--text2)">
+        <div style="font-size:36px;margin-bottom:12px">🎒</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px">La bolsa está vacía</div>
+        <div style="font-size:13px;font-weight:700;line-height:1.5">Juega al ejercicio de <b>Parejas</b> primero.<br>Las palabras que aciertes se añaden aquí automáticamente.</div>
+      </div>`;
+      return;
+    }
+    pool = allWords.filter(w => bag.includes(w.de));
+  } else {
+    // Smart: prioritise hard/due words
+    const p = getProgress();
+    const now = Date.now();
+    pool = [...allWords].sort((a,b) => {
+      const pa = p[a.de]||{}, pb = p[b.de]||{};
+      const scoreA = (pa.difficulty===1?100:0) + (pa.nextReview<=now?50:0) + (1-(pa.seen>0?pa.correct/pa.seen:0.5))*30 + Math.random()*10;
+      const scoreB = (pb.difficulty===1?100:0) + (pb.nextReview<=now?50:0) + (1-(pb.seen>0?pb.correct/pb.seen:0.5))*30 + Math.random()*10;
+      return scoreB - scoreA;
+    });
+  }
+
+  const candidates = pool.map(w => ({
     ...w,
     display_de: displayDE(w),
     grid_word: w.de.replace(/[^a-zA-ZäöüÄÖÜß]/g,'')
   })).filter(w => w.grid_word.length >= 3 && w.grid_word.length <= 11).slice(0, 12);
 
   if (candidates.length < 3) {
-    document.getElementById('crossContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">✏️</div>No hay suficientes palabras para el crucigrama.</div>`;
+    document.getElementById('crossContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">✏️</div>No hay suficientes palabras válidas para el crucigrama.</div>`;
     return;
   }
   cwData = generateCrossword(candidates);
@@ -1605,6 +1701,7 @@ function renderCrossword() {
     <button class="btn-primary" onclick="checkCrossword()">COMPROBAR ✓</button>
     <button class="btn-secondary" onclick="revealCrossword()">Revelar solución</button>
     <button class="btn-blue" onclick="buildCrossword()">Nuevo crucigrama ↺</button>
+    ${cwSource==='bag'?`<button class="btn-secondary" style="color:var(--red);border-color:var(--red);margin-top:8px" onclick="if(confirm('¿Vaciar la bolsa?')){clearBag();buildCrossword();}">🗑 Vaciar bolsa</button>`:''}
     <div class="clues-section"><div class="clues-title">Pistas (toca para ver alemán)</div>${cluesHTML}</div>`;
 }
 
@@ -1675,9 +1772,9 @@ if (window.navigator.standalone) {
   document.querySelectorAll('.install-banner').forEach(b => b.remove());
 }
 
-// Init vocab view
+// Init
 window.onload = function() {
-  if (currentUser) renderVocab();
+  if (currentUser) { updateStats(); updateBagCount(); }
 };
 
 // ═══════════════════════════════════════

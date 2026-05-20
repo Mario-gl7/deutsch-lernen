@@ -25,8 +25,8 @@ Autenticación con Supabase · Instalable en iPhone/iPad.
 ### Paso 3 — Invitar a los dos usuarios
 
 1. En Supabase → **Authentication** → **Users** → "Invite user"
-2. Invita: `mariogutierrezlopez@icloud.com`
-3. Invita: `majasplete@web.de`
+2. Invita: ``
+3. Invita: ``
 4. Cada usuario recibirá un correo con un enlace para establecer su contraseña
 
 > ⚠️ El enlace del correo lleva a tu URL de Supabase, no a tu app.  

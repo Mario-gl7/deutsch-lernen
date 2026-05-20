@@ -463,21 +463,30 @@ body {
 
   <div class="login-card">
     <h2>Iniciar sesión</h2>
-    <div class="form-row">
-      <div class="field-label">Usuario</div>
-      <input class="field-input" id="loginUser" type="text" placeholder="Tu nombre de usuario" autocomplete="off" autocapitalize="off">
+    <!-- Spinner shown while checking session -->
+    <div id="loginSpinner" style="text-align:center;padding:20px 0;display:none">
+      <div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 0.8s linear infinite"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-top:8px">Conectando…</div>
     </div>
-    <div class="form-row">
-      <div class="field-label">Contraseña</div>
-      <input class="field-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <div class="login-error" id="loginError"></div>
-    <button class="btn-login" onclick="doLogin()">ENTRAR →</button>
-    <div class="accounts-hint">
-      Cuentas disponibles:<br>
-      <b style="color:var(--text)">alumno1</b> · <b style="color:var(--text)">alumno2</b> · <b style="color:var(--text)">prof</b> · <b style="color:var(--text)">invitado</b>
+    <div id="loginForm">
+      <div class="form-row">
+        <div class="field-label">Correo electrónico</div>
+        <input class="field-input" id="loginEmail" type="email" placeholder="tu@correo.com"
+               autocomplete="email" autocapitalize="off" inputmode="email">
+      </div>
+      <div class="form-row">
+        <div class="field-label">Contraseña</div>
+        <input class="field-input" id="loginPass" type="password" placeholder="••••••••"
+               onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button class="btn-login" id="loginBtn" onclick="doLogin()">ENTRAR →</button>
+      <div class="accounts-hint" style="margin-top:14px">
+        ¿Primera vez? Recibirás un correo para<br>establecer tu contraseña.
+      </div>
     </div>
   </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -708,16 +717,35 @@ body {
 
 <script>
 // ═══════════════════════════════════════
-// ACCOUNTS (hardcoded, 4 users)
+// SUPABASE CONFIG
+// Replace these two values after creating
+// your project at supabase.com
 // ═══════════════════════════════════════
-const ACCOUNTS = {
-  'alumno1': { pass: 'deutsch1', name: 'Alumno 1' },
-  'alumno2': { pass: 'deutsch2', name: 'Alumno 2' },
-  'prof':    { pass: 'profe123', name: 'Profe' },
-  'invitado':{ pass: 'invitado', name: 'Invitado' }
-};
+const SUPABASE_URL = 'SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY_HERE';
 
-let currentUser = null;
+// Lazy-load Supabase SDK
+let _supabase = null;
+async function getSupabase() {
+  if (_supabase) return _supabase;
+  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return _supabase;
+}
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+// ═══════════════════════════════════════
+// SESSION STATE
+// ═══════════════════════════════════════
+let currentUser = null;   // Supabase user object
+let currentEmail = '';
 
 // ═══════════════════════════════════════
 // THEME (dark by default)
@@ -731,15 +759,10 @@ function applyTheme(isDark) {
   });
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
 }
-
 function toggleTheme() {
-  const isDark = document.body.classList.contains('light');
-  applyTheme(isDark);
+  applyTheme(document.body.classList.contains('light'));
 }
-
-// Init theme: dark by default unless user explicitly chose light
-const savedTheme = localStorage.getItem('theme');
-applyTheme(savedTheme !== 'light');
+applyTheme(localStorage.getItem('theme') !== 'light');
 
 // ═══════════════════════════════════════
 // ROUTER
@@ -752,43 +775,80 @@ function showPage(id) {
 // ═══════════════════════════════════════
 // LOGIN
 // ═══════════════════════════════════════
-function doLogin() {
-  const user = document.getElementById('loginUser').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPass').value;
-  const err  = document.getElementById('loginError');
+async function doLogin() {
+  const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
 
-  if (!ACCOUNTS[user]) { err.textContent = 'Usuario no encontrado'; return; }
-  if (ACCOUNTS[user].pass !== pass) { err.textContent = 'Contraseña incorrecta'; return; }
-
+  if (!email) { err.textContent = 'Introduce tu correo electrónico'; return; }
+  if (!pass)  { err.textContent = 'Introduce tu contraseña'; return; }
   err.textContent = '';
-  currentUser = user;
-  localStorage.setItem('session', user);
+  btn.textContent = '…'; btn.disabled = true;
 
-  document.getElementById('homeUserName').textContent = ACCOUNTS[user].name;
-  document.getElementById('greetName').textContent = ACCOUNTS[user].name;
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      err.textContent = error.message === 'Invalid login credentials'
+        ? 'Correo o contraseña incorrectos'
+        : error.message;
+      return;
+    }
+    onLoginSuccess(data.user);
+  } catch(e) {
+    err.textContent = 'Error de conexión. Comprueba tu internet.';
+  } finally {
+    btn.textContent = 'ENTRAR →'; btn.disabled = false;
+  }
+}
+
+function onLoginSuccess(user) {
+  currentUser  = user;
+  currentEmail = user.email;
+  const displayName = user.email.split('@')[0];
+  document.getElementById('homeUserName').textContent = displayName;
+  document.getElementById('greetName').textContent = displayName;
   updateStats();
   showPage('home');
 }
 
-function doLogout() {
-  currentUser = null;
-  localStorage.removeItem('session');
-  document.getElementById('loginUser').value = '';
+async function doLogout() {
+  try {
+    const sb = await getSupabase();
+    await sb.auth.signOut();
+  } catch(e) {}
+  currentUser = null; currentEmail = '';
+  document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').textContent = '';
   showPage('login');
 }
 
-// Auto-login if session saved
-(function() {
-  const saved = localStorage.getItem('session');
-  if (saved && ACCOUNTS[saved]) {
-    currentUser = saved;
-    document.getElementById('homeUserName').textContent = ACCOUNTS[saved].name;
-    document.getElementById('greetName').textContent = ACCOUNTS[saved].name;
-    updateStats();
-    showPage('home');
-  }
+// ── Auto-restore session on load ────────
+(async function initSession() {
+  // Show spinner while checking
+  document.getElementById('loginSpinner').style.display = 'block';
+  document.getElementById('loginForm').style.display = 'none';
+  try {
+    const sb = await getSupabase();
+    // Listen for auth state changes (handles token refresh)
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        onLoginSuccess(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        showPage('login');
+      }
+    });
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      onLoginSuccess(session.user);
+      return;
+    }
+  } catch(e) {}
+  // No session — show login form
+  document.getElementById('loginSpinner').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
 })();
 
 // ═══════════════════════════════════════
@@ -919,16 +979,16 @@ const BASE_WORDS = [
   {"tipo":"Nomen","articulo":"","de":"Die Bauarbeiter","es":"Trabajador de la construcción"}
 ];
 
-// Load words from localStorage (per user) or use base
+// Load words from localStorage (per user email) or use base
 function getWords() {
-  const key = 'words_' + (currentUser || 'default');
+  const key = 'words_' + (currentEmail || 'default');
   const saved = localStorage.getItem(key);
   if (saved) return JSON.parse(saved);
   return JSON.parse(JSON.stringify(BASE_WORDS));
 }
 
 function saveWords(words) {
-  const key = 'words_' + (currentUser || 'default');
+  const key = 'words_' + (currentEmail || 'default');
   localStorage.setItem(key, JSON.stringify(words));
 }
 

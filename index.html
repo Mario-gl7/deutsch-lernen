@@ -580,6 +580,7 @@ body {
       <button class="vocab-action-btn imp" onclick="showImportModal()">⬆ Importar CSV</button>
     </div>
     <div class="filter-bar" id="filterBar"></div>
+    <div class="filter-bar" id="vocabDiffBar" style="margin-top:-6px"></div>
     <div class="word-count-label" id="vocabCountLabel"></div>
     <div id="wordList"></div>
   </div>
@@ -587,6 +588,7 @@ body {
   <!-- MATCH SCREEN -->
   <div class="screen" id="screen-match">
     <div class="filter-bar" id="matchFilterBar"></div>
+    <div class="filter-bar" id="matchModeBar" style="margin-top:-6px"></div>
     <div id="matchContent"></div>
   </div>
 
@@ -1041,33 +1043,307 @@ function getFiltered(filter) {
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 // ═══════════════════════════════════════
-// VOCAB SCREEN
+// FILTER BAR HELPER
 // ═══════════════════════════════════════
 function renderFilterBar(containerId, current, setter) {
-  document.getElementById(containerId).innerHTML = TIPOS.map(t =>
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = TIPOS.map(t =>
     `<button class="filter-btn ${t===current?'active':''}" onclick="${setter}('${t}')">${t}</button>`
   ).join('');
 }
 
-function renderVocab() {
-  renderFilterBar('filterBar', activeFilter, 'setVocabFilter');
-  const words = getFiltered(activeFilter);
-  document.getElementById('vocabCountLabel').textContent = `${words.length} palabras`;
-  document.getElementById('wordList').innerHTML = words.map((w,i) => `
-    <div class="word-item">
-      <div>
-        <div class="word-de">${displayDE(w)}</div>
-        ${w.tipo ? `<span class="tipo-badge ${w.tipo}">${w.tipo}</span>` : ''}
-      </div>
-      <div class="word-es">${w.es}</div>
-    </div>`).join('');
+// ═══════════════════════════════════════
+// PROGRESS SYSTEM  (localStorage, per user)
+// Each entry: { seen, correct, difficulty, nextReview }
+// difficulty: 0=normal, 1=hard (🔴), 2=easy (🟢)
+// nextReview: timestamp ms — spaced repetition
+// ═══════════════════════════════════════
+function getProgress() {
+  const key = 'progress_' + (currentEmail || 'default');
+  try { return JSON.parse(localStorage.getItem(key)) || {}; } catch(e) { return {}; }
+}
+function saveProgress(p) {
+  localStorage.setItem('progress_' + (currentEmail || 'default'), JSON.stringify(p));
 }
 
-function setVocabFilter(t) { activeFilter = t; renderVocab(); }
+// SM-2 inspired: update next review time based on correct/wrong
+function updateWordProgress(wordDE, wasCorrect) {
+  const p = getProgress();
+  const now = Date.now();
+  if (!p[wordDE]) p[wordDE] = { seen:0, correct:0, difficulty:0, nextReview: now };
+  const e = p[wordDE];
+  e.seen++;
+  if (wasCorrect) e.correct++;
+
+  // Compute interval in hours
+  const ratio = e.seen > 0 ? e.correct / e.seen : 0;
+  let intervalHours;
+  if (e.difficulty === 1) {       // hard → review soon
+    intervalHours = wasCorrect ? Math.max(1, ratio * 12) : 0.5;
+  } else if (e.difficulty === 2) { // easy → review less often
+    intervalHours = wasCorrect ? ratio * 72 + 24 : 6;
+  } else {                         // normal
+    intervalHours = wasCorrect ? ratio * 48 + 6 : 2;
+  }
+  e.nextReview = now + intervalHours * 3600 * 1000;
+  saveProgress(p);
+}
+
+function setDifficulty(wordDE, level) {
+  const p = getProgress();
+  if (!p[wordDE]) p[wordDE] = { seen:0, correct:0, difficulty:0, nextReview: Date.now() };
+  p[wordDE].difficulty = level;
+  // Reset next review so it appears in next session
+  p[wordDE].nextReview = Date.now();
+  saveProgress(p);
+}
+
+// Sort words: hard first, then due for review, then normal, easy last
+function getSortedWords(words) {
+  const p = getProgress();
+  const now = Date.now();
+  return [...words].sort((a, b) => {
+    const pa = p[a.de] || { difficulty:0, nextReview:0, seen:0, correct:0 };
+    const pb = p[b.de] || { difficulty:0, nextReview:0, seen:0, correct:0 };
+    // Hard always first
+    if (pa.difficulty === 1 && pb.difficulty !== 1) return -1;
+    if (pb.difficulty === 1 && pa.difficulty !== 1) return 1;
+    // Easy always last
+    if (pa.difficulty === 2 && pb.difficulty !== 2) return 1;
+    if (pb.difficulty === 2 && pa.difficulty !== 2) return -1;
+    // Among equal difficulty: due for review first
+    const aDue = pa.nextReview <= now ? 0 : 1;
+    const bDue = pb.nextReview <= now ? 0 : 1;
+    if (aDue !== bDue) return aDue - bDue;
+    // Never seen first
+    return (pa.seen || 0) - (pb.seen || 0);
+  });
+}
+
+// Difficulty badge
+function diffBadge(wordDE) {
+  const p = getProgress();
+  const e = p[wordDE];
+  if (!e) return '';
+  if (e.difficulty === 1) return '<span style="font-size:11px" title="Difícil">🔴</span>';
+  if (e.difficulty === 2) return '<span style="font-size:11px" title="Fácil">🟢</span>';
+  return '';
+}
+
+// Progress mini-bar (accuracy)
+function progressBar(wordDE) {
+  const p = getProgress();
+  const e = p[wordDE];
+  if (!e || e.seen === 0) return '';
+  const pct = Math.round(e.correct / e.seen * 100);
+  const col = pct >= 75 ? 'var(--green)' : pct >= 40 ? 'var(--orange)' : 'var(--red)';
+  return `<div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+    <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${col};border-radius:2px"></div>
+    </div>
+    <span style="font-size:9px;font-weight:800;color:${col}">${pct}%</span>
+  </div>`;
+}
 
 // ═══════════════════════════════════════
-// ADD WORD MODAL
+// VOCAB SCREEN (with difficulty controls)
 // ═══════════════════════════════════════
+const DIFF_FILTERS = ['Todas', '🔴 Difícil', '🟢 Fácil', '📊 Normal', '🆕 Nuevas'];
+
+let vocabDiffFilter = 'Todas';
+
+function renderVocab() {
+  renderFilterBar('filterBar', activeFilter, 'setVocabFilter');
+  // Difficulty sub-filter
+  document.getElementById('vocabDiffBar').innerHTML = DIFF_FILTERS.map(d =>
+    `<button class="filter-btn ${d===vocabDiffFilter?'active':''}" onclick="setVocabDiff('${d.replace(/'/g,"\\'")}')">
+      ${d}
+    </button>`).join('');
+
+  let words = getFiltered(activeFilter);
+  const p = getProgress();
+  // Apply difficulty filter
+  if (vocabDiffFilter === '🔴 Difícil') words = words.filter(w => p[w.de]?.difficulty === 1);
+  else if (vocabDiffFilter === '🟢 Fácil') words = words.filter(w => p[w.de]?.difficulty === 2);
+  else if (vocabDiffFilter === '📊 Normal') words = words.filter(w => !p[w.de] || p[w.de].difficulty === 0);
+  else if (vocabDiffFilter === '🆕 Nuevas') words = words.filter(w => !p[w.de] || p[w.de].seen === 0);
+
+  words = getSortedWords(words);
+  document.getElementById('vocabCountLabel').textContent = `${words.length} palabras`;
+  document.getElementById('wordList').innerHTML = words.map(w => {
+    const pe = p[w.de] || {};
+    const due = pe.nextReview && pe.nextReview > Date.now();
+    return `<div class="word-item" style="${pe.difficulty===1?'border-left:3px solid var(--red)':pe.difficulty===2?'border-left:3px solid var(--green)':''}">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="word-de">${displayDE(w)}</span>
+          ${diffBadge(w.de)}
+          ${due?'<span style="font-size:9px;color:var(--text2);font-weight:700">✓ repasada</span>':''}
+        </div>
+        ${w.tipo ? `<span class="tipo-badge ${w.tipo}">${w.tipo}</span>` : ''}
+        ${pe.seen > 0 ? progressBar(w.de) : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="word-es">${w.es}</div>
+        <div style="display:flex;gap:4px">
+          <button onclick="quickDiff('${w.de.replace(/'/g,"\\'")}',1)" title="Marcar difícil"
+            style="background:${pe.difficulty===1?'var(--red)':'var(--surface2)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;color:${pe.difficulty===1?'#fff':'var(--text2)'}">🔴</button>
+          <button onclick="quickDiff('${w.de.replace(/'/g,"\\'")}',0)" title="Normal"
+            style="background:${(!pe.difficulty||pe.difficulty===0)?'var(--blue)':'var(--surface2)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;color:${(!pe.difficulty||pe.difficulty===0)?'#fff':'var(--text2)'}">⚪</button>
+          <button onclick="quickDiff('${w.de.replace(/'/g,"\\'")}',2)" title="Marcar fácil"
+            style="background:${pe.difficulty===2?'var(--green)':'var(--surface2)'};border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer;color:${pe.difficulty===2?'#fff':'var(--text2)'}">🟢</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function quickDiff(wordDE, level) {
+  setDifficulty(wordDE, level);
+  renderVocab();
+}
+function setVocabFilter(t) { activeFilter = t; renderVocab(); }
+function setVocabDiff(d) { vocabDiffFilter = d; renderVocab(); }
+
+// ═══════════════════════════════════════
+// MATCHING GAME  (progress-weighted)
+// ═══════════════════════════════════════
+function renderMatchFilters() {
+  // Type filters + difficulty mode
+  renderFilterBar('matchFilterBar', matchFilter, 'setMatchFilter');
+  // Mode selector
+  document.getElementById('matchModeBar').innerHTML = [
+    ['smart','🧠 Inteligente'],['hard','🔴 Difícil'],['all','🔀 Aleatorio']
+  ].map(([v,l]) => `<button class="filter-btn ${matchMode===v?'active':''}" onclick="setMatchMode('${v}')">${l}</button>`).join('');
+  startMatch();
+}
+
+let matchMode = 'smart';
+function setMatchMode(m) { matchMode = m; renderMatchFilters(); }
+function setMatchFilter(t) { matchFilter = t; renderMatchFilters(); }
+
+function pickBatch(pool) {
+  const p = getProgress();
+  const now = Date.now();
+  let candidates;
+  if (matchMode === 'hard') {
+    candidates = pool.filter(w => p[w.de]?.difficulty === 1);
+    if (candidates.length < 2) candidates = pool; // fallback
+  } else if (matchMode === 'smart') {
+    // Weight: hard > due > normal > easy; never-seen always included first
+    const scored = pool.map(w => {
+      const e = p[w.de] || { seen:0, correct:0, difficulty:0, nextReview:0 };
+      let score = 0;
+      if (e.difficulty === 1) score += 1000;
+      if (e.nextReview <= now) score += 500;
+      if (e.seen === 0) score += 800;
+      const ratio = e.seen > 0 ? e.correct / e.seen : 0.5;
+      score += (1 - ratio) * 300;
+      score += Math.random() * 100; // small randomness
+      return { w, score };
+    });
+    scored.sort((a,b) => b.score - a.score);
+    candidates = scored.map(x => x.w);
+  } else {
+    candidates = shuffle(pool);
+  }
+  return candidates.slice(0, Math.min(6, candidates.length));
+}
+
+function startMatch() {
+  const pool = getFiltered(matchFilter);
+  if (pool.length < 2) {
+    document.getElementById('matchContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--text2)">No hay suficientes palabras en esta categoría</div>`;
+    return;
+  }
+  currentBatch = pickBatch(pool);
+  matchState = { selectedDE: null, selectedES: null, matched: new Set(), total: currentBatch.length, errors: 0, wrongMap: {} };
+  renderMatch();
+}
+
+function renderMatch() {
+  const s = matchState, c = document.getElementById('matchContent');
+  if (s.matched.size === s.total) {
+    // Summary of this round
+    const p = getProgress();
+    const summary = currentBatch.map(w => {
+      const e = p[w.de] || {};
+      const acc = e.seen > 0 ? Math.round(e.correct/e.seen*100) : 0;
+      const wrong = s.wrongMap[w.de] || 0;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:5px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${displayDE(w)}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:var(--text2)">${wrong===0?'✅':'❌×'+wrong}</span>
+          <div style="width:40px;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="width:${acc}%;height:100%;background:${acc>=75?'var(--green)':acc>=40?'var(--orange)':'var(--red)'}"></div>
+          </div>
+          <span style="font-size:10px;font-weight:800;color:var(--text2)">${acc}%</span>
+        </div>
+      </div>`;
+    }).join('');
+    c.innerHTML = `<div class="complete-msg">
+      <div class="trophy">🏆</div>
+      <h2>¡Perfekt!</h2>
+      <p style="color:var(--text2);margin-bottom:16px">${s.errors===0?'¡Sin errores! 🌟':`${s.errors} error${s.errors>1?'es':''}`}</p>
+      <div style="text-align:left;margin-bottom:16px">${summary}</div>
+      <button class="btn-primary" onclick="startMatch()">NUEVA RONDA →</button>
+    </div>`;
+    return;
+  }
+  const pct = Math.round(s.matched.size / s.total * 100);
+  const p = getProgress();
+  const dew = shuffle(currentBatch.map((w,i) => ({...w, idx:i})));
+  const esw = shuffle(currentBatch.map((w,i) => ({...w, idx:i})));
+  let rows = '';
+  for (let i = 0; i < currentBatch.length; i++) {
+    const d = dew[i], e = esw[i];
+    const de_p = p[d.de] || {};
+    const diffDot = de_p.difficulty===1 ? '<span style="position:absolute;top:4px;right:5px;font-size:8px">🔴</span>' :
+                    de_p.difficulty===2 ? '<span style="position:absolute;top:4px;right:5px;font-size:8px">🟢</span>' : '';
+    rows += `<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" onclick="selectCard('de',${d.idx})" style="position:relative">${diffDot}${displayDE(d)}</div>
+             <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" onclick="selectCard('es',${e.idx})">${e.es}</div>`;
+  }
+  c.innerHTML = `
+    <div class="exercise-header"><h2>Parejas</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
+      <div class="col-label">Alemán 🇩🇪</div><div class="col-label">Español 🇪🇸</div>
+    </div>
+    <div class="columns-grid">${rows}</div>`;
+}
+
+function selectCard(lang, idx) {
+  const s = matchState;
+  if (s.matched.has(idx)) return;
+  const el = document.getElementById(`${lang}-${idx}`);
+  if (!el || el.classList.contains('matched')) return;
+  if (lang === 'de') {
+    if (s.selectedDE !== null) { const p = document.getElementById(`de-${s.selectedDE}`); if(p) p.classList.remove('selected'); }
+    s.selectedDE = idx; el.classList.add('selected');
+  } else {
+    if (s.selectedES !== null) { const p = document.getElementById(`es-${s.selectedES}`); if(p) p.classList.remove('selected'); }
+    s.selectedES = idx; el.classList.add('selected');
+  }
+  if (s.selectedDE !== null && s.selectedES !== null) {
+    const deEl = document.getElementById(`de-${s.selectedDE}`);
+    const esEl = document.getElementById(`es-${s.selectedES}`);
+    const isMatch = s.selectedDE === s.selectedES;
+    const wordDE = currentBatch[s.selectedDE]?.de;
+    updateWordProgress(wordDE, isMatch);
+    if (isMatch) {
+      s.matched.add(s.selectedDE);
+      [deEl,esEl].forEach(x => { x.classList.remove('selected'); x.classList.add('matched'); });
+      s.selectedDE = null; s.selectedES = null;
+      if (s.matched.size === s.total) setTimeout(renderMatch, 600);
+    } else {
+      s.errors++;
+      if (wordDE) s.wrongMap[wordDE] = (s.wrongMap[wordDE]||0) + 1;
+      [deEl,esEl].forEach(x => x.classList.add('wrong'));
+      setTimeout(() => { [deEl,esEl].forEach(x => x.classList.remove('wrong','selected')); s.selectedDE=null; s.selectedES=null; }, 700);
+    }
+  }
+}
 function showAddModal() {
   document.getElementById('addTipo').value = '';
   document.getElementById('addArticle').value = '';
@@ -1207,84 +1483,8 @@ function confirmImport() {
 }
 
 // ═══════════════════════════════════════
-// MATCHING GAME
+// ADD WORD MODAL
 // ═══════════════════════════════════════
-function renderMatchFilters() {
-  renderFilterBar('matchFilterBar', matchFilter, 'setMatchFilter');
-  startMatch();
-}
-
-function setMatchFilter(t) { matchFilter = t; renderMatchFilters(); }
-
-function startMatch() {
-  const pool = getFiltered(matchFilter);
-  if (pool.length < 2) {
-    document.getElementById('matchContent').innerHTML = `<div style="text-align:center;padding:40px;color:var(--text2)">No hay suficientes palabras en esta categoría</div>`;
-    return;
-  }
-  currentBatch = shuffle(pool).slice(0, Math.min(6, pool.length));
-  matchState = { selectedDE: null, selectedES: null, matched: new Set(), total: currentBatch.length, errors: 0 };
-  renderMatch();
-}
-
-function renderMatch() {
-  const s = matchState, c = document.getElementById('matchContent');
-  if (s.matched.size === s.total) {
-    c.innerHTML = `<div class="complete-msg"><div class="trophy">🏆</div>
-      <h2>¡Perfekt!</h2>
-      <p style="color:var(--text2)">${s.total} parejas completadas</p>
-      <p style="margin-top:8px;color:var(--green);font-size:17px;font-weight:900">${s.errors===0?'¡Sin errores! 🌟':`${s.errors} error${s.errors>1?'es':''}`}</p>
-      <button class="btn-primary" onclick="startMatch()">NUEVA RONDA →</button></div>`;
-    return;
-  }
-  const pct = Math.round(s.matched.size / s.total * 100);
-  const dew = shuffle(currentBatch.map((w,i) => ({...w, idx:i})));
-  const esw = shuffle(currentBatch.map((w,i) => ({...w, idx:i})));
-  let rows = '';
-  for (let i = 0; i < currentBatch.length; i++) {
-    const d = dew[i], e = esw[i];
-    rows += `<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" onclick="selectCard('de',${d.idx})">${displayDE(d)}</div>
-             <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" onclick="selectCard('es',${e.idx})">${e.es}</div>`;
-  }
-  c.innerHTML = `
-    <div class="exercise-header"><h2>Parejas</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
-      <div class="col-label">Alemán 🇩🇪</div><div class="col-label">Español 🇪🇸</div>
-    </div>
-    <div class="columns-grid">${rows}</div>`;
-}
-
-function selectCard(lang, idx) {
-  const s = matchState;
-  if (s.matched.has(idx)) return;
-  const el = document.getElementById(`${lang}-${idx}`);
-  if (!el || el.classList.contains('matched')) return;
-  if (lang === 'de') {
-    if (s.selectedDE !== null) { const p = document.getElementById(`de-${s.selectedDE}`); if(p) p.classList.remove('selected'); }
-    s.selectedDE = idx; el.classList.add('selected');
-  } else {
-    if (s.selectedES !== null) { const p = document.getElementById(`es-${s.selectedES}`); if(p) p.classList.remove('selected'); }
-    s.selectedES = idx; el.classList.add('selected');
-  }
-  if (s.selectedDE !== null && s.selectedES !== null) {
-    const deEl = document.getElementById(`de-${s.selectedDE}`);
-    const esEl = document.getElementById(`es-${s.selectedES}`);
-    if (s.selectedDE === s.selectedES) {
-      s.matched.add(s.selectedDE);
-      [deEl,esEl].forEach(x => { x.classList.remove('selected'); x.classList.add('matched'); });
-      s.selectedDE = null; s.selectedES = null;
-      if (s.matched.size === s.total) setTimeout(renderMatch, 500);
-    } else {
-      s.errors++;
-      [deEl,esEl].forEach(x => x.classList.add('wrong'));
-      setTimeout(() => { [deEl,esEl].forEach(x => x.classList.remove('wrong','selected')); s.selectedDE=null; s.selectedES=null; }, 600);
-    }
-  }
-}
-
-// ═══════════════════════════════════════
-// CROSSWORD
 // ═══════════════════════════════════════
 function buildCrossword() {
   const words = getWords();
@@ -1420,7 +1620,29 @@ function cwNav(e,r,c){
 function checkCrossword(){
   const inputs=document.querySelectorAll('#crossContent input.cw-cell');
   let correct=0,total=0;
-  inputs.forEach(inp=>{total++;inp.classList.remove('correct','wrong-cell');if(inp.value&&inp.value.toUpperCase()===inp.dataset.answer){inp.classList.add('correct');correct++;}else if(inp.value)inp.classList.add('wrong-cell');});
+  // Track per-word results
+  const wordResults = {};
+  inputs.forEach(inp=>{
+    total++;
+    inp.classList.remove('correct','wrong-cell');
+    const isCorrect = inp.value && inp.value.toUpperCase()===inp.dataset.answer;
+    if(isCorrect){inp.classList.add('correct');correct++;}
+    else if(inp.value) inp.classList.add('wrong-cell');
+  });
+  // Update progress for placed words
+  if (cwData) {
+    cwData.clues.forEach(cl => {
+      const allCorrect = [...cl.cleaned].every((ch,i) => {
+        const inp = document.querySelector(
+          cl.dir==='H'
+            ? `input[data-r="${cl.row}"][data-c="${cl.col+i}"]`
+            : `input[data-r="${cl.row+i}"][data-c="${cl.col}"]`
+        );
+        return inp && inp.value.toUpperCase() === ch;
+      });
+      updateWordProgress(cl.word.de, allCorrect);
+    });
+  }
   const pct=Math.round(correct/total*100);
   const btn=document.querySelector('#crossContent .btn-primary');
   const orig=btn.textContent;

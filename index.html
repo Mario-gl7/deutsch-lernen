@@ -1843,7 +1843,7 @@ function renderMatchFilters() {
   ).join('');
   document.getElementById('matchModeBar').innerHTML = [["smart",t('cwSmart')],["hard","🔴 "+t('diffHard').replace("🔴 ","")],["all","🔀 "+t('filterAll')]].map(([v,l]) =>
     `<button class="filter-chip ${matchMode===v?'active':''}" onclick="setMatchMode('${v}')">${l}</button>`
-  ).join('''');
+  ).join('');
   startMatch();
 }
 function setMatchMode(m) { matchMode=m; renderMatchFilters(); }

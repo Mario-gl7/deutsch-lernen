@@ -698,7 +698,14 @@ body.light .home-grid-bg{opacity:.12}
 }
 .toast.hide{opacity:0}
 
-/* Lang pills in dropdown */
+/* Build badge */
+.build-badge{
+  position:fixed;bottom:10px;right:12px;z-index:9000;
+  font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
+  color:var(--text3);letter-spacing:.4px;
+  pointer-events:none;user-select:none;
+}
+</style>
 .lang-pill{
   background:var(--surface2);border:1px solid var(--border);
   border-radius:6px;padding:3px 9px;
@@ -1073,6 +1080,8 @@ body.light .home-grid-bg{opacity:.12}
 
 <div class="toast hide" id="toast"></div>
 
+<div id="buildBadge" class="build-badge">1.05.25</div>
+
 <script>
 // ═══════════════════ i18n ═══════════════════
 const TRANSLATIONS = {
@@ -1397,14 +1406,9 @@ function applyTheme(isDark) {
 }
 function toggleTheme() { applyTheme(document.body.classList.contains('light')); }
 applyTheme(localStorage.getItem('theme') !== 'light');
-// Apply saved language on first load
-applyTranslations();
-// Sync lang pills if they exist
-document.getElementById('langBtnEs')?.classList.toggle('active', currentLang === 'es');
-document.getElementById('langBtnDe')?.classList.toggle('active', currentLang === 'de');
 
 // ═══════════════════ ROUTER ═══════════════════
-let currentPage = 'login';
+let currentPage = 'login';   // must be declared before applyTranslations()
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active','anim-in','anim-back'); });
   document.getElementById('page-' + id).classList.add('active');
@@ -1423,6 +1427,11 @@ function navigate(to, dir = 'forward') {
   if (to === 'parejas') { renderMatchFilters(); }
   if (to === 'crucigrama') { updateBagCount(); buildCrossword(); }
 }
+
+// Apply initial language (currentPage is now defined)
+applyTranslations();
+document.getElementById('langBtnEs')?.classList.toggle('active', currentLang === 'es');
+document.getElementById('langBtnDe')?.classList.toggle('active', currentLang === 'de');
 
 // ═══════════════════ LOGIN ═══════════════════
 async function doLogin() {

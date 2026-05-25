@@ -697,6 +697,16 @@ body.light .home-grid-bg{opacity:.12}
   transition:opacity .3s;pointer-events:none;white-space:nowrap;
 }
 .toast.hide{opacity:0}
+
+/* Lang pills in dropdown */
+.lang-pill{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;padding:3px 9px;
+  font-family:"Inter",sans-serif;font-size:11px;font-weight:600;
+  color:var(--text2);cursor:pointer;transition:all .15s;
+}
+.lang-pill:hover{border-color:var(--border2);color:var(--text)}
+.lang-pill.active{background:var(--green-bg);border-color:rgba(74,222,128,.35);color:var(--green-t)}
 </style>
 </head>
 <body>
@@ -755,14 +765,21 @@ body.light .home-grid-bg{opacity:.12}
           <div class="dd-email" id="ddEmail"></div>
         </div>
         <div class="dd-row">
-          <span>Modo oscuro</span>
+          <span data-i18n="darkMode">Modo oscuro</span>
           <label class="toggle-track">
             <input type="checkbox" id="themeToggleCheck" onchange="toggleTheme()">
             <span class="toggle-bg"></span>
           </label>
         </div>
+        <div class="dd-row" style="border-bottom:none;padding-bottom:6px">
+          <span data-i18n="language">Idioma</span>
+          <div style="display:flex;gap:4px">
+            <button id="langBtnEs" onclick="setLang('es')" class="lang-pill active">🇪🇸 ES</button>
+            <button id="langBtnDe" onclick="setLang('de')" class="lang-pill">🇩🇪 DE</button>
+          </div>
+        </div>
         <button class="dd-btn danger" onclick="doLogout()">
-          <span>🚪</span> Cerrar sesión
+          <span>🚪</span> <span data-i18n="logout">Cerrar sesión</span>
         </button>
       </div>
     </div>
@@ -1057,6 +1074,291 @@ body.light .home-grid-bg{opacity:.12}
 <div class="toast hide" id="toast"></div>
 
 <script>
+// ═══════════════════ i18n ═══════════════════
+const TRANSLATIONS = {
+  es: {
+    // Login
+    loginTitle: 'Iniciar sesión',
+    loginEmailLabel: 'Correo electrónico',
+    loginEmailPh: 'tu@correo.com',
+    loginPassLabel: 'Contraseña',
+    loginBtn: 'Entrar →',
+    connecting: 'Conectando…',
+    // Dropdown
+    myAccount: 'Mi cuenta',
+    darkMode: 'Modo oscuro',
+    language: 'Idioma',
+    logout: 'Cerrar sesión',
+    // Home
+    workspace: '🇩🇪 Workspace',
+    greeting: 'Hola,',
+    homeSub: '¿Qué quieres practicar hoy?',
+    vocabTitle: 'Vocabulario',
+    vocabDesc: 'Lista · Parejas · Crucigrama',
+    grammarTitle: 'Gramática',
+    grammarDesc: 'Casos, conjugaciones y más',
+    comingSoon: 'Próximamente',
+    words: 'palabras',
+    hard: 'difícil',
+    pending: 'Pendiente',
+    mastered: 'Dominada',
+    offlineNote: 'Tu workspace personal · offline',
+    // Vocab hub
+    vocabHubSub: 'Elige cómo quieres practicar',
+    listTitle: 'Lista',
+    listDesc: 'Explora y gestiona tus palabras',
+    pairsTitle: 'Parejas',
+    pairsDesc: 'Une alemán con español',
+    crossTitle: 'Crucigrama',
+    crossDesc: 'Rellena la cuadrícula con pistas en español',
+    // Top-bar breadcrumbs
+    inicio: 'Inicio',
+    // Lista
+    addBtn: '＋ Añadir',
+    importBtn: '⬆ Importar',
+    // Filters
+    filterAll: 'Todos',
+    diffAll: 'Todas',
+    diffHard: '🔴 Difícil',
+    diffEasy: '🟢 Fácil',
+    diffNormal: '📊 Normal',
+    diffNew: '🆕 Nuevas',
+    // Modals
+    addWordTitle: 'Añadir palabra',
+    addTipoLabel: 'Tipo',
+    addArticleLabel: 'Artículo',
+    addDeLabel: 'Alemán',
+    addDePh: 'ej. Schule',
+    addEsLabel: 'Español',
+    addEsPh: 'ej. Escuela',
+    saveWordBtn: 'Guardar palabra',
+    cancel: 'Cancelar',
+    importTitle: 'Importar vocabulario',
+    importFmt: 'Formato CSV: Tipo, Artículo, Alemán, Español',
+    importZone: 'Toca para elegir tu archivo CSV',
+    importAdd: 'Añadir',
+    importReplace: 'Reemplazar',
+    importBtn2: 'Importar',
+    installTitle: 'Añadir a pantalla de inicio',
+    installSub: 'Instala la app para usarla offline en iPhone / iPad:',
+    installStep1: 'Abre esta página en Safari (no Chrome)',
+    installStep2: 'Toca el botón Compartir ⬆️ en la barra',
+    installStep3: 'Pulsa "Añadir a pantalla de inicio"',
+    installStep4: 'Confirma con "Añadir" — ¡listo!',
+    understood: 'Entendido',
+    // Crossword
+    cwSmart: '🧠 Inteligente',
+    cwBag: '🎒 Bolsa',
+    cwBagEmpty: 'La bolsa está vacía',
+    cwBagEmptySub: 'Juega a Parejas primero.\nLas palabras que aciertes se añaden aquí.',
+    cwCheck: 'Comprobar ✓',
+    cwReveal: 'Revelar solución',
+    cwNew: 'Nuevo crucigrama ↺',
+    cwEmptyBag: '🗑 Vaciar bolsa',
+    cwHint: 'Pistas en español · toca para ver en alemán',
+    cwHintTitle: 'Pistas',
+    cwWords: 'palabras',
+    // Match
+    matchTitle: 'Parejas',
+    matchNewRound: 'Nueva ronda →',
+    matchNoWords: 'No hay suficientes palabras',
+    // Errors
+    errEmail: 'Introduce tu correo',
+    errPass: 'Introduce tu contraseña',
+    errBadLogin: 'Correo o contraseña incorrectos',
+    errConnection: 'Error de conexión.',
+    errDeRequired: 'El campo Alemán es obligatorio',
+    errEsRequired: 'El campo Español es obligatorio',
+    // Toast
+    toastAdded: '✓ Palabra añadida: ',
+    toastImported: ' palabras importadas',
+    toastImportFail: '❌ No se pudo leer el archivo',
+  },
+  de: {
+    loginTitle: 'Anmelden',
+    loginEmailLabel: 'E-Mail-Adresse',
+    loginEmailPh: 'deine@email.de',
+    loginPassLabel: 'Passwort',
+    loginBtn: 'Einloggen →',
+    connecting: 'Verbinden…',
+    myAccount: 'Mein Konto',
+    darkMode: 'Dunkelmodus',
+    language: 'Sprache',
+    logout: 'Abmelden',
+    workspace: '🇩🇪 Workspace',
+    greeting: 'Hallo,',
+    homeSub: 'Was möchtest du heute üben?',
+    vocabTitle: 'Vokabeln',
+    vocabDesc: 'Liste · Paare · Kreuzwort',
+    grammarTitle: 'Grammatik',
+    grammarDesc: 'Fälle, Konjugationen und mehr',
+    comingSoon: 'Demnächst',
+    words: 'Wörter',
+    hard: 'schwer',
+    pending: 'Ausstehend',
+    mastered: 'Gemeistert',
+    offlineNote: 'Dein persönlicher Workspace · offline',
+    vocabHubSub: 'Wie möchtest du üben?',
+    listTitle: 'Liste',
+    listDesc: 'Deine Wörter erkunden und verwalten',
+    pairsTitle: 'Paare',
+    pairsDesc: 'Deutsch mit Spanisch verbinden',
+    crossTitle: 'Kreuzwort',
+    crossDesc: 'Gitter mit spanischen Hinweisen füllen',
+    inicio: 'Start',
+    addBtn: '＋ Hinzufügen',
+    importBtn: '⬆ Importieren',
+    filterAll: 'Alle',
+    diffAll: 'Alle',
+    diffHard: '🔴 Schwer',
+    diffEasy: '🟢 Leicht',
+    diffNormal: '📊 Normal',
+    diffNew: '🆕 Neu',
+    addWordTitle: 'Wort hinzufügen',
+    addTipoLabel: 'Typ',
+    addArticleLabel: 'Artikel',
+    addDeLabel: 'Deutsch',
+    addDePh: 'z.B. Schule',
+    addEsLabel: 'Spanisch',
+    addEsPh: 'z.B. Escuela',
+    saveWordBtn: 'Wort speichern',
+    cancel: 'Abbrechen',
+    importTitle: 'Vokabeln importieren',
+    importFmt: 'CSV-Format: Typ, Artikel, Deutsch, Spanisch',
+    importZone: 'Tippe, um deine CSV-Datei auszuwählen',
+    importAdd: 'Hinzufügen',
+    importReplace: 'Ersetzen',
+    importBtn2: 'Importieren',
+    installTitle: 'Zum Startbildschirm hinzufügen',
+    installSub: 'Installiere die App für die Offline-Nutzung auf iPhone / iPad:',
+    installStep1: 'Öffne diese Seite in Safari (nicht Chrome)',
+    installStep2: 'Tippe auf die Schaltfläche Teilen ⬆️',
+    installStep3: 'Tippe auf „Zum Startbildschirm"',
+    installStep4: 'Bestätige mit „Hinzufügen" — fertig!',
+    understood: 'Verstanden',
+    cwSmart: '🧠 Intelligent',
+    cwBag: '🎒 Beutel',
+    cwBagEmpty: 'Der Beutel ist leer',
+    cwBagEmptySub: 'Spiele zuerst Paare.\nRichtige Wörter werden hier gesammelt.',
+    cwCheck: 'Prüfen ✓',
+    cwReveal: 'Lösung anzeigen',
+    cwNew: 'Neues Kreuzwort ↺',
+    cwEmptyBag: '🗑 Beutel leeren',
+    cwHint: 'Hinweise auf Spanisch · tippen für Deutsch',
+    cwHintTitle: 'Hinweise',
+    cwWords: 'Wörter',
+    matchTitle: 'Paare',
+    matchNewRound: 'Neue Runde →',
+    matchNoWords: 'Nicht genug Wörter',
+    errEmail: 'Gib deine E-Mail ein',
+    errPass: 'Gib dein Passwort ein',
+    errBadLogin: 'E-Mail oder Passwort falsch',
+    errConnection: 'Verbindungsfehler.',
+    errDeRequired: 'Das Feld Deutsch ist pflichtangabe',
+    errEsRequired: 'Das Feld Spanisch ist pflichtangabe',
+    toastAdded: '✓ Wort hinzugefügt: ',
+    toastImported: ' Wörter importiert',
+    toastImportFail: '❌ Datei konnte nicht gelesen werden',
+  }
+};
+
+let currentLang = localStorage.getItem('lang') || 'es';
+function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['es'][key] || key; }
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('lang', lang);
+  // Update pill states
+  document.getElementById('langBtnEs')?.classList.toggle('active', lang === 'es');
+  document.getElementById('langBtnDe')?.classList.toggle('active', lang === 'de');
+  applyTranslations();
+}
+
+function applyTranslations() {
+  const lang = currentLang;
+  // data-i18n static elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
+  });
+  // Login page
+  const loginCard = document.querySelector('#page-login .login-card h2');
+  if (loginCard) loginCard.textContent = t('loginTitle');
+  setPlaceholder('loginEmail', t('loginEmailPh'));
+  setPlaceholder('loginPass', '••••••••');
+  setText('loginBtn', t('loginBtn'));
+  setFieldLabel(0, t('loginEmailLabel'));
+  setFieldLabel(1, t('loginPassLabel'));
+  // Home hero
+  setText2('.home-hero-eyebrow', t('workspace'));
+  const heroTitle = document.querySelector('.home-hero-title');
+  if (heroTitle) heroTitle.innerHTML = t('greeting') + '<br><em id="greetName">' + (document.getElementById('greetName')?.textContent || '…') + '</em>';
+  setText2('.home-hero-sub', t('homeSub'));
+  // Workspace cards
+  const wsCards = document.querySelectorAll('.ws-card:not(.coming) .ws-card-title');
+  if (wsCards[0]) wsCards[0].textContent = t('vocabTitle');
+  const wsDescs = document.querySelectorAll('.ws-card:not(.coming) .ws-card-desc');
+  if (wsDescs[0]) wsDescs[0].textContent = t('vocabDesc');
+  const comingTitle = document.querySelector('.ws-card.coming .ws-card-title');
+  if (comingTitle) comingTitle.textContent = t('grammarTitle');
+  const comingDesc = document.querySelector('.ws-card.coming .ws-card-desc');
+  if (comingDesc) comingDesc.textContent = t('grammarDesc');
+  document.querySelectorAll('.ws-badge.soon').forEach(el => el.textContent = t('comingSoon'));
+  // Stat labels
+  const statLabels = document.querySelectorAll('.stat-lbl');
+  const labelKeys = ['pending','mastered'];
+  statLabels.forEach((el, i) => { if (labelKeys[i]) el.textContent = t(labelKeys[i]); });
+  // Vocab hub
+  setText2('.hub-hero-sub', t('vocabHubSub'));
+  const hubCards = document.querySelectorAll('.hub-card-title');
+  const hubDescs = document.querySelectorAll('.hub-card-desc');
+  const hubTitles = [t('listTitle'), t('pairsTitle'), t('crossTitle')];
+  const hubDescsList = [t('listDesc'), t('pairsDesc'), t('crossDesc')];
+  hubCards.forEach((el,i) => { if(hubTitles[i]) el.textContent = hubTitles[i]; });
+  hubDescs.forEach((el,i) => { if(hubDescsList[i]) el.textContent = hubDescsList[i]; });
+  // Back buttons / breadcrumbs
+  document.querySelectorAll('.top-bar-back').forEach(btn => {
+    const txt = btn.textContent.trim();
+    // Identify by current text in either language
+    if (['Inicio','Start'].includes(txt)) btn.childNodes[btn.childNodes.length-1].textContent = ' ' + t('inicio');
+    if (['Vocabulario','Vokabeln'].includes(txt)) btn.childNodes[btn.childNodes.length-1].textContent = ' ' + t('vocabTitle');
+  });
+  document.querySelectorAll('.breadcrumb-dim').forEach(el => {
+    if (['Inicio','Start'].includes(el.textContent)) el.textContent = t('inicio');
+    if (['Vocabulario','Vokabeln'].includes(el.textContent)) el.textContent = t('vocabTitle');
+  });
+  // CW source buttons
+  setText('cwSrcBtn-smart', t('cwSmart'));
+  // Bag button text node
+  const bagBtn = document.getElementById('cwSrcBtn-bag');
+  if (bagBtn) {
+    const badge = bagBtn.querySelector('.bag-badge');
+    bagBtn.textContent = t('cwBag') + ' ';
+    if (badge) bagBtn.appendChild(badge);
+  }
+  // install modal
+  setText2('#installModal h3', t('installTitle'));
+  const installSteps = document.querySelectorAll('.step-text');
+  [t('installStep1'),t('installStep2'),t('installStep3'),t('installStep4')].forEach((s,i) => { if(installSteps[i]) installSteps[i].textContent = s; });
+  // Words badge in vocab card
+  const wordsBadge = document.querySelector('#page-home .ws-card:not(.coming) .ws-card-body span:first-child');
+  const hardBadge  = document.querySelector('#page-home .ws-card:not(.coming) .ws-card-body span:last-child');
+  if (wordsBadge) { const n=document.getElementById('statTotal')?.textContent||'0'; wordsBadge.innerHTML = `<span id="statTotal">${n}</span> ${t('words')}`; }
+  if (hardBadge)  { const n=document.getElementById('statHard')?.textContent||'0'; hardBadge.innerHTML  = `<span id="statHard">${n}</span> ${t('hard')}`; }
+  // offline note
+  const offlineNote = document.querySelector('.home-stats .stat-tile:last-child span');
+  if (offlineNote) offlineNote.textContent = t('offlineNote');
+  // Refresh dynamic screens if visible
+  if (currentPage === 'lista') renderLista();
+  if (currentPage === 'parejas') renderMatchFilters();
+  if (currentPage === 'crucigrama') buildCrossword();
+}
+
+function setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+function setText2(sel, val) { const el=document.querySelector(sel); if(el) el.textContent=val; }
+function setPlaceholder(id, val) { const el=document.getElementById(id); if(el) el.placeholder=val; }
+function setFieldLabel(idx, val) { const els=document.querySelectorAll('#page-login .field-label'); if(els[idx]) els[idx].textContent=val; }
+
 // ═══════════════════ SUPABASE ═══════════════════
 const SUPABASE_URL = (() => {
   let u = 'https://rplehltqclmdcmwkqxko.supabase.co/';
@@ -1095,6 +1397,11 @@ function applyTheme(isDark) {
 }
 function toggleTheme() { applyTheme(document.body.classList.contains('light')); }
 applyTheme(localStorage.getItem('theme') !== 'light');
+// Apply saved language on first load
+applyTranslations();
+// Sync lang pills if they exist
+document.getElementById('langBtnEs')?.classList.toggle('active', currentLang === 'es');
+document.getElementById('langBtnDe')?.classList.toggle('active', currentLang === 'de');
 
 // ═══════════════════ ROUTER ═══════════════════
 let currentPage = 'login';
@@ -1123,16 +1430,16 @@ async function doLogin() {
   const pass  = document.getElementById('loginPass').value;
   const err   = document.getElementById('loginError');
   const btn   = document.getElementById('loginBtn');
-  if (!email) { err.textContent = 'Introduce tu correo'; return; }
-  if (!pass)  { err.textContent = 'Introduce tu contraseña'; return; }
+  if (!email) { err.textContent = t('errEmail'); return; }
+  if (!pass)  { err.textContent = t('errPass'); return; }
   err.textContent = ''; btn.textContent = '…'; btn.disabled = true;
   try {
     const sb = await getSupabase();
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-    if (error) { err.textContent = error.message === 'Invalid login credentials' ? 'Correo o contraseña incorrectos' : error.message; return; }
+    if (error) { err.textContent = error.message === 'Invalid login credentials' ? t('errBadLogin') : error.message; return; }
     onLoginSuccess(data.user);
-  } catch(e) { err.textContent = 'Error de conexión.'; }
-  finally { btn.textContent = 'Entrar →'; btn.disabled = false; }
+  } catch(e) { err.textContent = t('errConnection'); }
+  finally { btn.textContent = t('loginBtn'); btn.disabled = false; }
 }
 
 function onLoginSuccess(user) {
@@ -1145,6 +1452,10 @@ function onLoginSuccess(user) {
   document.getElementById('userAvatar').textContent = name[0].toUpperCase();
   const chk = document.getElementById('themeToggleCheck');
   if (chk) chk.checked = !document.body.classList.contains('light');
+  // Sync lang pills
+  document.getElementById('langBtnEs')?.classList.toggle('active', currentLang === 'es');
+  document.getElementById('langBtnDe')?.classList.toggle('active', currentLang === 'de');
+  applyTranslations();
   updateStats();
   updateBagCount();
   navigate('home', 'forward');
@@ -1385,18 +1696,19 @@ function getSortedWords(words) {
 }
 
 // ═══════════════════ LISTA ═══════════════════
-const TIPOS = ['Todos','Nomen','Verb','Adjektive','Redewendung','Adverb'];
-const DIFF_FILTERS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','🆕 Nuevas'];
+const TIPOS_KEYS = ['Todos','Nomen','Verb','Adjektive','Redewendung','Adverb'];
+const DIFF_FILTER_KEYS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','🆕 Nuevas'];
 let activeFilter = 'Todos', vocabDiffFilter = 'Todas';
 
 function renderLista() {
-  // Type filter
-  document.getElementById('listaFilterBar').innerHTML = TIPOS.map(t =>
-    `<button class="filter-chip ${t===activeFilter?'active':''}" onclick="setListaFilter('${t}')">${t}</button>`
+  const TIPOS = TIPOS_KEYS.map((k,i) => i===0 ? t('filterAll') : k);
+  const DIFF_FILTERS = [t('diffAll'), t('diffHard'), t('diffEasy'), t('diffNormal'), t('diffNew')];
+
+  document.getElementById('listaFilterBar').innerHTML = TIPOS_KEYS.map((k,i) =>
+    `<button class="filter-chip ${k===activeFilter?'active':''}" onclick="setListaFilter('${k}')">${TIPOS[i]}</button>`
   ).join('');
-  // Diff filter
-  document.getElementById('listaDiffBar').innerHTML = DIFF_FILTERS.map(d =>
-    `<button class="filter-chip ${d===vocabDiffFilter?'active':''}" onclick="setListaDiff('${d.replace(/'/g,"\\'")}')"> ${d}</button>`
+  document.getElementById('listaDiffBar').innerHTML = DIFF_FILTER_KEYS.map((k,i) =>
+    `<button class="filter-chip ${k===vocabDiffFilter?'active':''}" onclick="setListaDiff('${k.replace(/'/g,"\\'")}')"> ${DIFF_FILTERS[i]}</button>`
   ).join('');
 
   let words = activeFilter==='Todos' ? getWords() : getWords().filter(w=>w.tipo===activeFilter);
@@ -1407,7 +1719,7 @@ function renderLista() {
   else if (vocabDiffFilter==='🆕 Nuevas') words = words.filter(w=>!p[w.de]||p[w.de].seen===0);
   words = getSortedWords(words);
 
-  document.getElementById('listaCountLbl').textContent = `${words.length} palabras`;
+  document.getElementById('listaCountLbl').textContent = `${words.length} ${t('words')}`;
   document.getElementById('wordList').innerHTML = words.map(w => {
     const pe = p[w.de]||{};
     const pct = pe.seen>0 ? Math.round(pe.correct/pe.seen*100) : -1;
@@ -1434,7 +1746,7 @@ function renderLista() {
   }).join('');
 }
 function quickDiff(wordDE, level) { setDifficulty(wordDE, level); renderLista(); }
-function setListaFilter(t) { activeFilter = t; renderLista(); }
+function setListaFilter(typ) { activeFilter = typ; renderLista(); }
 function setListaDiff(d) { vocabDiffFilter = d; renderLista(); }
 
 // ═══════════════════ ADD WORD ═══════════════════
@@ -1449,12 +1761,12 @@ function saveWord() {
   const de = document.getElementById('addDE').value.trim();
   const es = document.getElementById('addES').value.trim();
   const err = document.getElementById('addError');
-  if (!de) { err.textContent = 'El campo Alemán es obligatorio'; return; }
-  if (!es) { err.textContent = 'El campo Español es obligatorio'; return; }
+  if (!de) { err.textContent = t('errDeRequired'); return; }
+  if (!es) { err.textContent = t('errEsRequired'); return; }
   err.textContent = '';
   const words = getWords(); words.push({tipo, articulo, de, es}); saveWords(words);
   closeModal('addModal'); renderLista(); updateStats();
-  showToast('✓ Palabra añadida: ' + (articulo ? articulo + ' ' : '') + de);
+  showToast(t('toastAdded') + (articulo ? articulo + ' ' : '') + de);
 }
 
 // ═══════════════════ IMPORT ═══════════════════
@@ -1473,7 +1785,7 @@ function processImportFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     const parsed = parseCSV(e.target.result);
-    if (!parsed||parsed.length===0) { showToast('❌ No se pudo leer el archivo'); return; }
+    if (!parsed||parsed.length===0) { showToast(t('toastImportFail')); return; }
     importParsed = parsed;
     const prev = document.getElementById('importPreview');
     prev.style.display = 'block';
@@ -1518,7 +1830,7 @@ function confirmImport() {
   let words = mode==='replace' ? [] : getWords();
   words = words.concat(importParsed); saveWords(words);
   closeModal('importModal'); renderLista(); updateStats();
-  showToast(`✓ ${importParsed.length} palabras importadas`);
+  showToast(`✓ ${importParsed.length} ${t('words')} ${t('toastImported')}`);
   importParsed = null;
 }
 
@@ -1526,16 +1838,16 @@ function confirmImport() {
 let matchFilter = 'Todos', matchMode = 'smart', matchState = {}, currentBatch = [];
 
 function renderMatchFilters() {
-  document.getElementById('matchFilterBar').innerHTML = TIPOS.map(t =>
-    `<button class="filter-chip ${t===matchFilter?'active':''}" onclick="setMatchFilter('${t}')">${t}</button>`
+  document.getElementById('matchFilterBar').innerHTML = TIPOS_KEYS.map((k,i) =>
+    `<button class="filter-chip ${k===matchFilter?'active':''}" onclick="setMatchFilter('${k}')">${i===0?t('filterAll'):k}</button>`
   ).join('');
-  document.getElementById('matchModeBar').innerHTML = [['smart','🧠 Inteligente'],['hard','🔴 Difícil'],['all','🔀 Aleatorio']].map(([v,l]) =>
+  document.getElementById('matchModeBar').innerHTML = [["smart",t('cwSmart')],["hard","🔴 "+t('diffHard').replace("🔴 ","")],["all","🔀 "+t('filterAll')]].map(([v,l]) =>
     `<button class="filter-chip ${matchMode===v?'active':''}" onclick="setMatchMode('${v}')">${l}</button>`
-  ).join('');
+  ).join('''');
   startMatch();
 }
 function setMatchMode(m) { matchMode=m; renderMatchFilters(); }
-function setMatchFilter(t) { matchFilter=t; renderMatchFilters(); }
+function setMatchFilter(typ) { matchFilter=typ; renderMatchFilters(); }
 
 function shuffle(arr) { return [...arr].sort(()=>Math.random()-.5); }
 
@@ -1557,7 +1869,7 @@ function pickBatch(pool) {
 
 function startMatch() {
   const pool = matchFilter==='Todos' ? getWords() : getWords().filter(w=>w.tipo===matchFilter);
-  if (pool.length<2) { document.getElementById('matchContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)">No hay suficientes palabras</div>`; return; }
+  if (pool.length<2) { document.getElementById('matchContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)">${t('matchNoWords')}</div>`; return; }
   currentBatch = pickBatch(pool);
   matchState = {selectedDE:null, selectedES:null, matched:new Set(), total:currentBatch.length, errors:0, wrongMap:{}};
   renderMatch();
@@ -1583,7 +1895,7 @@ function renderMatch() {
     c.innerHTML=`<div class="complete-msg"><div class="trophy">🏆</div><h2>¡Perfekt!</h2>
       <p style="color:var(--text2);margin-bottom:16px">${s.errors===0?'¡Sin errores! 🌟':s.errors+' error'+(s.errors>1?'es':'')}</p>
       <div style="text-align:left;margin-bottom:16px">${summary}</div>
-      <button class="btn-primary" onclick="startMatch()">Nueva ronda →</button></div>`;
+      <button class="btn-primary" onclick="startMatch()">${t('matchNewRound')}</button></div>`;
     return;
   }
   const pct=Math.round(s.matched.size/s.total*100);
@@ -1598,7 +1910,7 @@ function renderMatch() {
     rows+=`<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" onclick="selectCard('de',${d.idx})" style="position:relative">${dot}${displayDE(d)}</div>
            <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" onclick="selectCard('es',${e.idx})">${e.es}</div>`;
   }
-  c.innerHTML=`<div class="match-header"><h2>Parejas</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
+  c.innerHTML=`<div class="match-header"><h2>${t('matchTitle')}</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
       <div class="col-label">Alemán 🇩🇪</div><div class="col-label">Español 🇪🇸</div></div>
@@ -1638,7 +1950,7 @@ function buildCrossword() {
   let pool;
   if (cwSource==='bag') {
     const bag=getBag();
-    if (bag.length===0) { document.getElementById('crossContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">🎒</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">La bolsa está vacía</div><div style="font-size:13px;color:var(--text2);line-height:1.5">Juega a Parejas primero.<br>Las palabras que aciertes se añaden aquí.</div></div>`; return; }
+    if (bag.length===0) { document.getElementById('crossContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">🎒</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">${t('cwBagEmpty')}</div><div style="font-size:13px;color:var(--text2);line-height:1.5">${t('cwBagEmptySub').replace('\n',"<br>")}</div></div>`; return; }
     pool=allWords.filter(w=>bag.includes(w.de));
   } else {
     const p=getProgress(), now=Date.now();
@@ -1722,13 +2034,13 @@ function renderCrossword() {
   </div>`).join('');
   document.getElementById('crossContent').innerHTML=`
     <div class="match-header"><h2>Crucigrama</h2><div class="score-badge">${clues.length} palabras</div></div>
-    <p class="tap-hint">Pistas en español · toca para ver en alemán</p>
+    <p class="tap-hint">${t('cwHint')}</p>
     <div class="crossword-container">${gHTML}</div>
-    <button class="btn-primary" onclick="checkCrossword()">Comprobar ✓</button>
-    <button class="btn-secondary" onclick="revealCrossword()">Revelar solución</button>
-    <button class="btn-blue" onclick="buildCrossword()">Nuevo crucigrama ↺</button>
+    <button class="btn-primary" onclick="checkCrossword()">${t('cwCheck')}</button>
+    <button class="btn-secondary" onclick="revealCrossword()">${t('cwReveal')}</button>
+    <button class="btn-blue" onclick="buildCrossword()">${t('cwNew')}</button>
     ${cwSource==='bag'?`<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" onclick="if(confirm('¿Vaciar la bolsa?')){clearBag();buildCrossword();}">🗑 Vaciar bolsa</button>`:''}
-    <div class="clues-section"><div class="clues-title">Pistas</div>${cluesHTML}</div>`;
+    <div class="clues-section"><div class="clues-title">${t('cwHintTitle')}</div>${cluesHTML}</div>`;
 }
 function toggleTranslation(el){el.classList.toggle('active-clue');el.querySelector('.clue-translation').classList.toggle('visible');}
 function cwInput(el){el.value=el.value.replace(/[^a-zA-ZäöüÄÖÜß]/g,'').toUpperCase().slice(-1);const r=parseInt(el.dataset.r),c=parseInt(el.dataset.c);if(el.value){const next=document.querySelector(`input[data-r="${r}"][data-c="${c+1}"]`)||document.querySelector(`input[data-r="${r+1}"][data-c="${c}"]`);if(next)next.focus();}}

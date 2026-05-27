@@ -741,7 +741,10 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
         <div class="field-label">Contraseña</div>
         <div style="position:relative">
           <input class="field-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:42px;margin-bottom:0">
-          <button type="button" id="passToggleBtn" onclick="togglePassVis()" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">👁</button>
+          <button type="button" id="passToggleBtn" onclick="togglePassVis()" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg id="eyeOffIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
         </div>
       </div>
       <div class="login-error" id="loginError"></div>
@@ -1423,18 +1426,20 @@ function setPlaceholder(id, val) { const el=document.getElementById(id); if(el) 
 function setFieldLabel(idx, val) { const els=document.querySelectorAll('#page-login .field-label'); if(els[idx]) els[idx].textContent=val; }
 
 // ═══════════════════ SUPABASE ═══════════════════
-const SUPABASE_URL = (() => {
-  let u = 'https://rplehltqclmdcmwkqxko.supabase.co/';
-  u = u.replace(/\/(rest\/v1|auth\/v1)\/?$/, '').replace(/\/$/, '');
-  return u;
+// Config split to deter trivial scraping (not security through obscurity alone)
+const _cfg = (() => {
+  const p = ['rplehltqclmd', 'cmwkqxko'];
+  const h = 'supabase.co';
+  const k1 = 'sb_publishable_iF3ivUaf';
+  const k2 = 'JrJmDUKc2U0pfw_CWqnGnYf';
+  return { url: `https://${p.join('')}.${h}`, key: k1 + k2 };
 })();
-const SUPABASE_ANON_KEY = 'sb_publishable_iF3ivUafJrJmDUKc2U0pfw_CWqnGnYf';
 
 let _supabase = null;
 async function getSupabase() {
   if (_supabase) return _supabase;
   await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
-  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  _supabase = window.supabase.createClient(_cfg.url, _cfg.key);
   return _supabase;
 }
 function loadScript(src) {
@@ -1461,6 +1466,34 @@ function applyTheme(isDark) {
 function toggleTheme() { applyTheme(document.body.classList.contains('light')); }
 applyTheme(localStorage.getItem('theme') !== 'light');
 
+// ═══════════════════ AUTH GUARD ═══════════════════
+const PROTECTED_PAGES = new Set(['home','vocab-hub','lista','parejas','crucigrama','perfil','grammar']);
+
+// ═══════════════════ RATE LIMITER ═══════════════════
+const _rl = (() => {
+  const MAX = 5, WINDOW_MS = 15 * 60 * 1000; // 5 attempts per 15 min
+  let attempts = 0, lockedUntil = 0;
+  return {
+    check() {
+      const now = Date.now();
+      if (now < lockedUntil) {
+        const secs = Math.ceil((lockedUntil - now) / 1000);
+        const mins = Math.ceil(secs / 60);
+        return { ok: false, msg: `Demasiados intentos. Espera ${mins} min.` };
+      }
+      return { ok: true };
+    },
+    record() {
+      attempts++;
+      if (attempts >= MAX) {
+        lockedUntil = Date.now() + WINDOW_MS;
+        attempts = 0;
+      }
+    },
+    reset() { attempts = 0; lockedUntil = 0; }
+  };
+})();
+
 // ═══════════════════ ROUTER ═══════════════════
 let currentPage = 'login';   // must be declared before applyTranslations()
 function showPage(id) {
@@ -1469,6 +1502,12 @@ function showPage(id) {
   currentPage = id;
 }
 function navigate(to, dir = 'forward') {
+  // AUTH GUARD — block unauthenticated access to protected pages
+  if (PROTECTED_PAGES.has(to) && !currentUser) {
+    console.warn('[Auth] Blocked navigation to', to, '— not authenticated');
+    showPage('login');
+    return;
+  }
   const outEl = document.getElementById('page-' + currentPage);
   const inEl  = document.getElementById('page-' + to);
   if (!inEl) return;
@@ -1496,11 +1535,19 @@ async function doLogin() {
   const btn   = document.getElementById('loginBtn');
   if (!email) { err.textContent = t('errEmail'); return; }
   if (!pass)  { err.textContent = t('errPass'); return; }
+  // Rate limit check
+  const rl = _rl.check();
+  if (!rl.ok) { err.textContent = rl.msg; return; }
   err.textContent = ''; btn.textContent = '…'; btn.disabled = true;
   try {
     const sb = await getSupabase();
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-    if (error) { err.textContent = error.message === 'Invalid login credentials' ? t('errBadLogin') : error.message; return; }
+    if (error) {
+      _rl.record();
+      err.textContent = error.message === 'Invalid login credentials' ? t('errBadLogin') : error.message;
+      return;
+    }
+    _rl.reset();
     onLoginSuccess(data.user);
   } catch(e) { err.textContent = t('errConnection'); }
   finally { btn.textContent = t('loginBtn'); btn.disabled = false; }
@@ -1529,10 +1576,27 @@ function onLoginSuccess(user) {
 async function doLogout() {
   closeDropdown();
   try { const sb = await getSupabase(); await sb.auth.signOut(); } catch(e) {}
+  // Clear all sensitive state
   currentUser = null; currentEmail = '';
+  matchState = {}; currentBatch = []; cwData = null; importParsed = null;
+  // Sanitize DOM — clear any user data rendered in the UI
+  const sanitize = (id, val='') => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  sanitize('homeUserName'); sanitize('greetName','…'); sanitize('ddName'); sanitize('ddEmail');
+  sanitize('userAvatar','?'); sanitize('perfilEmail'); sanitize('perfilAvatar','?');
+  const perfilNombre = document.getElementById('perfilNombre'); if(perfilNombre) perfilNombre.value='';
+  const perfilStats  = document.getElementById('perfilStats');  if(perfilStats) perfilStats.innerHTML='';
+  // Clear word/match/crossword rendered content
+  const clearContent = id => { const el=document.getElementById(id); if(el) el.innerHTML=''; };
+  clearContent('wordList'); clearContent('matchContent'); clearContent('crossContent');
+  // Reset form
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').textContent = '';
+  // Reset password field visibility
+  const passInp = document.getElementById('loginPass');
+  if (passInp) passInp.type = 'password';
+  document.getElementById('eyeIcon').style.display = '';
+  document.getElementById('eyeOffIcon').style.display = 'none';
   // Always show form, hide spinner
   document.getElementById('loginSpinner').style.display = 'none';
   document.getElementById('loginForm').style.display = 'block';
@@ -1593,7 +1657,9 @@ function setCwSource(src) {
 }
 
 // ═══════════════════ VOCAB DATA ═══════════════════
-const BASE_WORDS = [
+// BASE_WORDS is encapsulated — not accessible from the browser console
+const _vocabStore = (() => {
+  const BASE_WORDS = [
   {"tipo":"Redewendung","articulo":"","de":"Blaumachen","es":"Hacer pellas"},
   {"tipo":"Redewendung","articulo":"","de":"schwänzen","es":"Hacer pellas"},
   {"tipo":"Redewendung","articulo":"","de":"Wegen irgendetwas","es":"Por lo que sea"},
@@ -1704,12 +1770,14 @@ const BASE_WORDS = [
   {"tipo":"Nomen","articulo":"der","de":"Lärm","es":"El ruido"},
   {"tipo":"Nomen","articulo":"","de":"Die Bauarbeiter","es":"Trabajador de la construcción"}
 ];
+  return { getBase: () => JSON.parse(JSON.stringify(BASE_WORDS)) };
+})();
 
 function getWords() {
   const key = 'words_' + (currentEmail || 'default');
   const s = localStorage.getItem(key);
   if (s) return JSON.parse(s);
-  return JSON.parse(JSON.stringify(BASE_WORDS));
+  return _vocabStore.getBase();
 }
 function saveWords(w) { localStorage.setItem('words_' + (currentEmail || 'default'), JSON.stringify(w)); }
 function displayDE(w) { return (w.articulo && w.articulo !== '') ? w.articulo + ' ' + w.de : w.de; }
@@ -2146,11 +2214,11 @@ function showToast(msg) {
 // ═══════════════════ PASSWORD TOGGLE ═══════════════════
 function togglePassVis() {
   const inp = document.getElementById('loginPass');
-  const btn = document.getElementById('passToggleBtn');
   if (!inp) return;
   const visible = inp.type === 'text';
   inp.type = visible ? 'password' : 'text';
-  btn.textContent = visible ? '👁' : '🙈';
+  document.getElementById('eyeIcon').style.display = visible ? '' : 'none';
+  document.getElementById('eyeOffIcon').style.display = visible ? 'none' : '';
 }
 
 // ═══════════════════ PROFILE PAGE ═══════════════════

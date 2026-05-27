@@ -739,7 +739,10 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
       </div>
       <div class="form-row">
         <div class="field-label">Contraseña</div>
-        <input class="field-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+        <div style="position:relative">
+          <input class="field-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:42px;margin-bottom:0">
+          <button type="button" id="passToggleBtn" onclick="togglePassVis()" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">👁</button>
+        </div>
       </div>
       <div class="login-error" id="loginError"></div>
       <button class="btn-login" id="loginBtn" onclick="doLogin()">Entrar →</button>
@@ -787,6 +790,9 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
             <button id="langBtnDe" onclick="setLang('de')" class="lang-pill">🇩🇪</button>
           </div>
         </div>
+        <button class="dd-btn" onclick="closeDropdown();navigate('perfil','forward')">
+          <span>👤</span> <span data-i18n="profile">Mi perfil</span>
+        </button>
         <button class="dd-btn danger" onclick="doLogout()">
           <span>🚪</span> <span data-i18n="logout">Cerrar sesión</span>
         </button>
@@ -980,6 +986,50 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   </div>
 </div>
 
+<!-- ═══════════════════ PERFIL PAGE ═══════════════════ -->
+<div class="page" id="page-perfil">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('home', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Inicio
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Inicio</span>
+      <span class="breadcrumb-sep"> / </span>
+      Mi perfil
+    </div>
+  </div>
+  <div class="inner-content">
+    <!-- Avatar section -->
+    <div style="text-align:center;padding:28px 0 24px">
+      <div id="perfilAvatar" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0f1117;margin:0 auto 14px"></div>
+      <div id="perfilEmail" style="font-size:13px;color:var(--text2)"></div>
+    </div>
+
+    <!-- Name card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">¿Cómo quieres que te llame?</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="perfilNombre" type="text" placeholder="Tu nombre o apodo…" style="flex:1;margin:0" maxlength="32">
+        <button onclick="saveNombre()" style="background:var(--green);color:#0f1117;border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Guardar</button>
+      </div>
+      <div id="perfilNombreMsg" style="font-size:12px;color:var(--green-t);margin-top:8px;min-height:18px"></div>
+    </div>
+
+    <!-- Stats card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Estadísticas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="perfilStats"></div>
+    </div>
+
+    <!-- Danger zone -->
+    <div style="background:var(--surface);border:1px solid rgba(248,113,113,.2);border-radius:var(--r-lg);padding:20px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--red);margin-bottom:14px">Zona peligrosa</div>
+      <button onclick="if(confirm('¿Cerrar sesión?'))doLogout()" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(248,113,113,.15)'" onmouseout="this.style.background='var(--red-bg)'">🚪 Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ GRAMÁTICA PAGE ═══════════════════ -->
 <div class="page" id="page-grammar">
   <div class="top-bar">
@@ -1082,7 +1132,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.05.25</div>
+<div id="buildBadge" class="build-badge">1.06.25</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -1097,6 +1147,7 @@ const TRANSLATIONS = {
     connecting: 'Conectando…',
     // Dropdown
     myAccount: 'Mi cuenta',
+    profile: 'Mi perfil',
     darkMode: 'Modo oscuro',
     language: 'Idioma',
     logout: 'Cerrar sesión',
@@ -1193,6 +1244,7 @@ const TRANSLATIONS = {
     loginBtn: 'Einloggen →',
     connecting: 'Verbinden…',
     myAccount: 'Mein Konto',
+    profile: 'Mein Profil',
     darkMode: 'Dunkelmodus',
     language: 'Sprache',
     logout: 'Abmelden',
@@ -1428,6 +1480,7 @@ function navigate(to, dir = 'forward') {
   if (to === 'lista') renderLista();
   if (to === 'parejas') { renderMatchFilters(); }
   if (to === 'crucigrama') { updateBagCount(); buildCrossword(); }
+  if (to === 'perfil') { renderPerfil(); }
 }
 
 // Apply initial language (currentPage is now defined)
@@ -1455,7 +1508,8 @@ async function doLogin() {
 
 function onLoginSuccess(user) {
   currentUser = user; currentEmail = user.email;
-  const name = user.email.split('@')[0];
+  const storedName = localStorage.getItem('nombre_' + user.email) || '';
+  const name = storedName || user.email.split('@')[0];
   document.getElementById('homeUserName').textContent = name;
   document.getElementById('greetName').textContent = name;
   document.getElementById('ddName').textContent = name;
@@ -1479,6 +1533,9 @@ async function doLogout() {
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').textContent = '';
+  // Always show form, hide spinner
+  document.getElementById('loginSpinner').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
   showPage('login');
 }
 
@@ -1489,7 +1546,11 @@ async function doLogout() {
     const sb = await getSupabase();
     sb.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) onLoginSuccess(session.user);
-      else if (event === 'SIGNED_OUT') showPage('login');
+      else if (event === 'SIGNED_OUT') {
+        document.getElementById('loginSpinner').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+        showPage('login');
+      }
     });
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user) { onLoginSuccess(session.user); return; }
@@ -2082,7 +2143,73 @@ function showToast(msg) {
   toastTimer=setTimeout(()=>t.classList.add('hide'),2500);
 }
 
-// ═══════════════════ SERVICE WORKER ═══════════════════
+// ═══════════════════ PASSWORD TOGGLE ═══════════════════
+function togglePassVis() {
+  const inp = document.getElementById('loginPass');
+  const btn = document.getElementById('passToggleBtn');
+  if (!inp) return;
+  const visible = inp.type === 'text';
+  inp.type = visible ? 'password' : 'text';
+  btn.textContent = visible ? '👁' : '🙈';
+}
+
+// ═══════════════════ PROFILE PAGE ═══════════════════
+function getNombre() {
+  return localStorage.getItem('nombre_' + (currentEmail || 'default')) || '';
+}
+function setNombreStored(n) {
+  localStorage.setItem('nombre_' + (currentEmail || 'default'), n);
+}
+function getDisplayName() {
+  return getNombre() || (currentEmail ? currentEmail.split('@')[0] : '…');
+}
+
+function renderPerfil() {
+  const nombre = getNombre();
+  const email = currentEmail || '';
+  const initial = (nombre || email)[0]?.toUpperCase() || '?';
+  const el = id => document.getElementById(id);
+  if (el('perfilAvatar')) el('perfilAvatar').textContent = initial;
+  if (el('perfilEmail')) el('perfilEmail').textContent = email;
+  if (el('perfilNombre')) el('perfilNombre').value = nombre;
+  if (el('perfilNombreMsg')) el('perfilNombreMsg').textContent = '';
+
+  // Stats
+  const words = getWords(), p = getProgress(), now = Date.now();
+  const total = words.length;
+  const seen  = Object.values(p).filter(e => e.seen > 0).length;
+  const hard  = Object.values(p).filter(e => e.difficulty === 1).length;
+  const mastered = Object.values(p).filter(e => e.seen >= 3 && e.correct / e.seen >= 0.8).length;
+  const statsData = [
+    { label: 'Palabras', val: total, color: 'var(--green)' },
+    { label: 'Vistas', val: seen, color: 'var(--blue)' },
+    { label: 'Dominadas', val: mastered, color: 'var(--green)' },
+    { label: 'Difíciles', val: hard, color: 'var(--red)' },
+  ];
+  if (el('perfilStats')) el('perfilStats').innerHTML = statsData.map(s =>
+    `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:${s.color}">${s.val}</div>
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-top:3px">${s.label}</div>
+    </div>`
+  ).join('');
+}
+
+function saveNombre() {
+  const val = (document.getElementById('perfilNombre')?.value || '').trim();
+  setNombreStored(val);
+  const displayName = val || (currentEmail ? currentEmail.split('@')[0] : '');
+  // Update all name references
+  document.getElementById('homeUserName').textContent = displayName;
+  document.getElementById('greetName').textContent = displayName;
+  document.getElementById('ddName').textContent = displayName;
+  document.getElementById('userAvatar').textContent = displayName[0]?.toUpperCase() || '?';
+  document.getElementById('perfilAvatar').textContent = displayName[0]?.toUpperCase() || '?';
+  const msg = document.getElementById('perfilNombreMsg');
+  if (msg) { msg.textContent = '✓ Nombre guardado'; setTimeout(() => msg.textContent = '', 2000); }
+  showToast('✓ ¡Hola, ' + displayName + '!');
+}
+
+
 (function(){
   if(!('serviceWorker' in navigator)) return;
   const swSrc=["const CACHE='deutsch-v2',FONTS='deutsch-fonts-v1';","self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll([self.location.href])).then(()=>self.skipWaiting()));});","self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k!==FONTS).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});","self.addEventListener('fetch',e=>{const u=e.request.url;const cacheName=(u.includes('fonts.google')||u.includes('fonts.gstatic'))?FONTS:CACHE;e.respondWith(caches.open(cacheName).then(c=>c.match(e.request).then(cached=>{if(cached)return cached;return fetch(e.request).then(r=>{if(r&&r.ok)c.put(e.request,r.clone());return r;}).catch(()=>cached||new Response('Offline',{status:503}));}))); });"].join('\n');

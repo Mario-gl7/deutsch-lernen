@@ -699,7 +699,84 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 }
 .toast.hide{opacity:0}
 
-/* Build badge */
+/* ═══════════════════ MATCH SETTINGS ═══════════════════ */
+.match-settings-btn {
+  width:36px;height:36px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+  transition:border-color .15s,background .15s,transform .2s;
+  color:var(--text2);
+}
+.match-settings-btn:hover{border-color:var(--border2);background:var(--surface2);color:var(--text)}
+.match-settings-btn.active{border-color:var(--green);background:var(--green-bg);color:var(--green-t)}
+.match-settings-btn svg{transition:transform .4s cubic-bezier(.4,0,.2,1)}
+.match-settings-btn.spinning svg{transform:rotate(120deg)}
+
+/* Settings drawer */
+.match-cfg-drawer{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:20px 16px;
+  margin-bottom:14px;
+  animation:fadeUp .18s ease both;
+}
+.cfg-section{margin-bottom:16px}
+.cfg-section:last-child{margin-bottom:0}
+.cfg-section-title{
+  font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:8px;
+}
+.cfg-chips{display:flex;gap:5px;flex-wrap:wrap}
+.cfg-chip{
+  padding:5px 11px;border-radius:20px;
+  border:1px solid var(--border);background:var(--bg2);
+  color:var(--text2);font-family:'Inter',sans-serif;
+  font-size:11px;font-weight:500;cursor:pointer;transition:all .13s;
+}
+.cfg-chip.active{background:var(--green-bg);border-color:rgba(74,222,128,.4);color:var(--green-t)}
+.cfg-chip.active-blue{background:var(--blue-bg);border-color:rgba(96,165,250,.35);color:var(--blue)}
+.cfg-chip.active-red{background:var(--red-bg);border-color:rgba(248,113,113,.35);color:var(--red)}
+
+/* Stepper control */
+.cfg-stepper{
+  display:flex;align-items:center;gap:0;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;width:fit-content;
+}
+.cfg-step-btn{
+  width:34px;height:34px;background:none;border:none;
+  color:var(--text2);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s,color .12s;font-weight:300;
+}
+.cfg-step-btn:hover{background:var(--surface2);color:var(--text)}
+.cfg-step-btn:active{background:var(--border)}
+.cfg-step-val{
+  min-width:36px;text-align:center;
+  font-size:14px;font-weight:700;color:var(--text);
+  padding:0 4px;
+}
+
+/* Rounds progress bar */
+.rounds-progress{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:10px 14px;
+  margin-bottom:12px;
+}
+.rounds-prog-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:6px;
+}
+.rounds-prog-label{font-size:11px;font-weight:600;color:var(--text2)}
+.rounds-prog-count{font-size:11px;font-weight:700;color:var(--green-t)}
+.rounds-prog-track{
+  height:5px;background:var(--bg2);border-radius:3px;overflow:hidden;
+}
+.rounds-prog-fill{
+  height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  transition:width .4s ease;
+}
 .build-badge{
   position:fixed;bottom:10px;right:12px;z-index:9000;
   font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
@@ -957,10 +1034,12 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
       <span class="breadcrumb-sep"> / </span>
       Parejas
     </div>
+    <button class="match-settings-btn" id="matchCfgBtn" onclick="toggleMatchCfg()" title="Configuración">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </div>
   <div class="inner-content">
-    <div class="filter-row" id="matchFilterBar"></div>
-    <div class="filter-row" id="matchModeBar" style="margin-top:-4px"></div>
+    <div id="matchCfgDrawer" style="display:none"></div>
     <div id="matchContent"></div>
   </div>
 </div>
@@ -2215,10 +2294,10 @@ function showToast(msg) {
 function togglePassVis() {
   const inp = document.getElementById('loginPass');
   if (!inp) return;
-  const visible = inp.type === 'text';
-  inp.type = visible ? 'password' : 'text';
-  document.getElementById('eyeIcon').style.display = visible ? '' : 'none';
-  document.getElementById('eyeOffIcon').style.display = visible ? 'none' : '';
+  const isHidden = inp.type === 'password';
+  inp.type = isHidden ? 'text' : 'password';
+  document.getElementById('eyeIcon').style.display = isHidden ? 'none' : '';
+  document.getElementById('eyeOffIcon').style.display = isHidden ? '' : 'none';
 }
 
 // ═══════════════════ PROFILE PAGE ═══════════════════

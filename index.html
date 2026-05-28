@@ -2055,51 +2055,126 @@ function confirmImport() {
 
 // ═══════════════════ MATCHING ═══════════════════
 let matchFilter = 'Todos', matchMode = 'smart', matchState = {}, currentBatch = [];
+let matchCfgOpen = false;
+let roundSession = { current: 0, total: 0, active: false };
 
-function renderMatchFilters() {
-  document.getElementById('matchFilterBar').innerHTML = TIPOS_KEYS.map((k,i) =>
-    `<button class="filter-chip ${k===matchFilter?'active':''}" onclick="setMatchFilter('${k}')">${i===0?t('filterAll'):k}</button>`
-  ).join('');
-  document.getElementById('matchModeBar').innerHTML = [["smart",t('cwSmart')],["hard","🔴 "+t('diffHard').replace("🔴 ","")],["all","🔀 "+t('filterAll')]].map(([v,l]) =>
-    `<button class="filter-chip ${matchMode===v?'active':''}" onclick="setMatchMode('${v}')">${l}</button>`
-  ).join('');
-  startMatch();
+// Match config persisted
+function getMatchCfg() { try { return JSON.parse(localStorage.getItem('matchCfg')) || {}; } catch(e) { return {}; } }
+function saveMatchCfg(cfg) { localStorage.setItem('matchCfg', JSON.stringify(cfg)); }
+const MATCH_DEFAULTS = { wordsPerRound: 6, totalRounds: 3 };
+function getMatchSetting(key) { const cfg=getMatchCfg(); return cfg[key]!==undefined?cfg[key]:MATCH_DEFAULTS[key]; }
+function setMatchSetting(key, val) { const cfg=getMatchCfg(); cfg[key]=val; saveMatchCfg(cfg); }
+
+function toggleMatchCfg() {
+  matchCfgOpen = !matchCfgOpen;
+  const btn = document.getElementById('matchCfgBtn');
+  if (btn) { btn.classList.toggle('active', matchCfgOpen); btn.classList.add('spinning'); setTimeout(()=>btn.classList.remove('spinning'),400); }
+  renderMatchCfgDrawer();
 }
-function setMatchMode(m) { matchMode=m; renderMatchFilters(); }
-function setMatchFilter(typ) { matchFilter=typ; renderMatchFilters(); }
+
+function renderMatchCfgDrawer() {
+  const drawer = document.getElementById('matchCfgDrawer');
+  if (!drawer) return;
+  if (!matchCfgOpen) { drawer.style.display='none'; return; }
+  drawer.style.display = 'block';
+  const wordsPerRound = getMatchSetting('wordsPerRound');
+  const totalRounds   = getMatchSetting('totalRounds');
+  const modeOptions = [['smart','🧠 Inteligente'],['hard','🔴 Difícil'],['all','🔀 Aleatorio']];
+  const tipoOptions = TIPOS_KEYS.map((k,i)=>[k, i===0?t('filterAll'):k]);
+  drawer.innerHTML = `<div class="match-cfg-drawer">
+    <div class="cfg-section">
+      <div class="cfg-section-title">Modo de selección</div>
+      <div class="cfg-chips">${modeOptions.map(([v,l])=>`<button class="cfg-chip ${matchMode===v?'active':''}" onclick="setMatchMode('${v}')">${l}</button>`).join('')}</div>
+    </div>
+    <div class="cfg-section">
+      <div class="cfg-section-title">Filtro por tipo</div>
+      <div class="cfg-chips">${tipoOptions.map(([v,l])=>`<button class="cfg-chip ${matchFilter===v?'active':''}" onclick="setMatchFilter('${v}')">${l}</button>`).join('')}</div>
+    </div>
+    <div class="cfg-section" style="display:flex;gap:20px;align-items:flex-start">
+      <div>
+        <div class="cfg-section-title">Palabras / ronda</div>
+        <div class="cfg-stepper">
+          <button class="cfg-step-btn" onclick="adjustMatchSetting('wordsPerRound',-2)">−</button>
+          <div class="cfg-step-val" id="cfgWordsVal">${wordsPerRound}</div>
+          <button class="cfg-step-btn" onclick="adjustMatchSetting('wordsPerRound',2)">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="cfg-section-title">Rondas seguidas</div>
+        <div class="cfg-stepper">
+          <button class="cfg-step-btn" onclick="adjustMatchSetting('totalRounds',-1)">−</button>
+          <div class="cfg-step-val" id="cfgRoundsVal">${totalRounds}</div>
+          <button class="cfg-step-btn" onclick="adjustMatchSetting('totalRounds',1)">+</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:14px" onclick="applyMatchCfg()">▶ Empezar</button>
+  </div>`;
+}
+
+function adjustMatchSetting(key, delta) {
+  const min=key==='wordsPerRound'?2:1, max=key==='wordsPerRound'?12:10;
+  let val=Math.max(min,Math.min(max, getMatchSetting(key)+delta));
+  setMatchSetting(key, val);
+  const el=document.getElementById(key==='wordsPerRound'?'cfgWordsVal':'cfgRoundsVal');
+  if (el) el.textContent=val;
+}
+
+function applyMatchCfg() {
+  matchCfgOpen=false;
+  const btn=document.getElementById('matchCfgBtn'); if(btn) btn.classList.remove('active');
+  renderMatchCfgDrawer();
+  startRoundSession();
+}
+
+function renderMatchFilters() { startRoundSession(); }
+function setMatchMode(m) { matchMode=m; renderMatchCfgDrawer(); }
+function setMatchFilter(typ) { matchFilter=typ; renderMatchCfgDrawer(); }
 
 function shuffle(arr) { return [...arr].sort(()=>Math.random()-.5); }
 
-function pickBatch(pool) {
+function pickBatch(pool, count) {
   const p=getProgress(), now=Date.now();
   let candidates;
   if (matchMode==='hard') { candidates=pool.filter(w=>p[w.de]?.difficulty===1); if(candidates.length<2) candidates=pool; }
   else if (matchMode==='smart') {
-    const scored = pool.map(w => {
-      const e=p[w.de]||{seen:0,correct:0,difficulty:0,nextReview:0};
-      let score=(e.difficulty===1?1000:0)+(e.nextReview<=now?500:0)+(e.seen===0?800:0)+(1-(e.seen>0?e.correct/e.seen:.5))*300+Math.random()*100;
-      return {w,score};
-    });
-    scored.sort((a,b)=>b.score-a.score);
-    candidates = scored.map(x=>x.w);
+    const scored=pool.map(w=>{ const e=p[w.de]||{seen:0,correct:0,difficulty:0,nextReview:0}; let score=(e.difficulty===1?1000:0)+(e.nextReview<=now?500:0)+(e.seen===0?800:0)+(1-(e.seen>0?e.correct/e.seen:.5))*300+Math.random()*100; return {w,score}; });
+    scored.sort((a,b)=>b.score-a.score); candidates=scored.map(x=>x.w);
   } else { candidates=shuffle(pool); }
-  return candidates.slice(0,Math.min(6,candidates.length));
+  return candidates.slice(0, Math.min(count, candidates.length));
+}
+
+function startRoundSession() {
+  roundSession = { current:0, total:getMatchSetting('totalRounds'), active:true };
+  startMatch();
 }
 
 function startMatch() {
   const pool = matchFilter==='Todos' ? getWords() : getWords().filter(w=>w.tipo===matchFilter);
   if (pool.length<2) { document.getElementById('matchContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)">${t('matchNoWords')}</div>`; return; }
-  currentBatch = pickBatch(pool);
+  currentBatch = pickBatch(pool, getMatchSetting('wordsPerRound'));
   matchState = {selectedDE:null, selectedES:null, matched:new Set(), total:currentBatch.length, errors:0, wrongMap:{}};
   renderMatch();
+}
+
+function renderRoundsBar() {
+  if (!roundSession.active || roundSession.total<=1) return '';
+  const pct=Math.round((roundSession.current/roundSession.total)*100);
+  return `<div class="rounds-progress">
+    <div class="rounds-prog-header">
+      <span class="rounds-prog-label">Rondas</span>
+      <span class="rounds-prog-count">${roundSession.current} / ${roundSession.total}</span>
+    </div>
+    <div class="rounds-prog-track"><div class="rounds-prog-fill" style="width:${pct}%"></div></div>
+  </div>`;
 }
 
 function renderMatch() {
   const s=matchState, c=document.getElementById('matchContent');
   if (s.matched.size===s.total) {
+    roundSession.current++;
     const p=getProgress();
-    const summary = currentBatch.map(w => {
-      const e=p[w.de]||{}, acc=e.seen>0?Math.round(e.correct/e.seen*100):0, wrong=s.wrongMap[w.de]||0;
+    const summary=currentBatch.map(w=>{ const e=p[w.de]||{}, acc=e.seen>0?Math.round(e.correct/e.seen*100):0, wrong=s.wrongMap[w.de]||0;
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:5px">
         <div style="font-size:13px;font-weight:500;color:var(--text)">${displayDE(w)}</div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -2111,10 +2186,22 @@ function renderMatch() {
         </div>
       </div>`;
     }).join('');
-    c.innerHTML=`<div class="complete-msg"><div class="trophy">🏆</div><h2>¡Perfekt!</h2>
-      <p style="color:var(--text2);margin-bottom:16px">${s.errors===0?'¡Sin errores! 🌟':s.errors+' error'+(s.errors>1?'es':'')}</p>
-      <div style="text-align:left;margin-bottom:16px">${summary}</div>
-      <button class="btn-primary" onclick="startMatch()">${t('matchNewRound')}</button></div>`;
+    const allDone = roundSession.current>=roundSession.total;
+    const errMsg = s.errors===0?'¡Sin errores! 🌟':s.errors+' error'+(s.errors>1?'es':'');
+    if (allDone) {
+      c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy">🏆</div>
+        <h2>¡Sesión completa!</h2>
+        <p style="color:var(--text2);margin-bottom:4px">${roundSession.total} ronda${roundSession.total>1?'s':''} terminadas</p>
+        <p style="color:var(--text2);margin-bottom:16px">${errMsg}</p>
+        <div style="text-align:left;margin-bottom:16px">${summary}</div>
+        <button class="btn-primary" onclick="startRoundSession()">${t('matchNewRound')}</button></div>`;
+    } else {
+      c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy" style="font-size:36px">⭐</div>
+        <h2 style="color:var(--blue)">Ronda ${roundSession.current} ✓</h2>
+        <p style="color:var(--text2);margin-bottom:16px">${errMsg}</p>
+        <div style="text-align:left;margin-bottom:16px">${summary}</div>
+        <button class="btn-primary" onclick="startMatch()">Siguiente ronda →</button></div>`;
+    }
     return;
   }
   const pct=Math.round(s.matched.size/s.total*100);
@@ -2123,13 +2210,13 @@ function renderMatch() {
   const esw=shuffle(currentBatch.map((w,i)=>({...w,idx:i})));
   let rows='';
   for (let i=0;i<currentBatch.length;i++) {
-    const d=dew[i], e=esw[i];
-    const pe=p[d.de]||{};
+    const d=dew[i], e=esw[i], pe=p[d.de]||{};
     const dot=pe.difficulty===1?'<span style="position:absolute;top:3px;right:4px;font-size:8px">🔴</span>':pe.difficulty===2?'<span style="position:absolute;top:3px;right:4px;font-size:8px">🟢</span>':'';
     rows+=`<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" onclick="selectCard('de',${d.idx})" style="position:relative">${dot}${displayDE(d)}</div>
            <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" onclick="selectCard('es',${e.idx})">${e.es}</div>`;
   }
-  c.innerHTML=`<div class="match-header"><h2>${t('matchTitle')}</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
+  c.innerHTML=`${renderRoundsBar()}
+    <div class="match-header"><h2>${t('matchTitle')}</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
       <div class="col-label">Alemán 🇩🇪</div><div class="col-label">Español 🇪🇸</div></div>

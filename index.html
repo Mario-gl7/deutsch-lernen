@@ -777,6 +777,60 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   background:linear-gradient(90deg,var(--green),var(--blue));
   transition:width .4s ease;
 }
+/* ═══════════════════ SYNC INDICATOR ═══════════════════ */
+.sync-dot{
+  display:none;align-items:center;gap:5px;
+  font-size:11px;font-weight:500;color:var(--text2);
+  padding:4px 10px;border-radius:20px;
+  background:var(--surface);border:1px solid var(--border);
+  transition:border-color .2s,color .2s;
+}
+.sync-dot.syncing{color:var(--blue);border-color:rgba(96,165,250,.3)}
+.sync-dot.error{color:var(--red);border-color:rgba(248,113,113,.3)}
+.sync-dot.ok{color:var(--green-t);border-color:rgba(74,222,128,.3)}
+.sync-spinner{
+  width:10px;height:10px;border:1.5px solid currentColor;
+  border-top-color:transparent;border-radius:50%;
+  animation:spin .7s linear infinite;flex-shrink:0;
+}
+.sync-tick{font-size:11px}
+
+/* Setup banner */
+.setup-banner{
+  background:rgba(251,146,60,.07);border:1px solid rgba(251,146,60,.25);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:14px;
+  font-size:12px;line-height:1.7;color:var(--text2);
+}
+.setup-banner b{color:var(--orange)}
+.setup-banner code{
+  display:block;background:var(--bg2);border:1px solid var(--border);
+  border-radius:6px;padding:10px 12px;margin:8px 0;
+  font-size:11px;font-family:monospace;color:var(--blue);
+  white-space:pre;overflow-x:auto;line-height:1.6;
+}
+.setup-banner .copy-sql-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;padding:5px 12px;
+  font-size:11px;font-weight:600;color:var(--text);
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;margin-top:4px;
+}
+.setup-banner .copy-sql-btn:hover{border-color:var(--border2);background:var(--border)}
+
+/* Sync button in dropdown */
+.dd-sync-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 14px;font-size:13px;font-weight:500;color:var(--text2);
+  border-bottom:1px solid var(--border);
+}
+.dd-sync-btn{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;padding:4px 10px;
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  color:var(--text2);cursor:pointer;transition:all .15s;
+}
+.dd-sync-btn:hover{border-color:var(--border2);color:var(--text)}
+
 .build-badge{
   position:fixed;bottom:10px;right:12px;z-index:9000;
   font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
@@ -846,6 +900,11 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
       <span style="font-size:17px">🇩🇪</span>
       <span style="font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.2px">Deutsch</span>
     </div>
+    <div class="sync-dot" id="syncDot">
+      <div class="sync-spinner" id="syncSpinner"></div>
+      <span class="sync-tick" id="syncTick" style="display:none">✓</span>
+      <span id="syncDotText">Sync…</span>
+    </div>
     <button class="install-btn-top" onclick="showInstallModal()" title="Instalar app">📲</button>
     <div class="user-pill" id="userPill" onclick="toggleUserDropdown()">
       <div class="user-avatar" id="userAvatar">?</div>
@@ -872,6 +931,9 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
         </div>
         <button class="dd-btn" onclick="closeDropdown();navigate('perfil','forward')">
           <span>👤</span> <span data-i18n="profile">Mi perfil</span>
+        </button>
+        <button class="dd-btn" onclick="closeDropdown();manualSync()">
+          <span>🔄</span> <span>Sincronizar ahora</span>
         </button>
         <button class="dd-btn danger" onclick="doLogout()">
           <span>🚪</span> <span data-i18n="logout">Cerrar sesión</span>
@@ -1011,6 +1073,33 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
     </div>
   </div>
   <div class="inner-content" id="listaContent">
+    <div id="setupBanner" style="display:none" class="setup-banner">
+      <b>⚠ Sincronización no activa</b> — Las tablas de Supabase no existen aún.<br>
+      Ejecuta este SQL en <b>Supabase → SQL Editor</b> y recarga:
+      <code id="setupSql">CREATE TABLE IF NOT EXISTS user_words (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  tipo text DEFAULT '', articulo text DEFAULT '',
+  de text NOT NULL, es text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_words" ON user_words
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+CREATE TABLE IF NOT EXISTS user_progress (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  word_de text NOT NULL,
+  seen int DEFAULT 0, correct int DEFAULT 0,
+  difficulty int DEFAULT 0, next_review bigint DEFAULT 0,
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (user_id, word_de)
+);
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_progress" ON user_progress
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);</code>
+      <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
+    </div>
     <div class="list-actions">
       <button class="list-action-btn" onclick="showAddModal()">＋ Añadir</button>
       <button class="list-action-btn" onclick="showImportModal()">⬆ Importar</button>
@@ -1650,6 +1739,8 @@ function onLoginSuccess(user) {
   updateStats();
   updateBagCount();
   navigate('home', 'forward');
+  // Load + sync data from DB in background
+  loadUserData();
 }
 
 async function doLogout() {
@@ -1852,14 +1943,253 @@ const _vocabStore = (() => {
   return { getBase: () => JSON.parse(JSON.stringify(BASE_WORDS)) };
 })();
 
-function getWords() {
-  const key = 'words_' + (currentEmail || 'default');
-  const s = localStorage.getItem(key);
-  if (s) return JSON.parse(s);
-  return _vocabStore.getBase();
-}
-function saveWords(w) { localStorage.setItem('words_' + (currentEmail || 'default'), JSON.stringify(w)); }
 function displayDE(w) { return (w.articulo && w.articulo !== '') ? w.articulo + ' ' + w.de : w.de; }
+
+// ═══════════════════ SYNC LAYER ═══════════════════
+// Architecture: localStorage = instant read cache · Supabase = source of truth
+//
+// ┌─ SQL to run once in Supabase Dashboard → SQL Editor ──────────────────────┐
+// │ CREATE TABLE IF NOT EXISTS user_words (                                   │
+// │   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,                          │
+// │   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,      │
+// │   tipo text DEFAULT '', articulo text DEFAULT '',                          │
+// │   de text NOT NULL, es text NOT NULL,                                     │
+// │   created_at timestamptz DEFAULT now()                                    │
+// │ );                                                                        │
+// │ ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;                         │
+// │ CREATE POLICY "own_words" ON user_words                                   │
+// │   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);             │
+// │                                                                           │
+// │ CREATE TABLE IF NOT EXISTS user_progress (                                │
+// │   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,     │
+// │   word_de text NOT NULL,                                                  │
+// │   seen int DEFAULT 0, correct int DEFAULT 0,                              │
+// │   difficulty int DEFAULT 0, next_review bigint DEFAULT 0,                 │
+// │   updated_at timestamptz DEFAULT now(),                                   │
+// │   PRIMARY KEY (user_id, word_de)                                          │
+// │ );                                                                        │
+// │ ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;                      │
+// │ CREATE POLICY "own_progress" ON user_progress                             │
+// │   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);             │
+// └───────────────────────────────────────────────────────────────────────────┘
+
+let _pendingProgressSave = {};
+let _progressDebounceTimer = null;
+let _wordsDebounceTimer = null;
+let _dbReady = false;  // true once tables confirmed to exist
+
+// ── LS key scoped by user id (not email, safer) ──
+function _lsKey(kind) { return kind + '_' + (currentUser?.id || 'anon'); }
+function _cacheWords(w)    { try { localStorage.setItem(_lsKey('words'), JSON.stringify(w)); } catch(e){} }
+function _cacheProgress(p) { try { localStorage.setItem(_lsKey('prog'),  JSON.stringify(p)); } catch(e){} }
+function _cachedWords()    { try { const s=localStorage.getItem(_lsKey('words')); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+function _cachedProgress() { try { const s=localStorage.getItem(_lsKey('prog'));  return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+
+// ── Sync status indicator ──
+function setSyncState(state, msg) {
+  const el   = document.getElementById('syncDot');
+  const txt  = document.getElementById('syncDotText');
+  const spin = document.getElementById('syncSpinner');
+  const tick = document.getElementById('syncTick');
+  if (!el) return;
+  el.className = 'sync-dot';
+  if (state === 'hidden') { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  if (state === 'syncing') {
+    el.classList.add('syncing');
+    if (spin) spin.style.display = '';
+    if (tick) tick.style.display = 'none';
+    if (txt) txt.textContent = msg || 'Sincronizando…';
+  } else if (state === 'ok') {
+    el.classList.add('ok');
+    if (spin) spin.style.display = 'none';
+    if (tick) { tick.style.display = ''; tick.textContent = '✓'; }
+    if (txt) txt.textContent = msg || 'Sincronizado ✓';
+    setTimeout(() => setSyncState('hidden'), 2200);
+  } else if (state === 'error') {
+    el.classList.add('error');
+    if (spin) spin.style.display = 'none';
+    if (tick) { tick.style.display = ''; tick.textContent = '⚠'; }
+    if (txt) txt.textContent = msg || 'Sin conexión · modo local';
+    setTimeout(() => setSyncState('hidden'), 4000);
+  }
+}
+
+// ── Copy SQL helper ──
+function copySql() {
+  const el = document.getElementById('setupSql');
+  if (!el) return;
+  navigator.clipboard?.writeText(el.textContent).then(() => showToast('✓ SQL copiado')).catch(() => showToast('Selecciona el SQL manualmente'));
+}
+
+// ── Read (cache-first, background sync) ──
+function getWords() {
+  const cached = _cachedWords();
+  return cached !== null ? cached : _vocabStore.getBase();
+}
+function getProgress() {
+  return _cachedProgress() || {};
+}
+
+// ── Initial full load after login ──
+async function loadUserData() {
+  setSyncState('syncing', 'Cargando datos…');
+  try {
+    const [words, prog] = await Promise.all([_fetchWordsFromDB(), _fetchProgressFromDB()]);
+    const ok = words !== null || prog !== null;
+    setSyncState(ok ? 'ok' : 'hidden');
+  } catch(e) {
+    setSyncState('error');
+  }
+  updateStats();
+  if (currentPage === 'lista') renderLista();
+  if (currentPage === 'vocab-hub' || currentPage === 'home') updateStats();
+}
+
+// ── Fetch words from DB ──
+async function _fetchWordsFromDB() {
+  if (!currentUser) return null;
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('user_words')
+      .select('id,tipo,articulo,de,es')
+      .eq('user_id', currentUser.id)
+      .order('created_at');
+    if (error) {
+      // Table might not exist yet
+      if (error.code === '42P01') { _dbReady = false; showSetupBanner(); return null; }
+      throw error;
+    }
+    _dbReady = true;
+    if (data.length === 0) {
+      // First login — seed default words
+      await _seedWords(_vocabStore.getBase());
+      return _vocabStore.getBase();
+    }
+    const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
+    _cacheWords(words);
+    return words;
+  } catch(e) {
+    console.warn('[sync] fetchWords:', e.message);
+    return null;
+  }
+}
+
+// ── Seed default words on first login ──
+async function _seedWords(words) {
+  if (!currentUser) return;
+  try {
+    const sb = await getSupabase();
+    const rows = words.map(w => ({ user_id:currentUser.id, tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es }));
+    const { data, error } = await sb.from('user_words').insert(rows).select('id,tipo,articulo,de,es');
+    if (error) throw error;
+    if (data) {
+      const withIds = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
+      _cacheWords(withIds);
+    }
+  } catch(e) { console.warn('[sync] seed:', e.message); }
+}
+
+// ── Save words — cache instantly, flush to DB debounced ──
+function saveWords(words) {
+  _cacheWords(words);
+  updateStats();
+  if (!_dbReady) return;
+  clearTimeout(_wordsDebounceTimer);
+  _wordsDebounceTimer = setTimeout(() => _flushWords(words), 900);
+}
+
+async function _flushWords(words) {
+  if (!currentUser || !_dbReady) return;
+  setSyncState('syncing', 'Guardando…');
+  try {
+    const sb = await getSupabase();
+    // Strategy: delete-all + re-insert keeps things simple and consistent
+    const { error: delErr } = await sb.from('user_words').delete().eq('user_id', currentUser.id);
+    if (delErr) throw delErr;
+    if (words.length > 0) {
+      const rows = words.map(w => ({ user_id:currentUser.id, tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es }));
+      const { data, error } = await sb.from('user_words').insert(rows).select('id,tipo,articulo,de,es');
+      if (error) throw error;
+      if (data) _cacheWords(data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id })));
+    }
+    setSyncState('ok', 'Guardado ✓');
+  } catch(e) {
+    console.warn('[sync] flushWords:', e.message);
+    setSyncState('error', 'Error al guardar');
+  }
+}
+
+// ── Fetch progress from DB ──
+async function _fetchProgressFromDB() {
+  if (!currentUser) return null;
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('user_progress')
+      .select('word_de,seen,correct,difficulty,next_review')
+      .eq('user_id', currentUser.id);
+    if (error) { if (error.code === '42P01') return null; throw error; }
+    if (!data || data.length === 0) return {};
+    const p = {};
+    data.forEach(r => { p[r.word_de] = { seen:r.seen||0, correct:r.correct||0, difficulty:r.difficulty||0, nextReview:r.next_review||0 }; });
+    _cacheProgress(p);
+    return p;
+  } catch(e) {
+    console.warn('[sync] fetchProgress:', e.message);
+    return null;
+  }
+}
+
+// ── Save progress — cache instantly, batch upsert debounced ──
+function saveProgress(p) {
+  _cacheProgress(p);
+  Object.assign(_pendingProgressSave, p);
+  if (!_dbReady) return;
+  clearTimeout(_progressDebounceTimer);
+  _progressDebounceTimer = setTimeout(_flushProgress, 1500);
+}
+
+async function _flushProgress() {
+  if (!currentUser || !_dbReady || Object.keys(_pendingProgressSave).length === 0) return;
+  const batch = { ..._pendingProgressSave };
+  _pendingProgressSave = {};
+  try {
+    const sb = await getSupabase();
+    const rows = Object.entries(batch).map(([de, e]) => ({
+      user_id: currentUser.id, word_de: de,
+      seen: e.seen||0, correct: e.correct||0,
+      difficulty: e.difficulty||0, next_review: e.nextReview||0,
+      updated_at: new Date().toISOString()
+    }));
+    const { error } = await sb.from('user_progress').upsert(rows, { onConflict: 'user_id,word_de' });
+    if (error) throw error;
+  } catch(e) {
+    console.warn('[sync] flushProgress:', e.message);
+    Object.assign(_pendingProgressSave, batch); // retry next time
+  }
+}
+
+// ── Manual sync (pull latest from DB) ──
+async function manualSync() {
+  setSyncState('syncing', 'Sincronizando…');
+  try {
+    const [words] = await Promise.all([_fetchWordsFromDB(), _fetchProgressFromDB()]);
+    setSyncState('ok', 'Sincronizado ✓');
+    updateStats();
+    if (currentPage === 'lista') renderLista();
+  } catch(e) {
+    setSyncState('error', 'Sin conexión');
+  }
+}
+
+// ── Setup banner (when tables don't exist yet) ──
+function showSetupBanner() {
+  const el = document.getElementById('setupBanner');
+  if (el) { el.style.display = 'block'; }
+  setSyncState('error', 'Tablas no configuradas');
+}
 
 // ═══════════════════ STATS ═══════════════════
 function updateStats() {
@@ -1876,9 +2206,6 @@ function updateStats() {
 }
 
 // ═══════════════════ PROGRESS ═══════════════════
-function getProgress() { try { return JSON.parse(localStorage.getItem('progress_'+(currentEmail||'default')))||{}; } catch(e) { return {}; } }
-function saveProgress(p) { localStorage.setItem('progress_'+(currentEmail||'default'), JSON.stringify(p)); }
-
 function updateWordProgress(wordDE, wasCorrect) {
   const p = getProgress(), now = Date.now();
   if (!p[wordDE]) p[wordDE] = {seen:0,correct:0,difficulty:0,nextReview:now};

@@ -850,7 +850,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 /* ═══════════════════ VOCAB TABLE ═══════════════════ */
 .vocab-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
-.vocab-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+.vocab-table{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
 .vocab-table thead th{
   position:sticky;top:0;z-index:5;
   background:var(--bg2);
@@ -893,8 +893,12 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   z-index:10;
 }
 .lista-table-zone{
-  flex:1;overflow-y:auto;overflow-x:hidden;
+  flex:1;overflow-y:auto;overflow-x:auto;
   -webkit-overflow-scrolling:touch;
+}
+#wordList{
+  display:flex;justify-content:center;
+  padding: 0 0 80px;
 }
 /* Column resize handle */
 .col-resize-handle{
@@ -1176,7 +1180,7 @@ CREATE POLICY "own_progress" ON user_progress
       <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
     </div>
     <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
-    <div id="wordList" style="padding:0 16px 80px"></div>
+    <div id="wordList"></div>
   </div>
 </div>
 
@@ -2203,12 +2207,38 @@ let _editingIdx = null;
 
 // Default column widths (px) — persisted in localStorage
 const COL_KEYS = ['tipo','art','de','es','act'];
-const COL_DEFAULTS = { tipo:110, art:64, de:130, es:130, act:68 };
+// Ideal proportions — scaled at render time to fit the actual container
+const COL_IDEAL = { tipo:100, art:50, de:130, es:130, act:60 };
+const COL_MIN   = { tipo:60,  art:36, de:60,  es:60,  act:52 };
+
 function _getColWidths() {
   try { return JSON.parse(localStorage.getItem('colWidths_vocab')) || {}; } catch(e) { return {}; }
 }
 function _saveColWidths(w) { localStorage.setItem('colWidths_vocab', JSON.stringify(w)); }
-function _colW(key) { const w=_getColWidths(); return w[key]||COL_DEFAULTS[key]; }
+
+// Return column widths: saved overrides first, otherwise scale ideals to container
+function _colW(key) {
+  const saved = _getColWidths();
+  if (saved[key] !== undefined) return saved[key];
+  return _computeColDefaults()[key];
+}
+
+function _computeColDefaults() {
+  // Available width = lista-table-zone width minus padding
+  const zone = document.querySelector('.lista-table-zone');
+  const available = zone ? zone.clientWidth - 2 : 500;
+  const idealSum = Object.values(COL_IDEAL).reduce((a,b) => a+b, 0);
+  const scale = Math.min(1, available / idealSum);
+  const result = {};
+  COL_KEYS.forEach(k => {
+    result[k] = Math.max(COL_MIN[k], Math.round(COL_IDEAL[k] * scale));
+  });
+  // Give any leftover pixels to 'es' column
+  const used = Object.values(result).reduce((a,b) => a+b, 0);
+  const leftover = available - used;
+  if (leftover > 0) result['es'] = result['es'] + leftover;
+  return result;
+}
 
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -2352,8 +2382,15 @@ async function deleteRow(gIdx) {
 // table-layout:fixed means widths come from <col> elements.
 // The table must NOT be width:100% during resize — otherwise the browser
 // re-fills available space and shrinking a col has no visible effect.
-// _applyTableWidth() pins the table to the exact sum of col widths.
+// ── Column resize ──
+// _applyTableWidth: pins table to sum of col widths, centered, never wider than zone.
+// _clampW: enforces min=COL_MIN[col], max=zone_width minus other cols' minimums.
 let _resizing = null;
+
+function _zoneWidth() {
+  const zone = document.querySelector('.lista-table-zone');
+  return zone ? zone.clientWidth - 2 : 500;
+}
 
 function _applyTableWidth() {
   const tbl = document.querySelector('#wordList .vocab-table');
@@ -2361,7 +2398,19 @@ function _applyTableWidth() {
   const cols = tbl.querySelectorAll('col');
   let sum = 0;
   cols.forEach(c => { sum += parseInt(c.style.width) || 0; });
-  if (sum > 0) tbl.style.width = sum + 'px';
+  const maxW = _zoneWidth();
+  tbl.style.width = Math.min(sum, maxW) + 'px';
+  tbl.style.marginLeft = 'auto';
+  tbl.style.marginRight = 'auto';
+}
+
+function _clampColW(colKey, rawW) {
+  const minW = COL_MIN[colKey] || 40;
+  // Max = zone width minus the minimum of all other cols
+  const otherMins = COL_KEYS.filter(k => k !== colKey)
+    .reduce((s, k) => s + (COL_MIN[k] || 40), 0);
+  const maxW = Math.max(minW, _zoneWidth() - otherMins);
+  return Math.max(minW, Math.min(maxW, rawW));
 }
 
 function startColResize(e, colKey) {
@@ -2379,14 +2428,16 @@ function startColResize(e, colKey) {
 
 document.addEventListener('mousemove', e => {
   if (!_resizing) return;
-  const newW = Math.max(40, _resizing.startW + (e.clientX - _resizing.startX));
+  const raw = _resizing.startW + (e.clientX - _resizing.startX);
+  const newW = _clampColW(_resizing.col, raw);
   _resizing.colEl.style.width = newW + 'px';
   _applyTableWidth();
 });
 
 document.addEventListener('mouseup', e => {
   if (!_resizing) return;
-  const newW = Math.max(40, _resizing.startW + (e.clientX - _resizing.startX));
+  const raw = _resizing.startW + (e.clientX - _resizing.startX);
+  const newW = _clampColW(_resizing.col, raw);
   const widths = _getColWidths();
   widths[_resizing.col] = newW;
   _saveColWidths(widths);
@@ -2415,14 +2466,16 @@ document.addEventListener('touchstart', e => {
 document.addEventListener('touchmove', e => {
   if (!_resizing) return;
   const touch = e.touches[0];
-  const newW = Math.max(40, _resizing.startW + (touch.clientX - _resizing.startX));
+  const raw = _resizing.startW + (touch.clientX - _resizing.startX);
+  const newW = _clampColW(_resizing.col, raw);
   _resizing.colEl.style.width = newW + 'px';
   _applyTableWidth();
 }, { passive:true });
 
 document.addEventListener('touchend', e => {
   if (!_resizing) return;
-  const newW = Math.max(40, _resizing.startW + (e.changedTouches[0].clientX - _resizing.startX));
+  const raw = _resizing.startW + (e.changedTouches[0].clientX - _resizing.startX);
+  const newW = _clampColW(_resizing.col, raw);
   const widths = _getColWidths();
   widths[_resizing.col] = newW;
   _saveColWidths(widths);

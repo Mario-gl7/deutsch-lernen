@@ -850,14 +850,16 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 /* ═══════════════════ VOCAB TABLE ═══════════════════ */
 .vocab-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
-.vocab-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.vocab-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
 .vocab-table thead th{
-  position:sticky;top:0;z-index:2;
+  position:sticky;top:0;z-index:5;
   background:var(--bg2);
   padding:8px 10px;
   font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
   color:var(--text3);text-align:left;white-space:nowrap;
   border-bottom:1px solid var(--border);
+  overflow:visible;
+  box-shadow:0 1px 0 var(--border);
 }
 .vocab-table thead th:first-child{border-radius:var(--r) 0 0 0}
 .vocab-table thead th:last-child{border-radius:0 var(--r) 0 0;text-align:center}
@@ -894,11 +896,6 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   flex:1;overflow-y:auto;overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
 }
-/* Make table header sticky within the scroll zone */
-.vocab-table thead th{
-  position:sticky;top:0;z-index:5;
-  background:var(--bg2);
-}
 /* Column resize handle */
 .col-resize-handle{
   position:absolute;right:0;top:0;bottom:0;
@@ -914,9 +911,6 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 }
 th:hover .col-resize-handle::after,
 th.resizing .col-resize-handle::after{opacity:1}
-.vocab-table thead th{position:relative;overflow:visible}
-/* Default column widths (overridden by JS colWidths) */
-.vocab-table{table-layout:fixed}
 
 </style>
 </head>
@@ -2353,35 +2347,38 @@ async function deleteRow(gIdx) {
 }
 
 // ── Column resize ──
-let _resizing = null; // { col, startX, startW, th, colEl }
+// With table-layout:fixed, widths are driven by <colgroup><col> elements,
+// not by th.style.width. During drag we update only the <col>; on release
+// we persist and the next renderLista() will apply all saved widths.
+let _resizing = null;
 function startColResize(e, colKey) {
   e.preventDefault();
   e.stopPropagation();
   const th = e.currentTarget.closest('th');
   if (!th) return;
-  _resizing = { col:colKey, startX:e.clientX, startW:th.offsetWidth, th };
+  const colEl = document.getElementById('col-' + colKey);
+  if (!colEl) return;
+  // Use the col element's current rendered width as start point
+  const startW = th.getBoundingClientRect().width;
+  _resizing = { col:colKey, startX:e.clientX, startW, th, colEl };
   th.classList.add('resizing');
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
 document.addEventListener('mousemove', e => {
   if (!_resizing) return;
-  const dx = e.clientX - _resizing.startX;
-  const newW = Math.max(40, _resizing.startW + dx);
-  // Update th width
-  _resizing.th.style.width = newW + 'px';
-  // Update colgroup col
-  const colEl = document.getElementById('col-' + _resizing.col);
-  if (colEl) colEl.style.width = newW + 'px';
+  const newW = Math.max(40, _resizing.startW + (e.clientX - _resizing.startX));
+  // Only update the <col> — this is what table-layout:fixed actually reads
+  _resizing.colEl.style.width = newW + 'px';
 });
 document.addEventListener('mouseup', e => {
   if (!_resizing) return;
-  const dx = e.clientX - _resizing.startX;
-  const newW = Math.max(40, _resizing.startW + dx);
+  const newW = Math.max(40, _resizing.startW + (e.clientX - _resizing.startX));
   const widths = _getColWidths();
   widths[_resizing.col] = newW;
   _saveColWidths(widths);
   _resizing.th.classList.remove('resizing');
+  _resizing.th.style.width = newW + 'px'; // keep th in sync visually
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
   _resizing = null;
@@ -2393,24 +2390,25 @@ document.addEventListener('touchstart', e => {
   const th = handle.closest('th');
   const colKey = th?.dataset.col;
   if (!th || !colKey) return;
+  const colEl = document.getElementById('col-' + colKey);
+  if (!colEl) return;
   e.preventDefault();
   const touch = e.touches[0];
-  _resizing = { col:colKey, startX:touch.clientX, startW:th.offsetWidth, th };
+  const startW = th.getBoundingClientRect().width;
+  _resizing = { col:colKey, startX:touch.clientX, startW, th, colEl };
   th.classList.add('resizing');
 }, { passive:false });
 document.addEventListener('touchmove', e => {
   if (!_resizing) return;
   const touch = e.touches[0];
-  const dx = touch.clientX - _resizing.startX;
-  const newW = Math.max(40, _resizing.startW + dx);
-  _resizing.th.style.width = newW + 'px';
-  const colEl = document.getElementById('col-' + _resizing.col);
-  if (colEl) colEl.style.width = newW + 'px';
+  const newW = Math.max(40, _resizing.startW + (touch.clientX - _resizing.startX));
+  _resizing.colEl.style.width = newW + 'px';
 }, { passive:true });
 document.addEventListener('touchend', e => {
   if (!_resizing) return;
+  const newW = Math.max(40, _resizing.startW + (e.changedTouches[0].clientX - _resizing.startX));
   const widths = _getColWidths();
-  widths[_resizing.col] = Math.max(40, _resizing.startW + (e.changedTouches[0].clientX - _resizing.startX));
+  widths[_resizing.col] = newW;
   _saveColWidths(widths);
   _resizing.th.classList.remove('resizing');
   _resizing = null;

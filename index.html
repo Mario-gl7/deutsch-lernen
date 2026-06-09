@@ -2299,6 +2299,8 @@ function renderLista() {
 
   document.getElementById('wordList').innerHTML =
     `<table class="vocab-table">${colgroup}${thead}<tbody>${rows}</tbody></table>`;
+  // Pin table width so resize can shrink columns (overrides width:100%)
+  requestAnimationFrame(_applyTableWidth);
 }
 
 function startEditRow(gIdx) {
@@ -2347,30 +2349,41 @@ async function deleteRow(gIdx) {
 }
 
 // ── Column resize ──
-// With table-layout:fixed, widths are driven by <colgroup><col> elements,
-// not by th.style.width. During drag we update only the <col>; on release
-// we persist and the next renderLista() will apply all saved widths.
+// table-layout:fixed means widths come from <col> elements.
+// The table must NOT be width:100% during resize — otherwise the browser
+// re-fills available space and shrinking a col has no visible effect.
+// _applyTableWidth() pins the table to the exact sum of col widths.
 let _resizing = null;
+
+function _applyTableWidth() {
+  const tbl = document.querySelector('#wordList .vocab-table');
+  if (!tbl) return;
+  const cols = tbl.querySelectorAll('col');
+  let sum = 0;
+  cols.forEach(c => { sum += parseInt(c.style.width) || 0; });
+  if (sum > 0) tbl.style.width = sum + 'px';
+}
+
 function startColResize(e, colKey) {
   e.preventDefault();
   e.stopPropagation();
-  const th = e.currentTarget.closest('th');
+  const th = e.target.closest('th');
   if (!th) return;
   const colEl = document.getElementById('col-' + colKey);
   if (!colEl) return;
-  // Use the col element's current rendered width as start point
-  const startW = th.getBoundingClientRect().width;
-  _resizing = { col:colKey, startX:e.clientX, startW, th, colEl };
+  _resizing = { col:colKey, startX:e.clientX, startW:th.offsetWidth, th, colEl };
   th.classList.add('resizing');
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
+
 document.addEventListener('mousemove', e => {
   if (!_resizing) return;
   const newW = Math.max(40, _resizing.startW + (e.clientX - _resizing.startX));
-  // Only update the <col> — this is what table-layout:fixed actually reads
   _resizing.colEl.style.width = newW + 'px';
+  _applyTableWidth();
 });
+
 document.addEventListener('mouseup', e => {
   if (!_resizing) return;
   const newW = Math.max(40, _resizing.startW + (e.clientX - _resizing.startX));
@@ -2378,11 +2391,12 @@ document.addEventListener('mouseup', e => {
   widths[_resizing.col] = newW;
   _saveColWidths(widths);
   _resizing.th.classList.remove('resizing');
-  _resizing.th.style.width = newW + 'px'; // keep th in sync visually
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
   _resizing = null;
+  _applyTableWidth();
 });
+
 // Touch resize support
 document.addEventListener('touchstart', e => {
   const handle = e.target.closest('.col-resize-handle');
@@ -2394,16 +2408,18 @@ document.addEventListener('touchstart', e => {
   if (!colEl) return;
   e.preventDefault();
   const touch = e.touches[0];
-  const startW = th.getBoundingClientRect().width;
-  _resizing = { col:colKey, startX:touch.clientX, startW, th, colEl };
+  _resizing = { col:colKey, startX:touch.clientX, startW:th.offsetWidth, th, colEl };
   th.classList.add('resizing');
 }, { passive:false });
+
 document.addEventListener('touchmove', e => {
   if (!_resizing) return;
   const touch = e.touches[0];
   const newW = Math.max(40, _resizing.startW + (touch.clientX - _resizing.startX));
   _resizing.colEl.style.width = newW + 'px';
+  _applyTableWidth();
 }, { passive:true });
+
 document.addEventListener('touchend', e => {
   if (!_resizing) return;
   const newW = Math.max(40, _resizing.startW + (e.changedTouches[0].clientX - _resizing.startX));
@@ -2412,6 +2428,7 @@ document.addEventListener('touchend', e => {
   _saveColWidths(widths);
   _resizing.th.classList.remove('resizing');
   _resizing = null;
+  _applyTableWidth();
 });
 
 function quickDiff(wordDE, level) { setDifficulty(wordDE, level); renderLista(); }

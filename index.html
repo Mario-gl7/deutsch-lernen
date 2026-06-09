@@ -861,65 +861,62 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 }
 .vocab-table thead th:first-child{border-radius:var(--r) 0 0 0}
 .vocab-table thead th:last-child{border-radius:0 var(--r) 0 0;text-align:center}
-.vocab-table tbody tr{
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  transition:background .12s;
-}
+.vocab-table tbody tr{background:var(--surface);border-bottom:1px solid var(--border);transition:background .12s}
 .vocab-table tbody tr:hover{background:var(--surface2)}
 .vocab-table tbody tr.row-editing{background:var(--blue-bg)!important;outline:1px solid rgba(96,165,250,.35);outline-offset:-1px}
-.vocab-table tbody tr.row-saving{opacity:.6;pointer-events:none}
 .vocab-table td{padding:9px 10px;vertical-align:middle;color:var(--text)}
-.vocab-table td.td-tipo{width:96px}
-.vocab-table td.td-art{width:52px}
-.vocab-table td.td-de{font-weight:600}
-.vocab-table td.td-es{color:var(--text2)}
+.vocab-table td.td-tipo{width:96px}.vocab-table td.td-art{width:52px}
+.vocab-table td.td-de{font-weight:600}.vocab-table td.td-es{color:var(--text2)}
 .vocab-table td.td-actions{width:72px;text-align:center;white-space:nowrap}
-
-/* diff dot */
 .diff-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
-
-/* progress mini */
 .prog-mini{display:flex;align-items:center;gap:4px;margin-top:3px}
 .prog-mini-track{flex:1;min-width:32px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
 .prog-mini-fill{height:100%;border-radius:1px}
 .prog-mini-pct{font-size:9px;font-weight:600;color:var(--text3);white-space:nowrap}
-
-/* inline select / input */
-.cell-select,.cell-input{
-  background:var(--bg);border:1px solid var(--blue);border-radius:5px;
-  color:var(--text);font-family:'Inter',sans-serif;font-size:12px;
-  padding:4px 6px;outline:none;width:100%;
-  -webkit-appearance:none;
-}
-.cell-select{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8ba8'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 6px center;padding-right:22px;
-}
+.cell-select,.cell-input{background:var(--bg);border:1px solid var(--blue);border-radius:5px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:4px 6px;outline:none;width:100%;-webkit-appearance:none}
+.cell-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8ba8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:22px}
 .cell-input:focus,.cell-select:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(74,222,128,.15)}
-
-/* row action buttons */
-.row-btn{
-  width:28px;height:28px;border-radius:6px;border:none;
-  background:none;cursor:pointer;display:inline-flex;
-  align-items:center;justify-content:center;
-  font-size:13px;transition:background .12s;color:var(--text2);
-}
+.row-btn{width:28px;height:28px;border-radius:6px;border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:background .12s;color:var(--text2)}
 .row-btn:hover{background:var(--surface2)}
-.row-btn.save-btn{color:var(--green);font-size:15px}
-.row-btn.save-btn:hover{background:var(--green-bg)}
-.row-btn.cancel-btn{color:var(--text3)}
-.row-btn.delete-btn:hover{background:var(--red-bg);color:var(--red)}
+.row-btn.save-btn{color:var(--green);font-size:15px}.row-btn.save-btn:hover{background:var(--green-bg)}
+.row-btn.cancel-btn{color:var(--text3)}.row-btn.delete-btn:hover{background:var(--red-bg);color:var(--red)}
 
-/* diff micro-buttons (keep for table) */
-.diff-micro-sm{
-  background:none;border:1px solid var(--border);
-  border-radius:4px;padding:1px 4px;font-size:10px;cursor:pointer;
-  transition:all .12s;line-height:1.4;
+
+/* ═══════════════════ LISTA LAYOUT (sticky header + scrollable body) ══════ */
+#page-lista{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.lista-controls{
+  flex-shrink:0;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+  z-index:10;
 }
-.diff-micro-sm.active-red{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4)}
-.diff-micro-sm.active-green{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35)}
-.diff-micro-sm.active-neutral{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3)}
+.lista-table-zone{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+/* Make table header sticky within the scroll zone */
+.vocab-table thead th{
+  position:sticky;top:0;z-index:5;
+  background:var(--bg2);
+}
+/* Column resize handle */
+.col-resize-handle{
+  position:absolute;right:0;top:0;bottom:0;
+  width:8px;cursor:col-resize;
+  display:flex;align-items:center;justify-content:center;
+  z-index:6;user-select:none;
+}
+.col-resize-handle::after{
+  content:'';display:block;
+  width:2px;height:16px;
+  background:var(--border2);border-radius:1px;
+  opacity:0;transition:opacity .15s;
+}
+th:hover .col-resize-handle::after,
+th.resizing .col-resize-handle::after{opacity:1}
+.vocab-table thead th{position:relative;overflow:visible}
+/* Default column widths (overridden by JS colWidths) */
+.vocab-table{table-layout:fixed}
 
 </style>
 </head>
@@ -1146,21 +1143,21 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
       Lista
     </div>
   </div>
-  <div class="inner-content" id="listaContent">
-    <div id="setupBanner" style="display:none" class="setup-banner">
+  <div class="lista-controls" id="listaContent">
+    <div style="padding:12px 16px 0">
+      <div class="list-actions">
+        <button class="list-action-btn" onclick="showAddModal()">＋ Añadir</button>
+        <button class="list-action-btn" onclick="showImportModal()">⬆ Importar</button>
+      </div>
+      <div class="filter-row" id="listaFilterBar" style="margin-top:8px"></div>
+      <div class="filter-row" id="listaDiffBar" style="margin-top:2px;margin-bottom:8px"></div>
+    </div>
+  </div>
+  <div class="lista-table-zone">
+    <div id="setupBanner" style="display:none;margin:12px 16px 0" class="setup-banner">
       <b>⚠ Sincronización no activa</b> — Las tablas de Supabase no existen aún.<br>
       Ejecuta este SQL en <b>Supabase → SQL Editor</b> y recarga:
-      <code id="setupSql">-- 1. Seed vocabulary (fill manually or via import)
-CREATE TABLE IF NOT EXISTS base_words (
-  id serial PRIMARY KEY,
-  tipo text DEFAULT '', articulo text DEFAULT '',
-  de text NOT NULL, es text NOT NULL
-);
-ALTER TABLE base_words ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "read_base_words" ON base_words FOR SELECT USING (true);
-
--- 2. Per-user word list (copies from base_words on first login)
-CREATE TABLE IF NOT EXISTS user_words (
+      <code id="setupSql">CREATE TABLE IF NOT EXISTS user_words (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   tipo text DEFAULT '', articulo text DEFAULT '',
@@ -1171,7 +1168,6 @@ ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_words" ON user_words
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 
--- 3. Per-user progress
 CREATE TABLE IF NOT EXISTS user_progress (
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   word_de text NOT NULL,
@@ -1185,14 +1181,8 @@ CREATE POLICY "own_progress" ON user_progress
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);</code>
       <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
     </div>
-    <div class="list-actions">
-      <button class="list-action-btn" onclick="showAddModal()">＋ Añadir</button>
-      <button class="list-action-btn" onclick="showImportModal()">⬆ Importar</button>
-    </div>
-    <div class="filter-row" id="listaFilterBar"></div>
-    <div class="filter-row" id="listaDiffBar" style="margin-top:-4px"></div>
-    <div class="word-count-lbl" id="listaCountLbl"></div>
-    <div id="wordList"></div>
+    <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
+    <div id="wordList" style="padding:0 16px 80px"></div>
   </div>
 </div>
 
@@ -1912,7 +1902,7 @@ function setCwSource(src) {
 }
 
 // ═══════════════════ VOCAB DATA ═══════════════════
-// Words are stored in Supabase (base_words table) — not bundled in HTML.
+// Words stored in Supabase (base_words table).
 
 function displayDE(w) { return (w.articulo && w.articulo !== '') ? w.articulo + ' ' + w.de : w.de; }
 
@@ -2033,12 +2023,8 @@ async function _fetchWordsFromDB() {
     }
     _dbReady = true;
     if (data.length === 0) {
-      // First login — fetch seed words from base_words and insert for this user
       const baseWords = await _fetchBaseWords();
-      if (baseWords && baseWords.length > 0) {
-        await _seedWords(baseWords);
-        return baseWords;
-      }
+      if (baseWords && baseWords.length > 0) { await _seedWords(baseWords); return baseWords; }
       return [];
     }
     const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
@@ -2063,53 +2049,6 @@ async function _seedWords(words) {
       _cacheWords(withIds);
     }
   } catch(e) { console.warn('[sync] seed:', e.message); }
-}
-
-// ── Fetch seed words from public base_words table ──
-async function _fetchBaseWords() {
-  try {
-    const sb = await getSupabase();
-    const { data, error } = await sb.from('base_words').select('tipo,articulo,de,es').order('id');
-    if (error) { console.warn('[sync] fetchBaseWords:', error.message); return []; }
-    return (data || []).map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es }));
-  } catch(e) { console.warn('[sync] fetchBaseWords:', e.message); return []; }
-}
-
-// ── Update a single word row in Supabase (used by saveEditRow) ──
-async function _updateWordInDB(word) {
-  if (!currentUser || !_dbReady) return;
-  if (!word._id) { await _flushWords(getWords()); return; } // fallback: full flush
-  try {
-    const sb = await getSupabase();
-    const { error } = await sb
-      .from('user_words')
-      .update({ tipo: word.tipo||'', articulo: word.articulo||'', de: word.de, es: word.es })
-      .eq('id', word._id)
-      .eq('user_id', currentUser.id);
-    if (error) throw error;
-    setSyncState('ok', 'Guardado ✓');
-  } catch(e) {
-    console.warn('[sync] updateWord:', e.message);
-    setSyncState('error', 'Error al guardar');
-  }
-}
-
-// ── Delete a single word row in Supabase ──
-async function _deleteWordInDB(word) {
-  if (!currentUser || !_dbReady) return;
-  if (!word._id) { await _flushWords(getWords()); return; }
-  try {
-    const sb = await getSupabase();
-    const { error } = await sb
-      .from('user_words')
-      .delete()
-      .eq('id', word._id)
-      .eq('user_id', currentUser.id);
-    if (error) throw error;
-  } catch(e) {
-    console.warn('[sync] deleteWord:', e.message);
-    setSyncState('error', 'Error al eliminar');
-  }
 }
 
 // ── Save words — cache instantly, flush to DB debounced ──
@@ -2266,9 +2205,17 @@ function getSortedWords(words) {
 const TIPOS_KEYS = ['Todos','Nomen','Verb','Adjektive','Redewendung','Adverb'];
 const DIFF_FILTER_KEYS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','🆕 Nuevas'];
 let activeFilter = 'Todos', vocabDiffFilter = 'Todas';
-let _editingIdx = null; // global index (in full getWords()) of row being edited
+let _editingIdx = null;
 
-// Escape for use inside HTML attribute strings
+// Default column widths (px) — persisted in localStorage
+const COL_KEYS = ['tipo','art','de','es','act'];
+const COL_DEFAULTS = { tipo:110, art:64, de:130, es:130, act:68 };
+function _getColWidths() {
+  try { return JSON.parse(localStorage.getItem('colWidths_vocab')) || {}; } catch(e) { return {}; }
+}
+function _saveColWidths(w) { localStorage.setItem('colWidths_vocab', JSON.stringify(w)); }
+function _colW(key) { const w=_getColWidths(); return w[key]||COL_DEFAULTS[key]; }
+
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function renderLista() {
@@ -2279,7 +2226,7 @@ function renderLista() {
     `<button class="filter-chip ${k===activeFilter?'active':''}" onclick="setListaFilter('${k}')">${TIPOS[i]}</button>`
   ).join('');
   document.getElementById('listaDiffBar').innerHTML = DIFF_FILTER_KEYS.map((k,i) =>
-    `<button class="filter-chip ${k===vocabDiffFilter?'active':''}" onclick="setListaDiff('${k.replace(/'/g,"\'")}')"> ${DIFF_FILTERS[i]}</button>`
+    `<button class="filter-chip ${k===vocabDiffFilter?'active':''}" onclick="setListaDiff('${k.replace(/'/g,"\\'")}')">${DIFF_FILTERS[i]}</button>`
   ).join('');
 
   const allWords = getWords();
@@ -2295,32 +2242,48 @@ function renderLista() {
 
   const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
   const ART_OPT  = ['','der','die','das'];
+  const cw = key => _colW(key);
+
+  const colgroup = `<colgroup>
+    <col id="col-tipo" style="width:${cw('tipo')}px">
+    <col id="col-art"  style="width:${cw('art')}px">
+    <col id="col-de"   style="width:${cw('de')}px">
+    <col id="col-es"   style="width:${cw('es')}px">
+    <col id="col-act"  style="width:${cw('act')}px">
+  </colgroup>`;
+
+  const thead = `<thead>
+    <tr>
+      <th data-col="tipo" style="width:${cw('tipo')}px">Tipo<span class="col-resize-handle" onmousedown="startColResize(event,'tipo')"></span></th>
+      <th data-col="art"  style="width:${cw('art')}px">Art.<span class="col-resize-handle" onmousedown="startColResize(event,'art')"></span></th>
+      <th data-col="de"   style="width:${cw('de')}px">Alemán<span class="col-resize-handle" onmousedown="startColResize(event,'de')"></span></th>
+      <th data-col="es"   style="width:${cw('es')}px">Español<span class="col-resize-handle" onmousedown="startColResize(event,'es')"></span></th>
+      <th data-col="act"  style="width:${cw('act')}px;text-align:center">⚙</th>
+    </tr>
+  </thead>`;
 
   const rows = words.map(w => {
-    // find global index so edits/deletes work on the master array
-    const gIdx = allWords.findIndex(x => x === w || (x.de===w.de && x.es===w.es && x.tipo===w.tipo && x.articulo===w.articulo));
+    const gIdx = allWords.findIndex(x => x === w || (x.de===w.de&&x.es===w.es&&x.tipo===w.tipo&&x.articulo===w.articulo));
     const pe = p[w.de]||{};
     const pct = pe.seen>0 ? Math.round(pe.correct/pe.seen*100) : -1;
     const col = pct>=75?'var(--green)':pct>=40?'var(--orange)':'var(--red)';
     const diffDot = pe.difficulty===1
-      ? '<span class="diff-dot" style="background:var(--red)" title="Difícil"></span>'
+      ? '<span class="diff-dot" style="background:var(--red)"></span>'
       : pe.difficulty===2
-        ? '<span class="diff-dot" style="background:var(--green)" title="Fácil"></span>'
+        ? '<span class="diff-dot" style="background:var(--green)"></span>'
         : '';
     const progMini = pct>=0
       ? `<div class="prog-mini"><div class="prog-mini-track"><div class="prog-mini-fill" style="width:${pct}%;background:${col}"></div></div><span class="prog-mini-pct" style="color:${col}">${pct}%</span></div>`
       : '';
 
-    const isEditing = (_editingIdx === gIdx);
-
-    if (isEditing) {
-      const tipoOpts = TIPO_OPT.map(o => `<option value="${o}" ${w.tipo===o?'selected':''}>${o||'—'}</option>`).join('');
-      const artOpts  = ART_OPT.map(o  => `<option value="${o}" ${w.articulo===o?'selected':''}>${o||'—'}</option>`).join('');
+    if (_editingIdx === gIdx) {
+      const tipoOpts = TIPO_OPT.map(o=>`<option value="${o}" ${w.tipo===o?'selected':''}>${o||'—'}</option>`).join('');
+      const artOpts  = ART_OPT.map(o =>`<option value="${o}" ${w.articulo===o?'selected':''}>${o||'—'}</option>`).join('');
       return `<tr class="row-editing" id="row-${gIdx}">
         <td class="td-tipo"><select class="cell-select" id="edit-tipo">${tipoOpts}</select></td>
         <td class="td-art"><select class="cell-select" id="edit-art">${artOpts}</select></td>
-        <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}" placeholder="Alemán"></td>
-        <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}" placeholder="Español"></td>
+        <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}"></td>
+        <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
         <td class="td-actions">
           <button class="row-btn save-btn" onclick="saveEditRow(${gIdx})" title="Guardar">✓</button>
           <button class="row-btn cancel-btn" onclick="cancelEditRow()" title="Cancelar">✕</button>
@@ -2329,7 +2292,7 @@ function renderLista() {
     }
 
     return `<tr id="row-${gIdx}">
-      <td class="td-tipo">${w.tipo ? `<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+      <td class="td-tipo">${w.tipo?`<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>`:'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
       <td class="td-art" style="color:var(--text2);font-size:12px">${_esc(w.articulo)||'<span style="color:var(--text3)">—</span>'}</td>
       <td class="td-de">${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
       <td class="td-es">${_esc(w.es)}</td>
@@ -2340,62 +2303,36 @@ function renderLista() {
     </tr>`;
   }).join('');
 
-  document.getElementById('wordList').innerHTML = `
-    <div class="vocab-table-wrap">
-      <table class="vocab-table">
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Art.</th>
-            <th>Alemán</th>
-            <th>Español</th>
-            <th>⚙</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+  document.getElementById('wordList').innerHTML =
+    `<table class="vocab-table">${colgroup}${thead}<tbody>${rows}</tbody></table>`;
 }
 
 function startEditRow(gIdx) {
   _editingIdx = gIdx;
   renderLista();
-  // focus first editable field
   setTimeout(() => document.getElementById('edit-de')?.focus(), 60);
 }
 function cancelEditRow() { _editingIdx = null; renderLista(); }
 
 async function saveEditRow(gIdx) {
-  const tipo    = document.getElementById('edit-tipo')?.value.trim() || '';
-  const articulo= document.getElementById('edit-art')?.value.trim()  || '';
-  const de      = (document.getElementById('edit-de')?.value  || '').trim();
-  const es      = (document.getElementById('edit-es')?.value  || '').trim();
-  if (!de || !es) { showToast('⚠ Alemán y Español son obligatorios'); return; }
-
+  const tipo     = document.getElementById('edit-tipo')?.value.trim()||'';
+  const articulo = document.getElementById('edit-art')?.value.trim()||'';
+  const de       = (document.getElementById('edit-de')?.value||'').trim();
+  const es       = (document.getElementById('edit-es')?.value||'').trim();
+  if (!de||!es) { showToast('⚠ Alemán y Español son obligatorios'); return; }
   const allWords = getWords();
   const oldWord  = allWords[gIdx];
   if (!oldWord) return;
-
-  const oldDE = oldWord.de; // needed to update progress key if DE changed
-
-  // Update in-memory array
+  const oldDE = oldWord.de;
   allWords[gIdx] = { ...oldWord, tipo, articulo, de, es };
-
-  // If the German word changed, migrate progress key
   if (oldDE !== de) {
     const prog = getProgress();
-    if (prog[oldDE]) {
-      prog[de] = prog[oldDE];
-      delete prog[oldDE];
-      saveProgress(prog);
-    }
+    if (prog[oldDE]) { prog[de]=prog[oldDE]; delete prog[oldDE]; saveProgress(prog); }
   }
-
   _editingIdx = null;
-  saveWords(allWords);   // cache instantly
-  // Precise single-row update (fast, no full delete-reinsert)
-  setSyncState('syncing', 'Guardando…');
-  _updateWordInDB(allWords[gIdx]).then(() => setSyncState('ok', 'Guardado ✓'));
+  saveWords(allWords);
+  setSyncState('syncing','Guardando…');
+  _updateWordInDB(allWords[gIdx]).then(()=>setSyncState('ok','Guardado ✓'));
   renderLista();
   updateStats();
   showToast('✓ Guardado');
@@ -2406,15 +2343,78 @@ async function deleteRow(gIdx) {
   const w = allWords[gIdx];
   if (!w) return;
   if (!confirm(`¿Eliminar "${displayDE(w)}"?`)) return;
-  // Fire DB delete before modifying local (word still has _id)
   _deleteWordInDB(w);
-  allWords.splice(gIdx, 1);
-  if (_editingIdx === gIdx) _editingIdx = null;
-  _cacheWords(allWords);  // update cache directly (no full flush needed)
+  allWords.splice(gIdx,1);
+  if (_editingIdx===gIdx) _editingIdx=null;
+  _cacheWords(allWords);
   updateStats();
   renderLista();
   showToast('🗑 Eliminada');
 }
+
+// ── Column resize ──
+let _resizing = null; // { col, startX, startW, th, colEl }
+function startColResize(e, colKey) {
+  e.preventDefault();
+  e.stopPropagation();
+  const th = e.currentTarget.closest('th');
+  if (!th) return;
+  _resizing = { col:colKey, startX:e.clientX, startW:th.offsetWidth, th };
+  th.classList.add('resizing');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
+document.addEventListener('mousemove', e => {
+  if (!_resizing) return;
+  const dx = e.clientX - _resizing.startX;
+  const newW = Math.max(40, _resizing.startW + dx);
+  // Update th width
+  _resizing.th.style.width = newW + 'px';
+  // Update colgroup col
+  const colEl = document.getElementById('col-' + _resizing.col);
+  if (colEl) colEl.style.width = newW + 'px';
+});
+document.addEventListener('mouseup', e => {
+  if (!_resizing) return;
+  const dx = e.clientX - _resizing.startX;
+  const newW = Math.max(40, _resizing.startW + dx);
+  const widths = _getColWidths();
+  widths[_resizing.col] = newW;
+  _saveColWidths(widths);
+  _resizing.th.classList.remove('resizing');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  _resizing = null;
+});
+// Touch resize support
+document.addEventListener('touchstart', e => {
+  const handle = e.target.closest('.col-resize-handle');
+  if (!handle) return;
+  const th = handle.closest('th');
+  const colKey = th?.dataset.col;
+  if (!th || !colKey) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  _resizing = { col:colKey, startX:touch.clientX, startW:th.offsetWidth, th };
+  th.classList.add('resizing');
+}, { passive:false });
+document.addEventListener('touchmove', e => {
+  if (!_resizing) return;
+  const touch = e.touches[0];
+  const dx = touch.clientX - _resizing.startX;
+  const newW = Math.max(40, _resizing.startW + dx);
+  _resizing.th.style.width = newW + 'px';
+  const colEl = document.getElementById('col-' + _resizing.col);
+  if (colEl) colEl.style.width = newW + 'px';
+}, { passive:true });
+document.addEventListener('touchend', e => {
+  if (!_resizing) return;
+  const widths = _getColWidths();
+  widths[_resizing.col] = Math.max(40, _resizing.startW + (e.changedTouches[0].clientX - _resizing.startX));
+  _saveColWidths(widths);
+  _resizing.th.classList.remove('resizing');
+  _resizing = null;
+});
 
 function quickDiff(wordDE, level) { setDifficulty(wordDE, level); renderLista(); }
 function setListaFilter(typ) { activeFilter = typ; renderLista(); }

@@ -847,6 +847,80 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 }
 .lang-pill:hover{border-color:var(--border2);color:var(--text)}
 .lang-pill.active{background:var(--green-bg);border-color:rgba(74,222,128,.35);color:var(--green-t)}
+
+/* ═══════════════════ VOCAB TABLE ═══════════════════ */
+.vocab-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
+.vocab-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.vocab-table thead th{
+  position:sticky;top:0;z-index:2;
+  background:var(--bg2);
+  padding:8px 10px;
+  font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--text3);text-align:left;white-space:nowrap;
+  border-bottom:1px solid var(--border);
+}
+.vocab-table thead th:first-child{border-radius:var(--r) 0 0 0}
+.vocab-table thead th:last-child{border-radius:0 var(--r) 0 0;text-align:center}
+.vocab-table tbody tr{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  transition:background .12s;
+}
+.vocab-table tbody tr:hover{background:var(--surface2)}
+.vocab-table tbody tr.row-editing{background:var(--blue-bg)!important;outline:1px solid rgba(96,165,250,.35);outline-offset:-1px}
+.vocab-table tbody tr.row-saving{opacity:.6;pointer-events:none}
+.vocab-table td{padding:9px 10px;vertical-align:middle;color:var(--text)}
+.vocab-table td.td-tipo{width:96px}
+.vocab-table td.td-art{width:52px}
+.vocab-table td.td-de{font-weight:600}
+.vocab-table td.td-es{color:var(--text2)}
+.vocab-table td.td-actions{width:72px;text-align:center;white-space:nowrap}
+
+/* diff dot */
+.diff-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
+
+/* progress mini */
+.prog-mini{display:flex;align-items:center;gap:4px;margin-top:3px}
+.prog-mini-track{flex:1;min-width:32px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
+.prog-mini-fill{height:100%;border-radius:1px}
+.prog-mini-pct{font-size:9px;font-weight:600;color:var(--text3);white-space:nowrap}
+
+/* inline select / input */
+.cell-select,.cell-input{
+  background:var(--bg);border:1px solid var(--blue);border-radius:5px;
+  color:var(--text);font-family:'Inter',sans-serif;font-size:12px;
+  padding:4px 6px;outline:none;width:100%;
+  -webkit-appearance:none;
+}
+.cell-select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8ba8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;padding-right:22px;
+}
+.cell-input:focus,.cell-select:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(74,222,128,.15)}
+
+/* row action buttons */
+.row-btn{
+  width:28px;height:28px;border-radius:6px;border:none;
+  background:none;cursor:pointer;display:inline-flex;
+  align-items:center;justify-content:center;
+  font-size:13px;transition:background .12s;color:var(--text2);
+}
+.row-btn:hover{background:var(--surface2)}
+.row-btn.save-btn{color:var(--green);font-size:15px}
+.row-btn.save-btn:hover{background:var(--green-bg)}
+.row-btn.cancel-btn{color:var(--text3)}
+.row-btn.delete-btn:hover{background:var(--red-bg);color:var(--red)}
+
+/* diff micro-buttons (keep for table) */
+.diff-micro-sm{
+  background:none;border:1px solid var(--border);
+  border-radius:4px;padding:1px 4px;font-size:10px;cursor:pointer;
+  transition:all .12s;line-height:1.4;
+}
+.diff-micro-sm.active-red{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4)}
+.diff-micro-sm.active-green{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35)}
+.diff-micro-sm.active-neutral{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3)}
+
 </style>
 </head>
 <body>
@@ -1082,7 +1156,6 @@ CREATE TABLE IF NOT EXISTS base_words (
   tipo text DEFAULT '', articulo text DEFAULT '',
   de text NOT NULL, es text NOT NULL
 );
--- Allow anonymous read so the app can seed on first login
 ALTER TABLE base_words ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read_base_words" ON base_words FOR SELECT USING (true);
 
@@ -1846,8 +1919,29 @@ function displayDE(w) { return (w.articulo && w.articulo !== '') ? w.articulo + 
 // ═══════════════════ SYNC LAYER ═══════════════════
 // Architecture: localStorage = instant read cache · Supabase = source of truth
 //
-// ┌─ SQL to run once in Supabase → SQL Editor ───────────────────────────────┐
-// │ See setup banner in Lista page for full SQL (includes base_words table)  │
+// ┌─ SQL to run once in Supabase Dashboard → SQL Editor ──────────────────────┐
+// │ CREATE TABLE IF NOT EXISTS user_words (                                   │
+// │   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,                          │
+// │   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,      │
+// │   tipo text DEFAULT '', articulo text DEFAULT '',                          │
+// │   de text NOT NULL, es text NOT NULL,                                     │
+// │   created_at timestamptz DEFAULT now()                                    │
+// │ );                                                                        │
+// │ ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;                         │
+// │ CREATE POLICY "own_words" ON user_words                                   │
+// │   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);             │
+// │                                                                           │
+// │ CREATE TABLE IF NOT EXISTS user_progress (                                │
+// │   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,     │
+// │   word_de text NOT NULL,                                                  │
+// │   seen int DEFAULT 0, correct int DEFAULT 0,                              │
+// │   difficulty int DEFAULT 0, next_review bigint DEFAULT 0,                 │
+// │   updated_at timestamptz DEFAULT now(),                                   │
+// │   PRIMARY KEY (user_id, word_de)                                          │
+// │ );                                                                        │
+// │ ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;                      │
+// │ CREATE POLICY "own_progress" ON user_progress                             │
+// │   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);             │
 // └───────────────────────────────────────────────────────────────────────────┘
 
 let _pendingProgressSave = {};
@@ -1975,15 +2069,46 @@ async function _seedWords(words) {
 async function _fetchBaseWords() {
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb
-      .from('base_words')
-      .select('tipo,articulo,de,es')
-      .order('id');
+    const { data, error } = await sb.from('base_words').select('tipo,articulo,de,es').order('id');
     if (error) { console.warn('[sync] fetchBaseWords:', error.message); return []; }
     return (data || []).map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es }));
+  } catch(e) { console.warn('[sync] fetchBaseWords:', e.message); return []; }
+}
+
+// ── Update a single word row in Supabase (used by saveEditRow) ──
+async function _updateWordInDB(word) {
+  if (!currentUser || !_dbReady) return;
+  if (!word._id) { await _flushWords(getWords()); return; } // fallback: full flush
+  try {
+    const sb = await getSupabase();
+    const { error } = await sb
+      .from('user_words')
+      .update({ tipo: word.tipo||'', articulo: word.articulo||'', de: word.de, es: word.es })
+      .eq('id', word._id)
+      .eq('user_id', currentUser.id);
+    if (error) throw error;
+    setSyncState('ok', 'Guardado ✓');
   } catch(e) {
-    console.warn('[sync] fetchBaseWords:', e.message);
-    return [];
+    console.warn('[sync] updateWord:', e.message);
+    setSyncState('error', 'Error al guardar');
+  }
+}
+
+// ── Delete a single word row in Supabase ──
+async function _deleteWordInDB(word) {
+  if (!currentUser || !_dbReady) return;
+  if (!word._id) { await _flushWords(getWords()); return; }
+  try {
+    const sb = await getSupabase();
+    const { error } = await sb
+      .from('user_words')
+      .delete()
+      .eq('id', word._id)
+      .eq('user_id', currentUser.id);
+    if (error) throw error;
+  } catch(e) {
+    console.warn('[sync] deleteWord:', e.message);
+    setSyncState('error', 'Error al eliminar');
   }
 }
 
@@ -2141,6 +2266,10 @@ function getSortedWords(words) {
 const TIPOS_KEYS = ['Todos','Nomen','Verb','Adjektive','Redewendung','Adverb'];
 const DIFF_FILTER_KEYS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','🆕 Nuevas'];
 let activeFilter = 'Todos', vocabDiffFilter = 'Todas';
+let _editingIdx = null; // global index (in full getWords()) of row being edited
+
+// Escape for use inside HTML attribute strings
+function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function renderLista() {
   const TIPOS = TIPOS_KEYS.map((k,i) => i===0 ? t('filterAll') : k);
@@ -2150,10 +2279,11 @@ function renderLista() {
     `<button class="filter-chip ${k===activeFilter?'active':''}" onclick="setListaFilter('${k}')">${TIPOS[i]}</button>`
   ).join('');
   document.getElementById('listaDiffBar').innerHTML = DIFF_FILTER_KEYS.map((k,i) =>
-    `<button class="filter-chip ${k===vocabDiffFilter?'active':''}" onclick="setListaDiff('${k.replace(/'/g,"\\'")}')"> ${DIFF_FILTERS[i]}</button>`
+    `<button class="filter-chip ${k===vocabDiffFilter?'active':''}" onclick="setListaDiff('${k.replace(/'/g,"\'")}')"> ${DIFF_FILTERS[i]}</button>`
   ).join('');
 
-  let words = activeFilter==='Todos' ? getWords() : getWords().filter(w=>w.tipo===activeFilter);
+  const allWords = getWords();
+  let words = activeFilter==='Todos' ? allWords : allWords.filter(w=>w.tipo===activeFilter);
   const p = getProgress();
   if (vocabDiffFilter==='🔴 Difícil') words = words.filter(w=>p[w.de]?.difficulty===1);
   else if (vocabDiffFilter==='🟢 Fácil') words = words.filter(w=>p[w.de]?.difficulty===2);
@@ -2162,31 +2292,130 @@ function renderLista() {
   words = getSortedWords(words);
 
   document.getElementById('listaCountLbl').textContent = `${words.length} ${t('words')}`;
-  document.getElementById('wordList').innerHTML = words.map(w => {
+
+  const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
+  const ART_OPT  = ['','der','die','das'];
+
+  const rows = words.map(w => {
+    // find global index so edits/deletes work on the master array
+    const gIdx = allWords.findIndex(x => x === w || (x.de===w.de && x.es===w.es && x.tipo===w.tipo && x.articulo===w.articulo));
     const pe = p[w.de]||{};
     const pct = pe.seen>0 ? Math.round(pe.correct/pe.seen*100) : -1;
     const col = pct>=75?'var(--green)':pct>=40?'var(--orange)':'var(--red)';
-    const prog = pct>=0 ? `<div class="prog-bar-wrap">
-      <div class="prog-bar-track"><div class="prog-bar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <span class="prog-pct" style="color:${col}">${pct}%</span>
-    </div>` : '';
-    return `<div class="word-item" style="${pe.difficulty===1?'border-left:2px solid var(--red)':pe.difficulty===2?'border-left:2px solid var(--green)':''}">
-      <div style="flex:1;min-width:0">
-        <div class="word-de">${displayDE(w)}</div>
-        ${w.tipo?`<span class="tipo-badge ${w.tipo}">${w.tipo}</span>`:''}
-        ${prog}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-        <div class="word-es">${w.es}</div>
-        <div class="diff-btns">
-          <button class="diff-micro ${pe.difficulty===1?'active-red':''}" onclick="quickDiff('${w.de.replace(/'/g,"\\'")}',1)" title="Difícil">🔴</button>
-          <button class="diff-micro ${!pe.difficulty||pe.difficulty===0?'active-neutral':''}" onclick="quickDiff('${w.de.replace(/'/g,"\\'")}',0)" title="Normal">⚪</button>
-          <button class="diff-micro ${pe.difficulty===2?'active-green':''}" onclick="quickDiff('${w.de.replace(/'/g,"\\'")}',2)" title="Fácil">🟢</button>
-        </div>
-      </div>
-    </div>`;
+    const diffDot = pe.difficulty===1
+      ? '<span class="diff-dot" style="background:var(--red)" title="Difícil"></span>'
+      : pe.difficulty===2
+        ? '<span class="diff-dot" style="background:var(--green)" title="Fácil"></span>'
+        : '';
+    const progMini = pct>=0
+      ? `<div class="prog-mini"><div class="prog-mini-track"><div class="prog-mini-fill" style="width:${pct}%;background:${col}"></div></div><span class="prog-mini-pct" style="color:${col}">${pct}%</span></div>`
+      : '';
+
+    const isEditing = (_editingIdx === gIdx);
+
+    if (isEditing) {
+      const tipoOpts = TIPO_OPT.map(o => `<option value="${o}" ${w.tipo===o?'selected':''}>${o||'—'}</option>`).join('');
+      const artOpts  = ART_OPT.map(o  => `<option value="${o}" ${w.articulo===o?'selected':''}>${o||'—'}</option>`).join('');
+      return `<tr class="row-editing" id="row-${gIdx}">
+        <td class="td-tipo"><select class="cell-select" id="edit-tipo">${tipoOpts}</select></td>
+        <td class="td-art"><select class="cell-select" id="edit-art">${artOpts}</select></td>
+        <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}" placeholder="Alemán"></td>
+        <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}" placeholder="Español"></td>
+        <td class="td-actions">
+          <button class="row-btn save-btn" onclick="saveEditRow(${gIdx})" title="Guardar">✓</button>
+          <button class="row-btn cancel-btn" onclick="cancelEditRow()" title="Cancelar">✕</button>
+        </td>
+      </tr>`;
+    }
+
+    return `<tr id="row-${gIdx}">
+      <td class="td-tipo">${w.tipo ? `<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>` : '<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+      <td class="td-art" style="color:var(--text2);font-size:12px">${_esc(w.articulo)||'<span style="color:var(--text3)">—</span>'}</td>
+      <td class="td-de">${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
+      <td class="td-es">${_esc(w.es)}</td>
+      <td class="td-actions">
+        <button class="row-btn" onclick="startEditRow(${gIdx})" title="Editar">✏️</button>
+        <button class="row-btn delete-btn" onclick="deleteRow(${gIdx})" title="Eliminar">🗑</button>
+      </td>
+    </tr>`;
   }).join('');
+
+  document.getElementById('wordList').innerHTML = `
+    <div class="vocab-table-wrap">
+      <table class="vocab-table">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Art.</th>
+            <th>Alemán</th>
+            <th>Español</th>
+            <th>⚙</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
+
+function startEditRow(gIdx) {
+  _editingIdx = gIdx;
+  renderLista();
+  // focus first editable field
+  setTimeout(() => document.getElementById('edit-de')?.focus(), 60);
+}
+function cancelEditRow() { _editingIdx = null; renderLista(); }
+
+async function saveEditRow(gIdx) {
+  const tipo    = document.getElementById('edit-tipo')?.value.trim() || '';
+  const articulo= document.getElementById('edit-art')?.value.trim()  || '';
+  const de      = (document.getElementById('edit-de')?.value  || '').trim();
+  const es      = (document.getElementById('edit-es')?.value  || '').trim();
+  if (!de || !es) { showToast('⚠ Alemán y Español son obligatorios'); return; }
+
+  const allWords = getWords();
+  const oldWord  = allWords[gIdx];
+  if (!oldWord) return;
+
+  const oldDE = oldWord.de; // needed to update progress key if DE changed
+
+  // Update in-memory array
+  allWords[gIdx] = { ...oldWord, tipo, articulo, de, es };
+
+  // If the German word changed, migrate progress key
+  if (oldDE !== de) {
+    const prog = getProgress();
+    if (prog[oldDE]) {
+      prog[de] = prog[oldDE];
+      delete prog[oldDE];
+      saveProgress(prog);
+    }
+  }
+
+  _editingIdx = null;
+  saveWords(allWords);   // cache instantly
+  // Precise single-row update (fast, no full delete-reinsert)
+  setSyncState('syncing', 'Guardando…');
+  _updateWordInDB(allWords[gIdx]).then(() => setSyncState('ok', 'Guardado ✓'));
+  renderLista();
+  updateStats();
+  showToast('✓ Guardado');
+}
+
+async function deleteRow(gIdx) {
+  const allWords = getWords();
+  const w = allWords[gIdx];
+  if (!w) return;
+  if (!confirm(`¿Eliminar "${displayDE(w)}"?`)) return;
+  // Fire DB delete before modifying local (word still has _id)
+  _deleteWordInDB(w);
+  allWords.splice(gIdx, 1);
+  if (_editingIdx === gIdx) _editingIdx = null;
+  _cacheWords(allWords);  // update cache directly (no full flush needed)
+  updateStats();
+  renderLista();
+  showToast('🗑 Eliminada');
+}
+
 function quickDiff(wordDE, level) { setDifficulty(wordDE, level); renderLista(); }
 function setListaFilter(typ) { activeFilter = typ; renderLista(); }
 function setListaDiff(d) { vocabDiffFilter = d; renderLista(); }

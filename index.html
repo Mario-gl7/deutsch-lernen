@@ -1076,7 +1076,18 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
     <div id="setupBanner" style="display:none" class="setup-banner">
       <b>⚠ Sincronización no activa</b> — Las tablas de Supabase no existen aún.<br>
       Ejecuta este SQL en <b>Supabase → SQL Editor</b> y recarga:
-      <code id="setupSql">CREATE TABLE IF NOT EXISTS user_words (
+      <code id="setupSql">-- 1. Seed vocabulary (fill manually or via import)
+CREATE TABLE IF NOT EXISTS base_words (
+  id serial PRIMARY KEY,
+  tipo text DEFAULT '', articulo text DEFAULT '',
+  de text NOT NULL, es text NOT NULL
+);
+-- Allow anonymous read so the app can seed on first login
+ALTER TABLE base_words ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read_base_words" ON base_words FOR SELECT USING (true);
+
+-- 2. Per-user word list (copies from base_words on first login)
+CREATE TABLE IF NOT EXISTS user_words (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   tipo text DEFAULT '', articulo text DEFAULT '',
@@ -1087,6 +1098,7 @@ ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_words" ON user_words
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 
+-- 3. Per-user progress
 CREATE TABLE IF NOT EXISTS user_progress (
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   word_de text NOT NULL,
@@ -1827,150 +1839,15 @@ function setCwSource(src) {
 }
 
 // ═══════════════════ VOCAB DATA ═══════════════════
-// BASE_WORDS is encapsulated — not accessible from the browser console
-const _vocabStore = (() => {
-  const BASE_WORDS = [
-  {"tipo":"Redewendung","articulo":"","de":"Blaumachen","es":"Hacer pellas"},
-  {"tipo":"Redewendung","articulo":"","de":"schwänzen","es":"Hacer pellas"},
-  {"tipo":"Redewendung","articulo":"","de":"Wegen irgendetwas","es":"Por lo que sea"},
-  {"tipo":"Nomen","articulo":"die","de":"Schriftstellerin","es":"Escritora"},
-  {"tipo":"Nomen","articulo":"die","de":"Unannehmlichkeit","es":"Incomodidades"},
-  {"tipo":"Nomen","articulo":"die","de":"Sprachfähigkeit","es":"Capacidad de habla"},
-  {"tipo":"Verb","articulo":"","de":"Entwickeln","es":"Desarrollar"},
-  {"tipo":"Nomen","articulo":"die","de":"Rechtschreibung","es":"Ortografía"},
-  {"tipo":"Nomen","articulo":"die","de":"Strafe","es":"Castigo"},
-  {"tipo":"Nomen","articulo":"der","de":"Geschmack","es":"Gusto"},
-  {"tipo":"Nomen","articulo":"die","de":"Vorliebe","es":"Preferencia"},
-  {"tipo":"Redewendung","articulo":"","de":"Jemandem etwas Beibringen","es":"Enseñar algo a alguien"},
-  {"tipo":"Adverb","articulo":"","de":"Ehrenamtlich","es":"Voluntariamente"},
-  {"tipo":"Nomen","articulo":"der","de":"Rentner","es":"Jubilado"},
-  {"tipo":"Adjektive","articulo":"","de":"Einsam","es":"Solitario"},
-  {"tipo":"Nomen","articulo":"der","de":"Aufzug","es":"Ascensor"},
-  {"tipo":"Nomen","articulo":"der","de":"Esel","es":"Burro"},
-  {"tipo":"Nomen","articulo":"der","de":"Geruch","es":"Olor"},
-  {"tipo":"Nomen","articulo":"der","de":"Geräusch","es":"Ruido"},
-  {"tipo":"Adjektive","articulo":"","de":"Nass","es":"Mojado"},
-  {"tipo":"Verb","articulo":"","de":"Empfangen","es":"Recibir"},
-  {"tipo":"Nomen","articulo":"der","de":"Empfang","es":"Recepción"},
-  {"tipo":"Redewendung","articulo":"","de":"Ich bin auch deiner Meinung","es":"Pienso como tú"},
-  {"tipo":"Nomen","articulo":"die","de":"Schlaftablette","es":"Ser un coñazo / aburrido"},
-  {"tipo":"Adjektive","articulo":"","de":"Lebendig","es":"Vivo"},
-  {"tipo":"Adjektive","articulo":"","de":"Trocken","es":"Seco"},
-  {"tipo":"Nomen","articulo":"die","de":"Weiterbildung","es":"Formación extra"},
-  {"tipo":"Nomen","articulo":"die","de":"Abteilung","es":"Departamento"},
-  {"tipo":"Verb","articulo":"","de":"Erweitern","es":"Expandir"},
-  {"tipo":"Nomen","articulo":"die","de":"Entwicklung","es":"El desarrollo"},
-  {"tipo":"Verb","articulo":"","de":"Einhalten","es":"Cumplir"},
-  {"tipo":"Verb","articulo":"","de":"Erfüllen","es":"Cumplimentar"},
-  {"tipo":"Nomen","articulo":"die","de":"Innung","es":"Gremio"},
-  {"tipo":"Nomen","articulo":"die","de":"Zunft","es":"Gremio (medieval)"},
-  {"tipo":"Redewendung","articulo":"","de":"Du bist leise gestellt","es":"Estás silenciado"},
-  {"tipo":"Nomen","articulo":"das","de":"Schild","es":"Señal / Letrero"},
-  {"tipo":"Nomen","articulo":"der","de":"Schild","es":"Escudo"},
-  {"tipo":"Nomen","articulo":"der","de":"Verkehr","es":"Tráfico"},
-  {"tipo":"Nomen","articulo":"der","de":"Schirm","es":"Pantalla"},
-  {"tipo":"Verb","articulo":"","de":"Abschirmen","es":"Tapar / Cubrir"},
-  {"tipo":"Verb","articulo":"","de":"Anmachen","es":"Encender"},
-  {"tipo":"Verb","articulo":"","de":"Einschalten","es":"Encender (algo electrónico)"},
-  {"tipo":"Nomen","articulo":"die","de":"Anforderung","es":"Condiciones / Requisito"},
-  {"tipo":"Nomen","articulo":"die","de":"Ziffer","es":"Cifra"},
-  {"tipo":"Nomen","articulo":"die","de":"Zahl","es":"Número"},
-  {"tipo":"Nomen","articulo":"der","de":"Sprit","es":"La Gasolina"},
-  {"tipo":"Nomen","articulo":"der","de":"Krieg","es":"La guerra"},
-  {"tipo":"Adjektive","articulo":"","de":"Fläzen","es":"Estar tirado en el sofá (coloquial)"},
-  {"tipo":"Verb","articulo":"","de":"Unterbrechen","es":"Interrumpir"},
-  {"tipo":"Adverb","articulo":"","de":"Ratzfatz","es":"Muy rápido (coloquial)"},
-  {"tipo":"Adjektive","articulo":"","de":"Harsch","es":"Borde / Brusco"},
-  {"tipo":"Verb","articulo":"","de":"Sich erniedrigen","es":"Humillarse / Hacerse pequeño"},
-  {"tipo":"Adjektive","articulo":"","de":"Niedrig","es":"Pequeño / Bajo"},
-  {"tipo":"Adjektive","articulo":"","de":"Schleimer","es":"Pelota / Lame culos"},
-  {"tipo":"Verb","articulo":"","de":"Miteinander gehen","es":"Salir con alguien (relación)"},
-  {"tipo":"Verb","articulo":"","de":"Zusammen gehen","es":"Ir con alguien"},
-  {"tipo":"Redewendung","articulo":"","de":"Ausgleichen","es":"Igualar / Compensar"},
-  {"tipo":"Verb","articulo":"","de":"Anrechnen","es":"Sumar / Contabilizar"},
-  {"tipo":"Nomen","articulo":"der","de":"Kompromiss","es":"Un acuerdo"},
-  {"tipo":"Nomen","articulo":"der","de":"Anwalt","es":"Abogado"},
-  {"tipo":"Verb","articulo":"","de":"wählen","es":"Elegir"},
-  {"tipo":"Nomen","articulo":"der","de":"Vorrang","es":"La preferencia / Prioridad"},
-  {"tipo":"Nomen","articulo":"der","de":"Operationssaal","es":"Quirófano"},
-  {"tipo":"Nomen","articulo":"das","de":"Familienmitglied","es":"Familiar"},
-  {"tipo":"Nomen","articulo":"der","de":"Krankenpfleger","es":"Enfermero"},
-  {"tipo":"Verb","articulo":"","de":"impfen","es":"Vacunar"},
-  {"tipo":"Verb","articulo":"","de":"verbinden","es":"Vendar"},
-  {"tipo":"Verb","articulo":"","de":"spritzen","es":"Inyectar"},
-  {"tipo":"Verb","articulo":"","de":"schieben","es":"Empujar"},
-  {"tipo":"Verb","articulo":"","de":"Betäuben","es":"Anestesiar"},
-  {"tipo":"Nomen","articulo":"die","de":"Betäubung","es":"La Anestesia"},
-  {"tipo":"Verb","articulo":"","de":"Gipsen","es":"Escayolar"},
-  {"tipo":"Nomen","articulo":"die","de":"Wundheilung","es":"La sanación de las heridas"},
-  {"tipo":"Verb","articulo":"","de":"Pflegen","es":"Cuidar"},
-  {"tipo":"Verb","articulo":"","de":"Heilen","es":"Sanar"},
-  {"tipo":"Verb","articulo":"","de":"Nähen","es":"Coser"},
-  {"tipo":"Verb","articulo":"","de":"Einfädeln","es":"Enhebrar"},
-  {"tipo":"Nomen","articulo":"die","de":"Verrenkung","es":"Luxación"},
-  {"tipo":"Nomen","articulo":"das","de":"Schienbein","es":"Tibia"},
-  {"tipo":"Nomen","articulo":"das","de":"Wadenbein","es":"Peroné"},
-  {"tipo":"Nomen","articulo":"die","de":"Wade","es":"El gemelo (pierna)"},
-  {"tipo":"Nomen","articulo":"die","de":"Schiene","es":"Guía / Rail"},
-  {"tipo":"Verb","articulo":"","de":"ausrutschen","es":"Resbalarse"},
-  {"tipo":"Nomen","articulo":"die","de":"Schere","es":"Tijera"},
-  {"tipo":"Nomen","articulo":"das","de":"Pflaster","es":"Tirita"},
-  {"tipo":"Nomen","articulo":"die","de":"Spritze","es":"Jeringuilla"},
-  {"tipo":"Verb","articulo":"","de":"Aufbewahren","es":"Guardar"},
-  {"tipo":"Nomen","articulo":"die","de":"Salbe","es":"Crema tópica"},
-  {"tipo":"Nomen","articulo":"der","de":"Verband","es":"El vendaje"},
-  {"tipo":"Verb","articulo":"","de":"Gähnen","es":"Bostezar"},
-  {"tipo":"Nomen","articulo":"die","de":"Müdigkeit","es":"El cansancio"},
-  {"tipo":"Verb","articulo":"","de":"Kribbeln","es":"Hormigueo / Nerviosismo"},
-  {"tipo":"Redewendung","articulo":"","de":"Ernst nehmen","es":"Tomar en serio"},
-  {"tipo":"Nomen","articulo":"der","de":"Flur","es":"El pasillo"},
-  {"tipo":"Verb","articulo":"","de":"Mich einleben","es":"Asentarse"},
-  {"tipo":"Verb","articulo":"","de":"überweisen","es":"Hacer una transferencia"},
-  {"tipo":"Verb","articulo":"","de":"knuddeln","es":"Achuchar"},
-  {"tipo":"Adjektive","articulo":"","de":"Knuddelig","es":"Achuchable"},
-  {"tipo":"Redewendung","articulo":"","de":"Einen Drücker geben","es":"Dar un abrazo"},
-  {"tipo":"Nomen","articulo":"die","de":"Narbe","es":"La cicatriz"},
-  {"tipo":"Nomen","articulo":"die","de":"Kugel","es":"Bola"},
-  {"tipo":"Verb","articulo":"","de":"verdünnen","es":"Diluir"},
-  {"tipo":"Nomen","articulo":"die","de":"Akupunktur","es":"Acupuntura"},
-  {"tipo":"Nomen","articulo":"das","de":"Pulver","es":"Polvo"},
-  {"tipo":"Verb","articulo":"","de":"Etwas merken","es":"Darse cuenta"},
-  {"tipo":"Redewendung","articulo":"","de":"Für einen Normalsterblichen","es":"Para alguien normal (en cristiano)"},
-  {"tipo":"Verb","articulo":"","de":"Etwas verabreichen","es":"Administrar algo"},
-  {"tipo":"Nomen","articulo":"der","de":"Lärm","es":"El ruido"},
-  {"tipo":"Nomen","articulo":"","de":"Die Bauarbeiter","es":"Trabajador de la construcción"}
-];
-  return { getBase: () => JSON.parse(JSON.stringify(BASE_WORDS)) };
-})();
+// Words are stored in Supabase (base_words table) — not bundled in HTML.
 
 function displayDE(w) { return (w.articulo && w.articulo !== '') ? w.articulo + ' ' + w.de : w.de; }
 
 // ═══════════════════ SYNC LAYER ═══════════════════
 // Architecture: localStorage = instant read cache · Supabase = source of truth
 //
-// ┌─ SQL to run once in Supabase Dashboard → SQL Editor ──────────────────────┐
-// │ CREATE TABLE IF NOT EXISTS user_words (                                   │
-// │   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,                          │
-// │   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,      │
-// │   tipo text DEFAULT '', articulo text DEFAULT '',                          │
-// │   de text NOT NULL, es text NOT NULL,                                     │
-// │   created_at timestamptz DEFAULT now()                                    │
-// │ );                                                                        │
-// │ ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;                         │
-// │ CREATE POLICY "own_words" ON user_words                                   │
-// │   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);             │
-// │                                                                           │
-// │ CREATE TABLE IF NOT EXISTS user_progress (                                │
-// │   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,     │
-// │   word_de text NOT NULL,                                                  │
-// │   seen int DEFAULT 0, correct int DEFAULT 0,                              │
-// │   difficulty int DEFAULT 0, next_review bigint DEFAULT 0,                 │
-// │   updated_at timestamptz DEFAULT now(),                                   │
-// │   PRIMARY KEY (user_id, word_de)                                          │
-// │ );                                                                        │
-// │ ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;                      │
-// │ CREATE POLICY "own_progress" ON user_progress                             │
-// │   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);             │
+// ┌─ SQL to run once in Supabase → SQL Editor ───────────────────────────────┐
+// │ See setup banner in Lista page for full SQL (includes base_words table)  │
 // └───────────────────────────────────────────────────────────────────────────┘
 
 let _pendingProgressSave = {};
@@ -2024,8 +1901,7 @@ function copySql() {
 
 // ── Read (cache-first, background sync) ──
 function getWords() {
-  const cached = _cachedWords();
-  return cached !== null ? cached : _vocabStore.getBase();
+  return _cachedWords() || [];
 }
 function getProgress() {
   return _cachedProgress() || {};
@@ -2063,9 +1939,13 @@ async function _fetchWordsFromDB() {
     }
     _dbReady = true;
     if (data.length === 0) {
-      // First login — seed default words
-      await _seedWords(_vocabStore.getBase());
-      return _vocabStore.getBase();
+      // First login — fetch seed words from base_words and insert for this user
+      const baseWords = await _fetchBaseWords();
+      if (baseWords && baseWords.length > 0) {
+        await _seedWords(baseWords);
+        return baseWords;
+      }
+      return [];
     }
     const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
     _cacheWords(words);
@@ -2089,6 +1969,22 @@ async function _seedWords(words) {
       _cacheWords(withIds);
     }
   } catch(e) { console.warn('[sync] seed:', e.message); }
+}
+
+// ── Fetch seed words from public base_words table ──
+async function _fetchBaseWords() {
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('base_words')
+      .select('tipo,articulo,de,es')
+      .order('id');
+    if (error) { console.warn('[sync] fetchBaseWords:', error.message); return []; }
+    return (data || []).map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es }));
+  } catch(e) {
+    console.warn('[sync] fetchBaseWords:', e.message);
+    return [];
+  }
 }
 
 // ── Save words — cache instantly, flush to DB debounced ──

@@ -850,7 +850,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 /* ═══════════════════ VOCAB TABLE ═══════════════════ */
 .vocab-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
-.vocab-table{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+.vocab-table{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed;width:100%}
 .vocab-table thead th{
   position:sticky;top:0;z-index:5;
   background:var(--bg2);
@@ -858,7 +858,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
   color:var(--text3);text-align:left;white-space:nowrap;
   border-bottom:1px solid var(--border);
-  overflow:visible;
+  overflow:hidden;
   box-shadow:0 1px 0 var(--border);
 }
 .vocab-table thead th:first-child{border-radius:var(--r) 0 0 0}
@@ -866,10 +866,14 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 .vocab-table tbody tr{background:var(--surface);border-bottom:1px solid var(--border);transition:background .12s}
 .vocab-table tbody tr:hover{background:var(--surface2)}
 .vocab-table tbody tr.row-editing{background:var(--blue-bg)!important;outline:1px solid rgba(96,165,250,.35);outline-offset:-1px}
-.vocab-table td{padding:9px 10px;vertical-align:middle;color:var(--text)}
-.vocab-table td.td-tipo{width:96px}.vocab-table td.td-art{width:52px}
+.vocab-table td{padding:9px 10px;vertical-align:middle;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Column widths: fixed cols get px minimums, de/es share the rest */
+.vocab-table .col-tipo{width:100px;min-width:80px}
+.vocab-table .col-art {width:46px; min-width:36px}
+.vocab-table .col-de  {min-width:80px}
+.vocab-table .col-es  {min-width:80px}
+.vocab-table .col-act {width:60px; min-width:52px;text-align:center;white-space:nowrap}
 .vocab-table td.td-de{font-weight:600}.vocab-table td.td-es{color:var(--text2)}
-.vocab-table td.td-actions{width:72px;text-align:center;white-space:nowrap}
 .diff-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
 .prog-mini{display:flex;align-items:center;gap:4px;margin-top:3px}
 .prog-mini-track{flex:1;min-width:32px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
@@ -898,21 +902,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   padding:0 12px;
 }
 #wordList{ padding:0 0 80px; }
-/* tabla: ancho fijo = suma de cols, gestionado por _syncTableWidth() */
-/* resize handle: th already has position:sticky from base rule */
-.vocab-table thead th{ user-select:none; }
-.col-rz{
-  position:absolute;right:0;top:0;bottom:0;
-  width:5px;cursor:col-resize;z-index:7;
-}
-.col-rz::after{
-  content:'';position:absolute;right:1px;top:20%;bottom:20%;
-  width:2px;border-radius:1px;
-  background:var(--border2);opacity:0;transition:opacity .15s;
-}
-.vocab-table thead th:hover .col-rz::after,
-.vocab-table thead th.col-rz-active .col-rz::after{ opacity:1; }
-th.col-rz-active .col-rz::after{ background:var(--green);opacity:1; }
+
 
 </style>
 </head>
@@ -1374,7 +1364,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.25</div>
+<div id="buildBadge" class="build-badge">1.07.26</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -2203,110 +2193,7 @@ const DIFF_FILTER_KEYS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','�
 let activeFilter = 'Todos', vocabDiffFilter = 'Todas';
 let _editingIdx = null;
 
-// Default column widths (px) — persisted in localStorage
-// ── Column resize (Excel-style) ──
-// Each col has an explicit pixel width in <col id="vcol-X">.
-// Dragging a handle changes only that col; others are untouched.
-// Table width = sum of cols (allows horizontal scroll if needed).
-// Saved in localStorage key 'colW2'.
-const _colMins = { tipo:60, art:36, de:60, es:60, act:52 };
-let _crz = null; // active resize state
 
-function colRzStart(e, key) {
-  e.preventDefault();
-  e.stopPropagation();
-  const th = e.target.closest('th');
-  const col = document.getElementById('vcol-' + key);
-  if (!th || !col) return;
-  th.classList.add('col-rz-active');
-  // Use th.offsetWidth — col elements have no layout dimensions of their own
-  _crz = { key, th, col, x0: e.clientX, w0: th.offsetWidth };
-  document.body.style.cursor = 'col-resize';
-  document.body.style.userSelect = 'none';
-}
-
-document.addEventListener('mousemove', e => {
-  if (!_crz) return;
-  const min = _colMins[_crz.key] || 40;
-  const newW = Math.max(min, _crz.w0 + (e.clientX - _crz.x0));
-  _crz.col.style.width = newW + 'px';
-  _syncTableWidth();
-});
-
-document.addEventListener('mouseup', e => {
-  if (!_crz) return;
-  const min = _colMins[_crz.key] || 40;
-  const newW = Math.max(min, _crz.w0 + (e.clientX - _crz.x0));
-  _crz.col.style.width = newW + 'px';
-  _crz.th.classList.remove('col-rz-active');
-  document.body.style.cursor = '';
-  document.body.style.userSelect = '';
-  // Persist
-  try {
-    const s = JSON.parse(localStorage.getItem('colW2') || '{}');
-    s[_crz.key] = newW;
-    localStorage.setItem('colW2', JSON.stringify(s));
-  } catch(err) {}
-  _crz = null;
-  _syncTableWidth();
-});
-
-// Touch support
-document.addEventListener('touchstart', e => {
-  const rz = e.target.closest('.col-rz');
-  if (!rz) return;
-  const th = rz.closest('th');
-  const key = th ? (['tipo','art','de','es'].find(k => {
-    const c = document.getElementById('vcol-'+k);
-    return c && th.cellIndex === ['tipo','art','de','es','act'].indexOf(k);
-  }) || null) : null;
-  // simpler: read key from onmousedown attribute
-  const md = rz.getAttribute('onmousedown') || '';
-  const m = md.match(/colRzStart\(event,'(\w+)'\)/);
-  if (!m) return;
-  const k = m[1];
-  const col = document.getElementById('vcol-' + k);
-  if (!th || !col) return;
-  e.preventDefault();
-  th.classList.add('col-rz-active');
-  _crz = { key:k, th, col, x0: e.touches[0].clientX, w0: th.offsetWidth };
-}, { passive:false });
-
-document.addEventListener('touchmove', e => {
-  if (!_crz) return;
-  const min = _colMins[_crz.key] || 40;
-  const newW = Math.max(min, _crz.w0 + (e.touches[0].clientX - _crz.x0));
-  _crz.col.style.width = newW + 'px';
-  _syncTableWidth();
-}, { passive:true });
-
-document.addEventListener('touchend', e => {
-  if (!_crz) return;
-  const min = _colMins[_crz.key] || 40;
-  const newW = Math.max(min, _crz.w0 + (e.changedTouches[0].clientX - _crz.x0));
-  _crz.col.style.width = newW + 'px';
-  _crz.th.classList.remove('col-rz-active');
-  try {
-    const s = JSON.parse(localStorage.getItem('colW2') || '{}');
-    s[_crz.key] = newW;
-    localStorage.setItem('colW2', JSON.stringify(s));
-  } catch(err) {}
-  _crz = null;
-  _syncTableWidth();
-});
-
-function _syncTableWidth() {
-  const tbl = document.querySelector('#wordList .vocab-table');
-  if (!tbl) return;
-  // Sum of explicit col widths — prevents inter-column movement on resize.
-  let sum = 0;
-  tbl.querySelectorAll('col').forEach(col => { sum += parseInt(col.style.width) || 0; });
-  if (sum <= 0) return;
-  // Fill the zone width but allow horizontal scroll if user has widened cols past it.
-  const zone = document.querySelector('.lista-table-zone');
-  const zoneW = zone ? zone.clientWidth - 24 : 0;
-  tbl.style.width = Math.max(sum, zoneW) + 'px';
-}
 
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -2335,42 +2222,13 @@ function renderLista() {
   const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
   const ART_OPT  = ['','der','die','das'];
 
-  // Compute col widths: tipo/art/act are fixed; de and es share remaining space equally.
-  // Manual resize overrides (colW2) are applied per-col on top.
-  const _zone = document.querySelector('.lista-table-zone');
-  const _avail = _zone ? Math.max(300, _zone.clientWidth - 24) : 400;
-  const _saved = (() => { try { return JSON.parse(localStorage.getItem('colW2')||'{}'); } catch(e){ return {}; } })();
-  const _mins  = { tipo:80, art:36, de:80, es:80, act:52 };
-  const _fixed = { tipo:110, art:44, act:56 }; // px — not resizable by this algo
-  const _flex  = Math.max(160, _avail - _fixed.tipo - _fixed.art - _fixed.act);
-  const _cw = {
-    tipo: Math.max(_mins.tipo, _saved.tipo != null ? _saved.tipo : _fixed.tipo),
-    art:  Math.max(_mins.art,  _saved.art  != null ? _saved.art  : _fixed.art),
-    de:   Math.max(_mins.de,   _saved.de   != null ? _saved.de   : Math.floor(_flex / 2)),
-    es:   Math.max(_mins.es,   _saved.es   != null ? _saved.es   : _flex - Math.floor(_flex / 2)),
-    act:  Math.max(_mins.act,  _saved.act  != null ? _saved.act  : _fixed.act),
-  };
-  // When there are no saved overrides, pad es so cols fill the full zone
-  if (!Object.keys(_saved).length) {
-    const used = _cw.tipo + _cw.art + _cw.de + _cw.es + _cw.act;
-    if (_avail > used) _cw.es += (_avail - used);
-  }
-
-  const colgroup = `<colgroup>
-    <col id="vcol-tipo" style="width:${_cw.tipo}px">
-    <col id="vcol-art"  style="width:${_cw.art}px">
-    <col id="vcol-de"   style="width:${_cw.de}px">
-    <col id="vcol-es"   style="width:${_cw.es}px">
-    <col id="vcol-act"  style="width:${_cw.act}px">
-  </colgroup>`;
-
   const thead = `<thead>
     <tr>
-      <th>Tipo<span class="col-rz" onmousedown="colRzStart(event,'tipo')"></span></th>
-      <th>Art.<span class="col-rz" onmousedown="colRzStart(event,'art')"></span></th>
-      <th>Alemán<span class="col-rz" onmousedown="colRzStart(event,'de')"></span></th>
-      <th>Español<span class="col-rz" onmousedown="colRzStart(event,'es')"></span></th>
-      <th style="text-align:center">⚙</th>
+      <th class="col-tipo">Tipo</th>
+      <th class="col-art">Art.</th>
+      <th class="col-de">Alemán</th>
+      <th class="col-es">Español</th>
+      <th class="col-act" style="text-align:center">⚙</th>
     </tr>
   </thead>`;
 
@@ -2416,8 +2274,7 @@ function renderLista() {
   }).join('');
 
   document.getElementById('wordList').innerHTML =
-    `<table class="vocab-table">${colgroup}${thead}<tbody>${rows}</tbody></table>`;
-  requestAnimationFrame(_syncTableWidth);
+    `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>`;
 }
 
 function startEditRow(gIdx) {
@@ -2466,9 +2323,6 @@ async function deleteRow(gIdx) {
 }
 
 // ── Column resize ──
-// table-layout:fixed means widths come from <col> elements.
-
-
 function quickDiff(wordDE, level) { setDifficulty(wordDE, level); renderLista(); }
 function setListaFilter(typ) { activeFilter = typ; renderLista(); }
 function setListaDiff(d) { vocabDiffFilter = d; renderLista(); }

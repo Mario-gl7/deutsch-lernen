@@ -850,7 +850,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 /* ═══════════════════ VOCAB TABLE ═══════════════════ */
 .vocab-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
-.vocab-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+.vocab-table{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
 .vocab-table thead th{
   position:sticky;top:0;z-index:5;
   background:var(--bg2);
@@ -898,13 +898,9 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   padding:0 12px;
 }
 #wordList{ padding:0 0 80px; }
-/* tabla: ancho inicial 100%, crece con el resize */
-.vocab-table{ min-width:100%; }
-/* handle de resize en cada th */
-.vocab-table thead th{
-  position:relative;
-  user-select:none;
-}
+/* tabla: ancho fijo = suma de cols, gestionado por _syncTableWidth() */
+/* resize handle: th already has position:sticky from base rule */
+.vocab-table thead th{ user-select:none; }
 .col-rz{
   position:absolute;right:0;top:0;bottom:0;
   width:5px;cursor:col-resize;z-index:7;
@@ -2223,7 +2219,8 @@ function colRzStart(e, key) {
   const col = document.getElementById('vcol-' + key);
   if (!th || !col) return;
   th.classList.add('col-rz-active');
-  _crz = { key, th, col, x0: e.clientX, w0: col.offsetWidth };
+  // Use th.offsetWidth — col elements have no layout dimensions of their own
+  _crz = { key, th, col, x0: e.clientX, w0: th.offsetWidth };
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
 }
@@ -2272,7 +2269,7 @@ document.addEventListener('touchstart', e => {
   if (!th || !col) return;
   e.preventDefault();
   th.classList.add('col-rz-active');
-  _crz = { key:k, th, col, x0: e.touches[0].clientX, w0: col.offsetWidth };
+  _crz = { key:k, th, col, x0: e.touches[0].clientX, w0: th.offsetWidth };
 }, { passive:false });
 
 document.addEventListener('touchmove', e => {
@@ -2301,14 +2298,11 @@ document.addEventListener('touchend', e => {
 function _syncTableWidth() {
   const tbl = document.querySelector('#wordList .vocab-table');
   if (!tbl) return;
-  const zone = document.querySelector('.lista-table-zone');
-  const zoneW = zone ? zone.clientWidth - 24 : 9999;
-  // Sum col widths
+  // Always pin to exact sum of col widths — never 100%.
+  // This is what prevents other cols from moving when one is resized.
   let sum = 0;
-  tbl.querySelectorAll('col').forEach(c => { sum += parseInt(c.style.width) || 0; });
-  // If cols fit in zone, stretch to 100%; otherwise use exact sum (enables h-scroll)
-  tbl.style.width = sum <= zoneW ? '100%' : sum + 'px';
-  tbl.style.minWidth = '';
+  tbl.querySelectorAll('col').forEach(col => { sum += parseInt(col.style.width) || 0; });
+  if (sum > 0) tbl.style.width = sum + 'px';
 }
 
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -2421,6 +2415,7 @@ function renderLista() {
 
   document.getElementById('wordList').innerHTML =
     `<table class="vocab-table">${colgroup}${thead}<tbody>${rows}</tbody></table>`;
+  requestAnimationFrame(_syncTableWidth);
 }
 
 function startEditRow(gIdx) {

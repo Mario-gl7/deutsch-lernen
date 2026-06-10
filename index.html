@@ -1374,7 +1374,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.06.25</div>
+<div id="buildBadge" class="build-badge">1.07.25</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -2298,11 +2298,14 @@ document.addEventListener('touchend', e => {
 function _syncTableWidth() {
   const tbl = document.querySelector('#wordList .vocab-table');
   if (!tbl) return;
-  // Always pin to exact sum of col widths — never 100%.
-  // This is what prevents other cols from moving when one is resized.
+  // Sum of explicit col widths — prevents inter-column movement on resize.
   let sum = 0;
   tbl.querySelectorAll('col').forEach(col => { sum += parseInt(col.style.width) || 0; });
-  if (sum > 0) tbl.style.width = sum + 'px';
+  if (sum <= 0) return;
+  // Fill the zone width but allow horizontal scroll if user has widened cols past it.
+  const zone = document.querySelector('.lista-table-zone');
+  const zoneW = zone ? zone.clientWidth - 24 : 0;
+  tbl.style.width = Math.max(sum, zoneW) + 'px';
 }
 
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -2332,26 +2335,25 @@ function renderLista() {
   const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
   const ART_OPT  = ['','der','die','das'];
 
-  // Compute initial col widths: use saved values or fit proportionally to zone
+  // Compute col widths: tipo/art/act are fixed; de and es share remaining space equally.
+  // Manual resize overrides (colW2) are applied per-col on top.
   const _zone = document.querySelector('.lista-table-zone');
   const _avail = _zone ? Math.max(300, _zone.clientWidth - 24) : 400;
   const _saved = (() => { try { return JSON.parse(localStorage.getItem('colW2')||'{}'); } catch(e){ return {}; } })();
-  const _ideal = { tipo:100, art:50, de:130, es:130, act:60 };
-  const _mins  = { tipo:60,  art:36, de:60,  es:60,  act:52 };
-  // If no saved widths, scale ideals to fit available width
-  let _cw;
+  const _mins  = { tipo:80, art:36, de:80, es:80, act:52 };
+  const _fixed = { tipo:110, art:44, act:56 }; // px — not resizable by this algo
+  const _flex  = Math.max(160, _avail - _fixed.tipo - _fixed.art - _fixed.act);
+  const _cw = {
+    tipo: Math.max(_mins.tipo, _saved.tipo != null ? _saved.tipo : _fixed.tipo),
+    art:  Math.max(_mins.art,  _saved.art  != null ? _saved.art  : _fixed.art),
+    de:   Math.max(_mins.de,   _saved.de   != null ? _saved.de   : Math.floor(_flex / 2)),
+    es:   Math.max(_mins.es,   _saved.es   != null ? _saved.es   : _flex - Math.floor(_flex / 2)),
+    act:  Math.max(_mins.act,  _saved.act  != null ? _saved.act  : _fixed.act),
+  };
+  // When there are no saved overrides, pad es so cols fill the full zone
   if (!Object.keys(_saved).length) {
-    const idealSum = Object.values(_ideal).reduce((a,b)=>a+b,0);
-    const scale = Math.min(1, _avail / idealSum);
-    _cw = {};
-    const keys = ['tipo','art','de','es','act'];
-    keys.forEach(k => { _cw[k] = Math.max(_mins[k], Math.round(_ideal[k] * scale)); });
-    // give leftover to 'es'
-    const used = Object.values(_cw).reduce((a,b)=>a+b,0);
-    if (_avail > used) _cw['es'] += (_avail - used);
-  } else {
-    _cw = { ..._ideal, ..._mins };
-    Object.keys(_saved).forEach(k => { if (_mins[k]) _cw[k] = Math.max(_mins[k], _saved[k]); });
+    const used = _cw.tipo + _cw.art + _cw.de + _cw.es + _cw.act;
+    if (_avail > used) _cw.es += (_avail - used);
   }
 
   const colgroup = `<colgroup>

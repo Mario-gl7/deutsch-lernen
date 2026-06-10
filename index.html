@@ -848,6 +848,57 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 .lang-pill:hover{border-color:var(--border2);color:var(--text)}
 .lang-pill.active{background:var(--green-bg);border-color:rgba(74,222,128,.35);color:var(--green-t)}
 
+/* ═══════════════════ FILTER DROPDOWN ═══════════════════ */
+.filter-dropdown-wrap{position:relative;display:inline-block}
+.filter-dropdown-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 12px 6px 10px;
+  border-radius:20px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text2);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:500;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.filter-dropdown-btn:hover{border-color:var(--border2);color:var(--text);background:var(--surface2)}
+.filter-dropdown-btn.has-active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.filter-dropdown-btn .fdb-caret{font-size:8px;color:var(--text3);transition:transform .18s;margin-left:2px}
+.filter-dropdown-btn.open .fdb-caret{transform:rotate(180deg)}
+.filter-dropdown-panel{
+  display:none;position:absolute;top:calc(100% + 5px);left:0;
+  min-width:200px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;
+  animation:dropIn .15s ease both;
+}
+.filter-dropdown-panel.open{display:block}
+.fdp-section{padding:8px 6px 4px}
+.fdp-section-label{
+  font-size:9px;font-weight:700;letter-spacing:.9px;
+  text-transform:uppercase;color:var(--text3);
+  padding:2px 8px 6px;
+}
+.fdp-chips{display:flex;flex-wrap:wrap;gap:4px;padding:0 4px 6px}
+.fdp-chip{
+  padding:4px 10px;border-radius:14px;
+  border:1px solid var(--border);background:var(--bg2);
+  color:var(--text2);font-family:'Inter',sans-serif;
+  font-size:11px;font-weight:500;cursor:pointer;
+  transition:all .13s;white-space:nowrap;
+}
+.fdp-chip:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+.fdp-chip.active{background:var(--green-bg);border-color:rgba(74,222,128,.4);color:var(--green-t)}
+.fdp-chip.active-red{background:var(--red-bg);border-color:rgba(248,113,113,.4);color:var(--red)}
+.fdp-chip.active-green{background:var(--green-bg);border-color:rgba(74,222,128,.35);color:var(--green-t)}
+.fdp-chip.active-blue{background:var(--blue-bg);border-color:rgba(96,165,250,.35);color:var(--blue)}
+.fdp-divider{height:1px;background:var(--border);margin:0 6px}
+.fdp-reset{
+  display:block;width:100%;padding:9px 14px;
+  background:none;border:none;
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:500;
+  color:var(--text3);cursor:pointer;text-align:left;
+  transition:background .12s,color .12s;
+}
+.fdp-reset:hover{background:var(--surface2);color:var(--text)}
+
 /* ═══════════════════ VOCAB TABLE ═══════════════════ */
 .vocab-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}
 .vocab-table{border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed;width:100%}
@@ -868,8 +919,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 .vocab-table tbody tr.row-editing{background:var(--blue-bg)!important;outline:1px solid rgba(96,165,250,.35);outline-offset:-1px}
 .vocab-table td{padding:9px 10px;vertical-align:middle;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Column widths: fixed cols get px minimums, de/es share the rest */
-.vocab-table .col-tipo{width:120px;min-width:80px}
-.vocab-table .col-art {width:50px; min-width:36px}
+.vocab-table .col-tipo{width:100px;min-width:80px}
+.vocab-table .col-art {width:46px; min-width:36px}
 .vocab-table .col-de  {min-width:80px}
 .vocab-table .col-es  {min-width:80px}
 .vocab-table .col-act {width:60px; min-width:52px;text-align:center;white-space:nowrap}
@@ -1130,13 +1181,31 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
     </div>
   </div>
   <div class="lista-controls" id="listaContent">
-    <div style="padding:12px 16px 0">
-      <div class="list-actions">
-        <button class="list-action-btn" onclick="showAddModal()">＋ Añadir</button>
-        <button class="list-action-btn" onclick="showImportModal()">⬆ Importar</button>
+    <div style="padding:10px 16px 10px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showAddModal()">＋ Añadir</button>
+        <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showImportModal()">⬆ Importar</button>
+        <!-- Filter dropdown -->
+        <div class="filter-dropdown-wrap" id="listaFilterWrap">
+          <button class="filter-dropdown-btn" id="listaFilterBtn" onclick="toggleListaFilterPanel(event)">
+            <span id="listaFilterBtnLabel">Filtros</span>
+            <span class="fdb-caret">▾</span>
+          </button>
+          <div class="filter-dropdown-panel" id="listaFilterPanel">
+            <div class="fdp-section">
+              <div class="fdp-section-label">Tipo</div>
+              <div class="fdp-chips" id="fdpTipoChips"></div>
+            </div>
+            <div class="fdp-divider"></div>
+            <div class="fdp-section">
+              <div class="fdp-section-label">Dificultad</div>
+              <div class="fdp-chips" id="fdpDiffChips"></div>
+            </div>
+            <div class="fdp-divider"></div>
+            <button class="fdp-reset" onclick="resetListaFilters()">↺ Quitar filtros</button>
+          </div>
+        </div>
       </div>
-      <div class="filter-row" id="listaFilterBar" style="margin-top:8px"></div>
-      <div class="filter-row" id="listaDiffBar" style="margin-top:2px;margin-bottom:8px"></div>
     </div>
   </div>
   <div class="lista-table-zone">
@@ -1364,7 +1433,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.26</div>
+<div id="buildBadge" class="build-badge">1.07.27</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -1802,6 +1871,8 @@ function onLoginSuccess(user) {
   navigate('home', 'forward');
   // Load + sync data from DB in background
   loadUserData();
+  // Restore previous navigation state if user is returning
+  _restoreAppState();
 }
 
 async function doLogout() {
@@ -2197,16 +2268,68 @@ let _editingIdx = null;
 
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function renderLista() {
+function _buildFilterLabel() {
+  const tipoPart = activeFilter !== 'Todos' ? activeFilter : '';
+  const diffLabels = { '🔴 Difícil': 'Difícil', '🟢 Fácil': 'Fácil', '📊 Normal': 'Normal', '🆕 Nuevas': 'Nuevas' };
+  const diffPart = vocabDiffFilter !== 'Todas' ? (diffLabels[vocabDiffFilter] || vocabDiffFilter) : '';
+  const parts = [tipoPart, diffPart].filter(Boolean);
+  const btn = document.getElementById('listaFilterBtn');
+  const lbl = document.getElementById('listaFilterBtnLabel');
+  if (lbl) lbl.textContent = parts.length ? `Filtros: ${parts.join(' · ')}` : 'Filtros';
+  if (btn) btn.classList.toggle('has-active', parts.length > 0);
+}
+
+function _buildFilterPanelChips() {
   const TIPOS = TIPOS_KEYS.map((k,i) => i===0 ? t('filterAll') : k);
   const DIFF_FILTERS = [t('diffAll'), t('diffHard'), t('diffEasy'), t('diffNormal'), t('diffNew')];
+  const diffActiveClass = { '🔴 Difícil': 'active-red', '🟢 Fácil': 'active-green', '📊 Normal': 'active-blue', 'Todas': '' };
 
-  document.getElementById('listaFilterBar').innerHTML = TIPOS_KEYS.map((k,i) =>
-    `<button class="filter-chip ${k===activeFilter?'active':''}" onclick="setListaFilter('${k}')">${TIPOS[i]}</button>`
-  ).join('');
-  document.getElementById('listaDiffBar').innerHTML = DIFF_FILTER_KEYS.map((k,i) =>
-    `<button class="filter-chip ${k===vocabDiffFilter?'active':''}" onclick="setListaDiff('${k.replace(/'/g,"\\'")}')">${DIFF_FILTERS[i]}</button>`
-  ).join('');
+  const tipoEl = document.getElementById('fdpTipoChips');
+  if (tipoEl) tipoEl.innerHTML = TIPOS_KEYS.map((k,i) => {
+    const isActive = k === activeFilter;
+    return `<button class="fdp-chip ${isActive ? 'active' : ''}" onclick="setListaFilter('${k}')">${TIPOS[i]}</button>`;
+  }).join('');
+
+  const diffEl = document.getElementById('fdpDiffChips');
+  if (diffEl) diffEl.innerHTML = DIFF_FILTER_KEYS.map((k,i) => {
+    const isActive = k === vocabDiffFilter;
+    const cls = isActive ? (diffActiveClass[k] || 'active') : '';
+    return `<button class="fdp-chip ${cls}" onclick="setListaDiff('${k.replace(/'/g,"\\'")}')">${DIFF_FILTERS[i]}</button>`;
+  }).join('');
+}
+
+function toggleListaFilterPanel(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('listaFilterPanel');
+  const btn   = document.getElementById('listaFilterBtn');
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  btn.classList.toggle('open', !isOpen);
+  if (!isOpen) _buildFilterPanelChips();
+}
+
+function resetListaFilters() {
+  activeFilter = 'Todos'; vocabDiffFilter = 'Todas';
+  _buildFilterPanelChips();
+  _buildFilterLabel();
+  renderLista();
+}
+
+// Close filter panel on outside click
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('listaFilterWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('listaFilterPanel')?.classList.remove('open');
+    document.getElementById('listaFilterBtn')?.classList.remove('open');
+  }
+});
+
+function renderLista() {
+  _buildFilterLabel();
+  if (document.getElementById('listaFilterPanel')?.classList.contains('open')) {
+    _buildFilterPanelChips();
+  }
 
   const allWords = getWords();
   let words = activeFilter==='Todos' ? allWords : allWords.filter(w=>w.tipo===activeFilter);
@@ -2802,6 +2925,63 @@ function saveNombre() {
   showToast('✓ ¡Hola, ' + displayName + '!');
 }
 
+
+// ═══════════════════ STATE PERSISTENCE (Page Visibility) ═══════════════════
+// Saves navigation state when user switches app/tab; restores on return.
+const STATE_KEY = 'appState_v1';
+
+function _saveAppState() {
+  if (!currentUser) return;
+  const state = {
+    page: currentPage,
+    activeFilter,
+    vocabDiffFilter,
+    matchFilter,
+    matchMode,
+    cwSource,
+    matchCfgOpen,
+    ts: Date.now()
+  };
+  try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function _restoreAppState() {
+  if (!currentUser) return;
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    // Only restore if recent (< 30 min) and page is a protected page
+    if (!state || Date.now() - state.ts > 30 * 60 * 1000) return;
+    if (state.activeFilter) activeFilter = state.activeFilter;
+    if (state.vocabDiffFilter) vocabDiffFilter = state.vocabDiffFilter;
+    if (state.matchFilter) matchFilter = state.matchFilter;
+    if (state.matchMode) matchMode = state.matchMode;
+    if (state.cwSource) cwSource = state.cwSource;
+    if (state.matchCfgOpen !== undefined) matchCfgOpen = state.matchCfgOpen;
+    // Re-navigate to the saved page (silently — don't re-trigger animations loudly)
+    const target = state.page;
+    if (target && PROTECTED_PAGES.has(target) && target !== 'home') {
+      // Use navigate so page-specific setup runs
+      setTimeout(() => navigate(target, 'forward'), 50);
+    }
+  } catch(e) {}
+}
+
+// Hook into navigate to always save state
+const _origNavigate = navigate;
+navigate = function(to, dir) {
+  _origNavigate(to, dir);
+  _saveAppState();
+};
+
+// Save whenever user hides the tab/app
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') _saveAppState();
+});
+
+// Also save on pagehide (iOS Safari background)
+window.addEventListener('pagehide', _saveAppState);
 
 (function(){
   if(!('serviceWorker' in navigator)) return;

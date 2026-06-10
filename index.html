@@ -1433,7 +1433,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.27</div>
+<div id="buildBadge" class="build-badge">1.07.28</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -1868,15 +1868,17 @@ function onLoginSuccess(user) {
   applyTranslations();
   updateStats();
   updateBagCount();
-  navigate('home', 'forward');
+  // Restore saved state OR fall back to home
+  const restored = _restoreAppState();
+  if (!restored) navigate('home', 'forward');
   // Load + sync data from DB in background
   loadUserData();
-  // Restore previous navigation state if user is returning
-  _restoreAppState();
 }
 
 async function doLogout() {
   closeDropdown();
+  _onLoginSuccessFired = false;
+  try { localStorage.removeItem(STATE_KEY); } catch(e) {}
   try { const sb = await getSupabase(); await sb.auth.signOut(); } catch(e) {}
   // Clear all sensitive state
   currentUser = null; currentEmail = '';
@@ -1911,15 +1913,23 @@ async function doLogout() {
   try {
     const sb = await getSupabase();
     sb.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) onLoginSuccess(session.user);
-      else if (event === 'SIGNED_OUT') {
+      // Only react to SIGNED_IN if we haven't already handled this session
+      if (event === 'SIGNED_IN' && session?.user && !_onLoginSuccessFired) {
+        _onLoginSuccessFired = true;
+        onLoginSuccess(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        _onLoginSuccessFired = false;
         document.getElementById('loginSpinner').style.display = 'none';
         document.getElementById('loginForm').style.display = 'block';
         showPage('login');
       }
     });
     const { data: { session } } = await sb.auth.getSession();
-    if (session?.user) { onLoginSuccess(session.user); return; }
+    if (session?.user) {
+      _onLoginSuccessFired = true;
+      onLoginSuccess(session.user);
+      return;
+    }
   } catch(e) {}
   document.getElementById('loginSpinner').style.display = 'none';
   document.getElementById('loginForm').style.display = 'block';
@@ -2928,60 +2938,77 @@ function saveNombre() {
 
 // ═══════════════════ STATE PERSISTENCE (Page Visibility) ═══════════════════
 // Saves navigation state when user switches app/tab; restores on return.
+// _restoreAppState() returns true if it navigated somewhere, false otherwise.
 const STATE_KEY = 'appState_v1';
+let _onLoginSuccessFired = false; // prevents double-fire from onAuthStateChange
 
 function _saveAppState() {
   if (!currentUser) return;
   const state = {
+    uid: currentUser.id,          // scope state per user
     page: currentPage,
     activeFilter,
     vocabDiffFilter,
     matchFilter,
     matchMode,
     cwSource,
-    matchCfgOpen,
     ts: Date.now()
   };
   try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {}
 }
 
 function _restoreAppState() {
-  if (!currentUser) return;
+  if (!currentUser) return false;
   try {
     const raw = localStorage.getItem(STATE_KEY);
-    if (!raw) return;
+    if (!raw) return false;
     const state = JSON.parse(raw);
-    // Only restore if recent (< 30 min) and page is a protected page
-    if (!state || Date.now() - state.ts > 30 * 60 * 1000) return;
-    if (state.activeFilter) activeFilter = state.activeFilter;
+    // Validate: must belong to same user and be recent (< 4 hours)
+    if (!state || state.uid !== currentUser.id) return false;
+    if (Date.now() - state.ts > 4 * 60 * 60 * 1000) return false;
+    // Restore filter/mode state silently
+    if (state.activeFilter)    activeFilter    = state.activeFilter;
     if (state.vocabDiffFilter) vocabDiffFilter = state.vocabDiffFilter;
-    if (state.matchFilter) matchFilter = state.matchFilter;
-    if (state.matchMode) matchMode = state.matchMode;
-    if (state.cwSource) cwSource = state.cwSource;
-    if (state.matchCfgOpen !== undefined) matchCfgOpen = state.matchCfgOpen;
-    // Re-navigate to the saved page (silently — don't re-trigger animations loudly)
+    if (state.matchFilter)     matchFilter     = state.matchFilter;
+    if (state.matchMode)       matchMode       = state.matchMode;
+    if (state.cwSource)        cwSource        = state.cwSource;
+    // Navigate to saved page
     const target = state.page;
-    if (target && PROTECTED_PAGES.has(target) && target !== 'home') {
-      // Use navigate so page-specific setup runs
-      setTimeout(() => navigate(target, 'forward'), 50);
+    if (target && PROTECTED_PAGES.has(target)) {
+      // Use showPage directly to skip animation on restore, then trigger setup
+      _origNavigate(target, 'forward');
+      return true;
     }
   } catch(e) {}
+  return false;
 }
 
-// Hook into navigate to always save state
+// Wrap navigate to always persist state (must be defined before first use)
 const _origNavigate = navigate;
 navigate = function(to, dir) {
   _origNavigate(to, dir);
   _saveAppState();
 };
 
-// Save whenever user hides the tab/app
+// Save on tab hide / app background (works on desktop + Android)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') _saveAppState();
 });
 
-// Also save on pagehide (iOS Safari background)
+// pagehide fires on iOS Safari before the page is suspended (more reliable than beforeunload)
 window.addEventListener('pagehide', _saveAppState);
+
+// On resume: if page was hidden and comes back visible, we're still in JS memory
+// (no reload needed). Just make sure the current page is still rendered correctly.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentUser) {
+    // Re-render current page in case DOM was partially wiped by browser memory pressure
+    if (currentPage === 'lista')      renderLista();
+    if (currentPage === 'parejas')    renderMatchFilters();
+    if (currentPage === 'crucigrama') { updateBagCount(); buildCrossword(); }
+    if (currentPage === 'perfil')     renderPerfil();
+  }
+});
 
 (function(){
   if(!('serviceWorker' in navigator)) return;

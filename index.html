@@ -893,17 +893,30 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   z-index:10;
 }
 .lista-table-zone{
-  flex:1;overflow-y:auto;overflow-x:hidden;
+  flex:1;overflow-y:auto;overflow-x:auto;
   -webkit-overflow-scrolling:touch;
   padding:0 12px;
 }
 #wordList{ padding:0 0 80px; }
-/* Columnas: tipo=100 art=50 de=130 es=resto act=60 · mínimos absolutos */
-.col-tipo{ width:100px; min-width:80px; }
-.col-art { width:50px;  min-width:36px; }
-.col-de  { width:130px; min-width:80px; }
-.col-es  { min-width:80px; } /* sin width → toma el espacio restante */
-.col-act { width:60px;  min-width:52px; }
+/* tabla: ancho inicial 100%, crece con el resize */
+.vocab-table{ min-width:100%; }
+/* handle de resize en cada th */
+.vocab-table thead th{
+  position:relative;
+  user-select:none;
+}
+.col-rz{
+  position:absolute;right:0;top:0;bottom:0;
+  width:5px;cursor:col-resize;z-index:7;
+}
+.col-rz::after{
+  content:'';position:absolute;right:1px;top:20%;bottom:20%;
+  width:2px;border-radius:1px;
+  background:var(--border2);opacity:0;transition:opacity .15s;
+}
+.vocab-table thead th:hover .col-rz::after,
+.vocab-table thead th.col-rz-active .col-rz::after{ opacity:1; }
+th.col-rz-active .col-rz::after{ background:var(--green);opacity:1; }
 
 </style>
 </head>
@@ -2195,7 +2208,108 @@ let activeFilter = 'Todos', vocabDiffFilter = 'Todas';
 let _editingIdx = null;
 
 // Default column widths (px) — persisted in localStorage
-// Column min-widths enforced via CSS classes col-tipo/col-art/col-de/col-es/col-act
+// ── Column resize (Excel-style) ──
+// Each col has an explicit pixel width in <col id="vcol-X">.
+// Dragging a handle changes only that col; others are untouched.
+// Table width = sum of cols (allows horizontal scroll if needed).
+// Saved in localStorage key 'colW2'.
+const _colMins = { tipo:60, art:36, de:60, es:60, act:52 };
+let _crz = null; // active resize state
+
+function colRzStart(e, key) {
+  e.preventDefault();
+  e.stopPropagation();
+  const th = e.target.closest('th');
+  const col = document.getElementById('vcol-' + key);
+  if (!th || !col) return;
+  th.classList.add('col-rz-active');
+  _crz = { key, th, col, x0: e.clientX, w0: col.offsetWidth };
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
+
+document.addEventListener('mousemove', e => {
+  if (!_crz) return;
+  const min = _colMins[_crz.key] || 40;
+  const newW = Math.max(min, _crz.w0 + (e.clientX - _crz.x0));
+  _crz.col.style.width = newW + 'px';
+  _syncTableWidth();
+});
+
+document.addEventListener('mouseup', e => {
+  if (!_crz) return;
+  const min = _colMins[_crz.key] || 40;
+  const newW = Math.max(min, _crz.w0 + (e.clientX - _crz.x0));
+  _crz.col.style.width = newW + 'px';
+  _crz.th.classList.remove('col-rz-active');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  // Persist
+  try {
+    const s = JSON.parse(localStorage.getItem('colW2') || '{}');
+    s[_crz.key] = newW;
+    localStorage.setItem('colW2', JSON.stringify(s));
+  } catch(err) {}
+  _crz = null;
+  _syncTableWidth();
+});
+
+// Touch support
+document.addEventListener('touchstart', e => {
+  const rz = e.target.closest('.col-rz');
+  if (!rz) return;
+  const th = rz.closest('th');
+  const key = th ? (['tipo','art','de','es'].find(k => {
+    const c = document.getElementById('vcol-'+k);
+    return c && th.cellIndex === ['tipo','art','de','es','act'].indexOf(k);
+  }) || null) : null;
+  // simpler: read key from onmousedown attribute
+  const md = rz.getAttribute('onmousedown') || '';
+  const m = md.match(/colRzStart\(event,'(\w+)'\)/);
+  if (!m) return;
+  const k = m[1];
+  const col = document.getElementById('vcol-' + k);
+  if (!th || !col) return;
+  e.preventDefault();
+  th.classList.add('col-rz-active');
+  _crz = { key:k, th, col, x0: e.touches[0].clientX, w0: col.offsetWidth };
+}, { passive:false });
+
+document.addEventListener('touchmove', e => {
+  if (!_crz) return;
+  const min = _colMins[_crz.key] || 40;
+  const newW = Math.max(min, _crz.w0 + (e.touches[0].clientX - _crz.x0));
+  _crz.col.style.width = newW + 'px';
+  _syncTableWidth();
+}, { passive:true });
+
+document.addEventListener('touchend', e => {
+  if (!_crz) return;
+  const min = _colMins[_crz.key] || 40;
+  const newW = Math.max(min, _crz.w0 + (e.changedTouches[0].clientX - _crz.x0));
+  _crz.col.style.width = newW + 'px';
+  _crz.th.classList.remove('col-rz-active');
+  try {
+    const s = JSON.parse(localStorage.getItem('colW2') || '{}');
+    s[_crz.key] = newW;
+    localStorage.setItem('colW2', JSON.stringify(s));
+  } catch(err) {}
+  _crz = null;
+  _syncTableWidth();
+});
+
+function _syncTableWidth() {
+  const tbl = document.querySelector('#wordList .vocab-table');
+  if (!tbl) return;
+  const zone = document.querySelector('.lista-table-zone');
+  const zoneW = zone ? zone.clientWidth - 24 : 9999;
+  // Sum col widths
+  let sum = 0;
+  tbl.querySelectorAll('col').forEach(c => { sum += parseInt(c.style.width) || 0; });
+  // If cols fit in zone, stretch to 100%; otherwise use exact sum (enables h-scroll)
+  tbl.style.width = sum <= zoneW ? '100%' : sum + 'px';
+  tbl.style.minWidth = '';
+}
 
 function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -2224,20 +2338,42 @@ function renderLista() {
   const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
   const ART_OPT  = ['','der','die','das'];
 
+  // Compute initial col widths: use saved values or fit proportionally to zone
+  const _zone = document.querySelector('.lista-table-zone');
+  const _avail = _zone ? Math.max(300, _zone.clientWidth - 24) : 400;
+  const _saved = (() => { try { return JSON.parse(localStorage.getItem('colW2')||'{}'); } catch(e){ return {}; } })();
+  const _ideal = { tipo:100, art:50, de:130, es:130, act:60 };
+  const _mins  = { tipo:60,  art:36, de:60,  es:60,  act:52 };
+  // If no saved widths, scale ideals to fit available width
+  let _cw;
+  if (!Object.keys(_saved).length) {
+    const idealSum = Object.values(_ideal).reduce((a,b)=>a+b,0);
+    const scale = Math.min(1, _avail / idealSum);
+    _cw = {};
+    const keys = ['tipo','art','de','es','act'];
+    keys.forEach(k => { _cw[k] = Math.max(_mins[k], Math.round(_ideal[k] * scale)); });
+    // give leftover to 'es'
+    const used = Object.values(_cw).reduce((a,b)=>a+b,0);
+    if (_avail > used) _cw['es'] += (_avail - used);
+  } else {
+    _cw = { ..._ideal, ..._mins };
+    Object.keys(_saved).forEach(k => { if (_mins[k]) _cw[k] = Math.max(_mins[k], _saved[k]); });
+  }
+
   const colgroup = `<colgroup>
-    <col class="col-tipo">
-    <col class="col-art">
-    <col class="col-de">
-    <col class="col-es">
-    <col class="col-act">
+    <col id="vcol-tipo" style="width:${_cw.tipo}px">
+    <col id="vcol-art"  style="width:${_cw.art}px">
+    <col id="vcol-de"   style="width:${_cw.de}px">
+    <col id="vcol-es"   style="width:${_cw.es}px">
+    <col id="vcol-act"  style="width:${_cw.act}px">
   </colgroup>`;
 
   const thead = `<thead>
     <tr>
-      <th>Tipo</th>
-      <th>Art.</th>
-      <th>Alemán</th>
-      <th>Español</th>
+      <th>Tipo<span class="col-rz" onmousedown="colRzStart(event,'tipo')"></span></th>
+      <th>Art.<span class="col-rz" onmousedown="colRzStart(event,'art')"></span></th>
+      <th>Alemán<span class="col-rz" onmousedown="colRzStart(event,'de')"></span></th>
+      <th>Español<span class="col-rz" onmousedown="colRzStart(event,'es')"></span></th>
       <th style="text-align:center">⚙</th>
     </tr>
   </thead>`;

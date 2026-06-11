@@ -980,130 +980,19 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 
 /* ═══════════════════════════════════════════════
-   DESKTOP LAYOUT  (≥ 700 px)
-   Strategy: centred column, max-width 860px
-   Cards grow via fixed px (overrides clamp vw).
-   Table gets more breathing room.
+   DESKTOP — solo escalan las cards
 ═══════════════════════════════════════════════ */
 @media (min-width: 700px) {
-
-  /* ── Top bar: constrain + centre ── */
-  .top-bar{
-    justify-content:center;
-  }
-  .top-bar > *{flex-shrink:0}
-  /* inner wrapper trick: a flex child that caps width */
-  .top-bar::before{
-    content:'';
-    position:absolute;inset:0;
-    pointer-events:none;
-  }
-  /* Simpler: just pad the bar symmetrically so content sits in an 860px column */
-  .top-bar{
-    padding-left: max(24px, calc((100% - 860px) / 2));
-    padding-right: max(24px, calc((100% - 860px) / 2));
-  }
-
-  /* ── Home ── */
-  .home-inner{
-    max-width:860px;
-    margin:0 auto;
-    width:100%;
-    padding-left:40px;
-    padding-right:40px;
-  }
-  .home-hero{padding-top:64px;padding-bottom:48px}
-  .home-hero-title{font-size:42px}
-  .home-hero-sub{font-size:15px;max-width:380px}
-
-  /* Workspace cards — bigger on desktop */
-  .ws-card{
-    width:200px;
-    height:200px;
-  }
+  .ws-card{width:200px;height:200px}
   .ws-card-cover-emoji{font-size:52px}
-  .ws-card-title{font-size:13px}
-  .ws-card-desc{font-size:11px}
-
-  /* Stats strip — 4 cols already, just widen */
-  .home-stats{margin-top:32px}
-
-  /* ── Vocab Hub ── */
-  .hub-inner{
-    max-width:860px;
-    margin:0 auto;
-    width:100%;
-    padding-left:40px;
-    padding-right:40px;
-    padding-top:48px;
-  }
-  .hub-hero-title{font-size:30px}
-  .hub-card{
-    width:160px;
-    height:160px;
-  }
+  .hub-card{width:160px;height:160px}
   .hub-card-cover-emoji{font-size:40px}
-  .hub-card-title{font-size:12px}
-
-  /* ── Inner pages (Lista / Parejas / Crucigrama / Perfil) ── */
-  .inner-content{
-    max-width:860px;
-    margin:0 auto;
-    width:100%;
-    padding-left:32px;
-    padding-right:32px;
-    padding-bottom:80px;
-  }
-
-  /* ── Lista controls bar ── */
-  .lista-controls > div{
-    max-width:860px;
-    margin:0 auto;
-    width:100%;
-    padding-left:28px !important;
-    padding-right:28px !important;
-  }
-
-  /* ── Lista table zone ── */
-  .lista-table-zone{
-    padding:0 max(12px, calc((100% - 860px) / 2 + 16px));
-  }
-
-  /* ── Modal wider ── */
-  .modal-box{
-    max-width:560px;
-    border-radius:18px;
-    margin-bottom:40px;
-  }
-  .modal-overlay{align-items:center}
-
-  /* ── Login card ── */
-  .login-card{max-width:420px}
-
-  /* ── Crossword: bigger cells ── */
-  /* (cell size is computed in JS via innerWidth, so this is just a nudge) */
 }
-
 @media (min-width: 1100px) {
-  .home-inner,.hub-inner{max-width:960px}
-  .home-hero-title{font-size:48px}
-  .ws-card{width:220px;height:220px}
-  .ws-card-cover-emoji{font-size:58px}
-  .hub-card{width:180px;height:180px}
-  .hub-card-cover-emoji{font-size:46px}
-  .inner-content{max-width:960px}
-  .top-bar{
-    padding-left: max(24px, calc((100% - 960px) / 2));
-    padding-right: max(24px, calc((100% - 960px) / 2));
-  }
-  .lista-table-zone{
-    padding:0 max(12px, calc((100% - 960px) / 2 + 16px));
-  }
-  .lista-controls > div{
-    max-width:960px;
-    padding-left:36px !important;
-    padding-right:36px !important;
-  }
+  .ws-card{width:230px;height:230px}
+  .ws-card-cover-emoji{font-size:60px}
+  .hub-card{width:190px;height:190px}
+  .hub-card-cover-emoji{font-size:48px}
 }
 
 </style>
@@ -1567,7 +1456,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.35</div>
+<div id="buildBadge" class="build-badge">1.07.36</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════

@@ -76,6 +76,122 @@ button{font-family:'Inter',sans-serif}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 @keyframes floatA{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes floatB{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes popIn{0%{opacity:0;transform:scale(.5) translateY(10px)}60%{transform:scale(1.2) translateY(-4px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1.3)}}
+@keyframes bonusPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}80%{transform:translate(-50%,-50%) scale(.95)}100%{opacity:0;transform:translate(-50%,-50%) scale(1) translateY(-30px)}}
+@keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes timerDanger{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes cardMatch{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes screenFlashRed{0%,100%{opacity:0}30%{opacity:1}}
+@keyframes screenFlashGreen{0%,100%{opacity:0}30%{opacity:1}}
+
+/* ── Speed mode overlay effects ── */
+.speed-flash-red{position:fixed;inset:0;pointer-events:none;z-index:8000;background:rgba(248,113,113,.18);border:3px solid rgba(248,113,113,.5);border-radius:0;animation:screenFlashRed .35s ease both}
+.speed-flash-green{position:fixed;inset:0;pointer-events:none;z-index:8000;background:rgba(74,222,128,.1);border:3px solid rgba(74,222,128,.35);border-radius:0;animation:screenFlashGreen .3s ease both}
+
+/* ── Timer bar ── */
+.speed-timer-bar{
+  position:relative;height:6px;background:var(--surface2);
+  border-radius:3px;overflow:hidden;margin-bottom:14px;
+}
+.speed-timer-fill{
+  position:absolute;left:0;top:0;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  transition:width .1s linear, background .5s;
+}
+.speed-timer-fill.danger{background:linear-gradient(90deg,var(--red),var(--orange))}
+
+/* ── Timer display ── */
+.speed-timer-display{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;
+}
+.speed-time-num{
+  font-size:28px;font-weight:800;color:var(--text);
+  letter-spacing:-1px;line-height:1;
+  transition:color .3s;
+}
+.speed-time-num.danger{color:var(--red);animation:timerDanger .5s ease infinite}
+.speed-time-num.bonus{animation:timerPulse .3s ease}
+.speed-score-big{
+  font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.5px;
+}
+.speed-streak{
+  display:flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:600;color:var(--text3);
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:3px 10px;
+  transition:all .2s;
+}
+.speed-streak.hot{color:var(--orange);border-color:rgba(251,146,60,.4);background:rgba(251,146,60,.07)}
+
+/* ── Floating +10 badge ── */
+.bonus-pop{
+  position:fixed;
+  font-size:22px;font-weight:800;
+  color:var(--green);
+  pointer-events:none;z-index:9500;
+  left:50%;top:40%;
+  animation:bonusPop .7s cubic-bezier(.4,0,.2,1) both;
+  text-shadow:0 2px 12px rgba(74,222,128,.5);
+  white-space:nowrap;
+}
+
+/* ── Floating score chip (per card) ── */
+.score-chip{
+  position:absolute;top:-8px;right:-4px;
+  font-size:11px;font-weight:700;
+  padding:2px 6px;border-radius:8px;
+  pointer-events:none;z-index:10;
+  animation:floatUp .7s ease both;
+}
+.score-chip.ok{background:var(--green-bg);color:var(--green-t);border:1px solid rgba(74,222,128,.4)}
+.score-chip.err{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.4)}
+
+/* ── Mode selector (tabs) ── */
+.match-mode-tabs{
+  display:flex;gap:6px;margin-bottom:14px;
+}
+.match-mode-tab{
+  flex:1;padding:9px 8px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .15s;text-align:center;
+}
+.match-mode-tab.active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.match-mode-tab.active.speed{background:rgba(251,146,60,.1);border-color:rgba(251,146,60,.4);color:var(--orange)}
+
+/* ── Speed game over screen ── */
+.speed-gameover{text-align:center;padding:24px 16px;animation:fadeUp .3s ease both}
+.speed-gameover-score{
+  font-size:64px;font-weight:800;color:var(--green);
+  letter-spacing:-2px;line-height:1;margin:16px 0 4px;
+}
+.speed-gameover-label{font-size:13px;color:var(--text2);margin-bottom:20px}
+.speed-stat-row{
+  display:flex;justify-content:center;gap:24px;margin-bottom:20px;
+}
+.speed-stat{text-align:center}
+.speed-stat-num{font-size:22px;font-weight:700;color:var(--text)}
+.speed-stat-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}
+
+/* ── Speed countdown ── */
+.speed-countdown{
+  position:fixed;inset:0;z-index:9900;
+  background:var(--overlay);
+  display:flex;align-items:center;justify-content:center;
+}
+.speed-countdown-num{
+  font-size:120px;font-weight:900;color:var(--text);
+  animation:popIn .4s cubic-bezier(.4,0,.2,1) both;
+  text-shadow:0 4px 40px rgba(0,0,0,.4);
+}
+.speed-countdown-go{
+  font-size:64px;font-weight:900;color:var(--green);
+  animation:popIn .3s cubic-bezier(.4,0,.2,1) both;
+  text-shadow:0 4px 30px rgba(74,222,128,.5);
+}
 
 /* ═══════════════════ ROUTER ═══════════════════ */
 .page{display:none;min-height:100vh;flex-direction:column}
@@ -1186,6 +1302,15 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
           <div class="hub-card-title">Crucigrama</div>
         </div>
       </button>
+
+      <button class="hub-card" onclick="navigate('velocidad', 'forward')">
+        <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(251,146,60,.18) 0%,rgba(251,146,60,.06) 100%)">
+          <span class="hub-card-cover-emoji">⚡</span>
+        </div>
+        <div class="hub-card-label">
+          <div class="hub-card-title">Velocidad</div>
+        </div>
+      </button>
     </div>
   </div>
 </div>
@@ -1308,6 +1433,22 @@ CREATE POLICY "own_progress" ON user_progress
     </div>
     <div id="crossContent"></div>
   </div>
+</div>
+
+<!-- ═══════════════════ VELOCIDAD PAGE ═══════════════════ -->
+<div class="page" id="page-velocidad">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="stopSpeedGame();navigate('vocab-hub','back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Vocabulario
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Vocabulario</span>
+      <span class="breadcrumb-sep"> / </span>
+      ⚡ Velocidad
+    </div>
+  </div>
+  <div class="inner-content" id="speedContent"></div>
 </div>
 
 <!-- ═══════════════════ PERFIL PAGE ═══════════════════ -->
@@ -1456,7 +1597,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.36</div>
+<div id="buildBadge" class="build-badge">1.07.37</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -1788,7 +1929,7 @@ function toggleTheme() { applyTheme(document.body.classList.contains('light')); 
 applyTheme(localStorage.getItem('theme') !== 'light');
 
 // ═══════════════════ AUTH GUARD ═══════════════════
-const PROTECTED_PAGES = new Set(['home','vocab-hub','lista','parejas','crucigrama','perfil','grammar']);
+const PROTECTED_PAGES = new Set(['home','vocab-hub','lista','parejas','crucigrama','velocidad','perfil','grammar']);
 
 // ═══════════════════ RATE LIMITER ═══════════════════
 const _rl = (() => {
@@ -1840,6 +1981,7 @@ function navigate(to, dir = 'forward') {
   if (to === 'lista') renderLista();
   if (to === 'parejas') { renderMatchFilters(); }
   if (to === 'crucigrama') { updateBagCount(); buildCrossword(); }
+  if (to === 'velocidad') { stopSpeedGame(); renderSpeedSetup(); }
   if (to === 'perfil') { renderPerfil(); }
 }
 
@@ -2764,6 +2906,436 @@ function selectCard(lang, idx) {
   }
 }
 
+// ═══════════════════ VELOCIDAD (SPEED MODE) ═══════════════════
+const SPEED_BONUS_EVERY   = 3;   // aciertos seguidos para bonus
+const SPEED_BONUS_SECS    = 10;  // segundos de bonus
+const SPEED_WORDS_VISIBLE = 5;   // parejas en pantalla a la vez
+
+let _speedTimer   = null;   // setInterval handle
+let _speedState   = null;   // objeto de estado completo
+let _speedPool    = [];     // palabras disponibles (shuffled)
+let _speedPoolIdx = 0;      // siguiente palabra del pool
+
+function _speedDefaultDuration() {
+  return parseInt(localStorage.getItem('speedDuration') || '30');
+}
+
+// ── Pantalla de configuración ──
+function renderSpeedSetup() {
+  const dur = _speedDefaultDuration();
+  const c = document.getElementById('speedContent');
+  if (!c) return;
+  const pool = getWords();
+  if (pool.length < 4) {
+    c.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text2)">
+      <div style="font-size:40px;margin-bottom:12px">😅</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Pocas palabras</div>
+      <div style="font-size:13px">Añade al menos 4 palabras para jugar.</div>
+    </div>`;
+    return;
+  }
+
+  c.innerHTML = `
+    <div style="text-align:center;padding:32px 0 20px;animation:fadeUp .3s ease both">
+      <div style="font-size:52px;margin-bottom:10px">⚡</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-bottom:6px">Modo Velocidad</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:260px;margin:0 auto 28px">
+        Une el máximo de parejas antes de que acabe el tiempo.<br>
+        <span style="color:var(--orange);font-weight:600">${SPEED_BONUS_EVERY} seguidas</span> = <span style="color:var(--green);font-weight:600">+${SPEED_BONUS_SECS}s ⏱</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;margin:0 auto">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:2px">Duración</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          ${[30,60,90].map(s=>`<button onclick="setSpeedDuration(${s})" id="sdBtn${s}"
+            style="flex:1;padding:10px 6px;border-radius:var(--r);border:1px solid ${dur===s?'rgba(251,146,60,.5)':'var(--border)'};
+            background:${dur===s?'rgba(251,146,60,.1)':'var(--surface)'};
+            color:${dur===s?'var(--orange)':'var(--text2)'};
+            font-family:Inter,sans-serif;font-size:13px;font-weight:700;cursor:pointer;
+            transition:all .15s">${s}s</button>`).join('')}
+        </div>
+
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-top:8px;margin-bottom:2px">Tipo de palabras</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center" id="speedTipoWrap">
+          ${['Todos',...['Nomen','Verb','Adjektive','Redewendung','Adverb']].map(k=>{
+            const active = (localStorage.getItem('speedTipo')||'Todos') === k;
+            return `<button onclick="setSpeedTipo('${k}')" id="speedTipo_${k}"
+              style="padding:5px 12px;border-radius:20px;border:1px solid ${active?'rgba(251,146,60,.4)':'var(--border)'};
+              background:${active?'rgba(251,146,60,.1)':'var(--surface)'};
+              color:${active?'var(--orange)':'var(--text2)'};
+              font-family:Inter,sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s">${k==='Todos'?'Todos':k}</button>`;
+          }).join('')}
+        </div>
+
+        <button onclick="startSpeedGame()"
+          style="margin-top:12px;width:100%;background:var(--orange);color:#fff;border:none;
+          padding:14px;border-radius:var(--r);font-family:Inter,sans-serif;
+          font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px;
+          transition:opacity .15s;box-shadow:0 4px 20px rgba(251,146,60,.35)"
+          onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+          ▶ Empezar
+        </button>
+      </div>
+    </div>`;
+}
+
+function setSpeedDuration(s) {
+  localStorage.setItem('speedDuration', s);
+  [30,60,90].forEach(v => {
+    const btn = document.getElementById(`sdBtn${v}`);
+    if (!btn) return;
+    const active = v === s;
+    btn.style.borderColor = active ? 'rgba(251,146,60,.5)' : 'var(--border)';
+    btn.style.background  = active ? 'rgba(251,146,60,.1)' : 'var(--surface)';
+    btn.style.color       = active ? 'var(--orange)' : 'var(--text2)';
+  });
+}
+
+function setSpeedTipo(k) {
+  localStorage.setItem('speedTipo', k);
+  ['Todos',...['Nomen','Verb','Adjektive','Redewendung','Adverb']].forEach(v => {
+    const btn = document.getElementById(`speedTipo_${v}`);
+    if (!btn) return;
+    const active = v === k;
+    btn.style.borderColor = active ? 'rgba(251,146,60,.4)' : 'var(--border)';
+    btn.style.background  = active ? 'rgba(251,146,60,.1)' : 'var(--surface)';
+    btn.style.color       = active ? 'var(--orange)' : 'var(--text2)';
+  });
+}
+
+// ── Countdown 3-2-1-GO ──
+function startSpeedGame() {
+  const tipo = localStorage.getItem('speedTipo') || 'Todos';
+  let pool = tipo === 'Todos' ? getWords() : getWords().filter(w => w.tipo === tipo);
+  if (pool.length < 4) { showToast('Pocas palabras para este filtro'); return; }
+
+  // Ordenar por dificultad/SRS y mezclar
+  _speedPool = shuffle(pool);
+  _speedPoolIdx = 0;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'speed-countdown';
+  overlay.id = 'speedCountdown';
+  document.body.appendChild(overlay);
+
+  let n = 3;
+  function tick() {
+    overlay.innerHTML = `<div class="${n > 0 ? 'speed-countdown-num' : 'speed-countdown-go'}" style="animation:popIn .4s both">${n > 0 ? n : '¡YA!'}</div>`;
+    if (n === 0) {
+      setTimeout(() => {
+        overlay.remove();
+        _launchSpeedGame();
+      }, 600);
+      return;
+    }
+    n--;
+    setTimeout(tick, 800);
+  }
+  tick();
+}
+
+function _launchSpeedGame() {
+  const dur = _speedDefaultDuration();
+  _speedState = {
+    timeLeft:   dur,
+    totalTime:  dur,
+    score:      0,
+    streak:     0,
+    errors:     0,
+    pairs:      0,
+    matched:    new Set(),    // idx dentro de currentSpeedBatch
+    selectedDE: null,
+    selectedES: null,
+    batch:      [],
+    running:    true,
+  };
+  _fillSpeedBatch();
+  _renderSpeedGame();
+  _speedTimer = setInterval(_speedTick, 100);
+}
+
+function _fillSpeedBatch() {
+  // Coge SPEED_WORDS_VISIBLE palabras del pool (cíclico)
+  const s = _speedState;
+  const needed = SPEED_WORDS_VISIBLE;
+  s.batch = [];
+  for (let i = 0; i < needed; i++) {
+    s.batch.push(_speedPool[_speedPoolIdx % _speedPool.length]);
+    _speedPoolIdx++;
+    // Si dimos la vuelta completa, re-shuffle
+    if (_speedPoolIdx % _speedPool.length === 0) _speedPool = shuffle(_speedPool);
+  }
+  s.matched = new Set();
+  s.selectedDE = null;
+  s.selectedES = null;
+}
+
+function _speedTick() {
+  if (!_speedState || !_speedState.running) return;
+  _speedState.timeLeft = Math.max(0, _speedState.timeLeft - 0.1);
+  _updateSpeedTimer();
+  if (_speedState.timeLeft <= 0) {
+    _speedState.running = false;
+    clearInterval(_speedTimer);
+    setTimeout(_renderSpeedGameOver, 300);
+  }
+}
+
+function _updateSpeedTimer() {
+  const s = _speedState;
+  const pct = s.timeLeft / s.totalTime * 100;
+  const secs = Math.ceil(s.timeLeft);
+  const el = document.getElementById('speedTimerFill');
+  const num = document.getElementById('speedTimeNum');
+  if (el) {
+    el.style.width = pct + '%';
+    el.classList.toggle('danger', s.timeLeft <= 10);
+  }
+  if (num) {
+    num.textContent = secs;
+    num.classList.toggle('danger', s.timeLeft <= 10);
+  }
+}
+
+function _renderSpeedGame() {
+  const s = _speedState;
+  const c = document.getElementById('speedContent');
+  if (!c) return;
+
+  const dew = shuffle(s.batch.map((w,i) => ({...w, idx:i})));
+  const esw = shuffle(s.batch.map((w,i) => ({...w, idx:i})));
+
+  let deCards = '', esCards = '';
+  for (let i = 0; i < s.batch.length; i++) {
+    const d = dew[i], e = esw[i];
+    const dm = s.matched.has(d.idx) ? 'matched' : '';
+    const em = s.matched.has(e.idx) ? 'matched' : '';
+    deCards += `<div class="word-card ${dm}" id="spd-de-${d.idx}" onclick="speedSelect('de',${d.idx})" style="position:relative;min-height:52px">${displayDE(d)}</div>`;
+    esCards += `<div class="word-card ${em}" id="spd-es-${e.idx}" onclick="speedSelect('es',${e.idx})" style="position:relative;min-height:52px">${e.es}</div>`;
+  }
+
+  c.innerHTML = `
+    <div id="speedTimerDisplay" class="speed-timer-display">
+      <div id="speedTimeNum" class="speed-time-num">${Math.ceil(s.timeLeft)}</div>
+      <div class="speed-streak ${s.streak >= 2 ? 'hot' : ''}" id="speedStreak">
+        🔥 ${s.streak} seguidas
+      </div>
+      <div class="speed-score-big" id="speedScore">${s.score}</div>
+    </div>
+    <div class="speed-timer-bar">
+      <div class="speed-timer-fill ${s.timeLeft <= 10 ? 'danger' : ''}" id="speedTimerFill" style="width:${s.timeLeft/s.totalTime*100}%"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
+      <div class="col-label">Alemán 🇩🇪</div>
+      <div class="col-label">Español 🇪🇸</div>
+    </div>
+    <div class="columns-grid" id="speedGrid">
+      ${dew.map((_,i) => `${deCards.split('</div>')[i]}</div>`).join('')}
+    </div>`;
+
+  // Re-render grid limpio
+  const grid = document.getElementById('speedGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  // Intercalar de/es columna a columna (grid 2 cols)
+  for (let i = 0; i < s.batch.length; i++) {
+    const d = dew[i], e = esw[i];
+    const dm = s.matched.has(d.idx) ? 'matched' : '';
+    const em = s.matched.has(e.idx) ? 'matched' : '';
+    const dDiv = document.createElement('div');
+    dDiv.className = `word-card ${dm}`;
+    dDiv.id = `spd-de-${d.idx}`;
+    dDiv.style.cssText = 'position:relative;min-height:52px';
+    dDiv.textContent = displayDE(d);
+    dDiv.onclick = () => speedSelect('de', d.idx);
+
+    const eDiv = document.createElement('div');
+    eDiv.className = `word-card ${em}`;
+    eDiv.id = `spd-es-${e.idx}`;
+    eDiv.style.cssText = 'position:relative;min-height:52px';
+    eDiv.textContent = e.es;
+    eDiv.onclick = () => speedSelect('es', e.idx);
+
+    grid.appendChild(dDiv);
+    grid.appendChild(eDiv);
+  }
+
+  // Guardar orden actual para lookups
+  s._dew = dew;
+  s._esw = esw;
+}
+
+function speedSelect(lang, idx) {
+  const s = _speedState;
+  if (!s || !s.running) return;
+  if (s.matched.has(idx)) return;
+
+  const elId = `spd-${lang}-${idx}`;
+  const el = document.getElementById(elId);
+  if (!el || el.classList.contains('matched')) return;
+
+  if (lang === 'de') {
+    if (s.selectedDE !== null) {
+      const prev = document.getElementById(`spd-de-${s.selectedDE}`);
+      if (prev) prev.classList.remove('selected');
+    }
+    s.selectedDE = idx;
+    el.classList.add('selected');
+  } else {
+    if (s.selectedES !== null) {
+      const prev = document.getElementById(`spd-es-${s.selectedES}`);
+      if (prev) prev.classList.remove('selected');
+    }
+    s.selectedES = idx;
+    el.classList.add('selected');
+  }
+
+  if (s.selectedDE !== null && s.selectedES !== null) {
+    const deEl = document.getElementById(`spd-de-${s.selectedDE}`);
+    const esEl = document.getElementById(`spd-es-${s.selectedES}`);
+    const isMatch = s.selectedDE === s.selectedES;
+    const wordDE = s.batch[s.selectedDE]?.de;
+
+    if (isMatch) {
+      // ✅ ACIERTO
+      s.matched.add(s.selectedDE);
+      s.score++;
+      s.pairs++;
+      s.streak++;
+      [deEl, esEl].forEach(x => {
+        if (x) { x.classList.remove('selected'); x.classList.add('matched'); }
+      });
+      // Chip flotante +1
+      _spawnChip(deEl, '+1', 'ok');
+      // Flash verde
+      _screenFlash('green');
+      // Bonus streak
+      if (s.streak > 0 && s.streak % SPEED_BONUS_EVERY === 0) {
+        s.timeLeft = Math.min(s.timeLeft + SPEED_BONUS_SECS, s.totalTime * 2);
+        _spawnBonus(`+${SPEED_BONUS_SECS}s ⚡`);
+      }
+      s.selectedDE = null; s.selectedES = null;
+      updateWordProgress(wordDE, true);
+      // Actualizar marcador
+      _updateSpeedHUD();
+      // Si se completó el lote, cargar nuevo
+      if (s.matched.size === s.batch.length) {
+        setTimeout(() => { _fillSpeedBatch(); _renderSpeedGame(); }, 350);
+      }
+    } else {
+      // ❌ ERROR
+      s.errors++;
+      s.streak = 0;
+      [deEl, esEl].forEach(x => { if (x) x.classList.add('wrong'); });
+      _screenFlash('red');
+      _spawnChip(deEl, '✕', 'err');
+      updateWordProgress(wordDE, false);
+      setTimeout(() => {
+        [deEl, esEl].forEach(x => { if (x) x.classList.remove('wrong', 'selected'); });
+        s.selectedDE = null; s.selectedES = null;
+        _updateSpeedHUD();
+      }, 600);
+    }
+  }
+}
+
+function _updateSpeedHUD() {
+  const s = _speedState;
+  const score = document.getElementById('speedScore');
+  const streak = document.getElementById('speedStreak');
+  if (score) score.textContent = s.score;
+  if (streak) {
+    streak.textContent = `🔥 ${s.streak} seguidas`;
+    streak.className = `speed-streak ${s.streak >= 2 ? 'hot' : ''}`;
+  }
+}
+
+function _spawnChip(parentEl, text, type) {
+  if (!parentEl) return;
+  const chip = document.createElement('div');
+  chip.className = `score-chip ${type}`;
+  chip.textContent = text;
+  chip.style.cssText = 'position:fixed;pointer-events:none;z-index:9500;font-size:12px;font-weight:800;padding:3px 7px;border-radius:8px;animation:floatUp .7s ease both';
+  const rect = parentEl.getBoundingClientRect();
+  chip.style.left = (rect.left + rect.width / 2 - 16) + 'px';
+  chip.style.top  = (rect.top - 8) + 'px';
+  if (type === 'ok') {
+    chip.style.background = 'var(--green-bg)';
+    chip.style.color = 'var(--green-t)';
+    chip.style.border = '1px solid rgba(74,222,128,.4)';
+  } else {
+    chip.style.background = 'var(--red-bg)';
+    chip.style.color = 'var(--red)';
+    chip.style.border = '1px solid rgba(248,113,113,.4)';
+  }
+  document.body.appendChild(chip);
+  setTimeout(() => chip.remove(), 750);
+}
+
+function _spawnBonus(text) {
+  const el = document.createElement('div');
+  el.className = 'bonus-pop';
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 750);
+}
+
+function _screenFlash(type) {
+  const el = document.createElement('div');
+  el.className = type === 'green' ? 'speed-flash-green' : 'speed-flash-red';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 380);
+}
+
+function _renderSpeedGameOver() {
+  clearInterval(_speedTimer);
+  const s = _speedState;
+  const c = document.getElementById('speedContent');
+  if (!c) return;
+
+  const accuracy = (s.pairs + s.errors) > 0
+    ? Math.round(s.pairs / (s.pairs + s.errors) * 100)
+    : 0;
+  const bestKey = `speedBest_${currentEmail || 'default'}`;
+  const prev = parseInt(localStorage.getItem(bestKey) || '0');
+  const isNew = s.score > prev;
+  if (isNew) localStorage.setItem(bestKey, s.score);
+
+  c.innerHTML = `<div class="speed-gameover">
+    <div style="font-size:44px;margin-bottom:8px">🏁</div>
+    <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px">Puntuación final</div>
+    <div class="speed-gameover-score">${s.score}</div>
+    <div class="speed-gameover-label">pares completados</div>
+    ${isNew ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.35);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--orange);margin-bottom:16px">🏆 ¡Nuevo récord!</div>` : `<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Récord: ${prev}</div>`}
+    <div class="speed-stat-row">
+      <div class="speed-stat"><div class="speed-stat-num">${s.pairs}</div><div class="speed-stat-lbl">Aciertos</div></div>
+      <div class="speed-stat"><div class="speed-stat-num" style="color:var(--red)">${s.errors}</div><div class="speed-stat-lbl">Errores</div></div>
+      <div class="speed-stat"><div class="speed-stat-num" style="color:var(--blue)">${accuracy}%</div><div class="speed-stat-lbl">Precisión</div></div>
+    </div>
+    <button onclick="renderSpeedSetup()"
+      style="width:100%;background:var(--orange);color:#fff;border:none;padding:13px;
+      border-radius:var(--r);font-family:Inter,sans-serif;font-weight:700;font-size:14px;
+      cursor:pointer;margin-bottom:8px;transition:opacity .15s"
+      onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      ↺ Jugar de nuevo
+    </button>
+    <button onclick="stopSpeedGame();navigate('vocab-hub','back')"
+      style="width:100%;background:var(--surface);color:var(--text2);border:1px solid var(--border);
+      padding:11px;border-radius:var(--r);font-family:Inter,sans-serif;font-weight:500;font-size:13px;
+      cursor:pointer;transition:all .15s">
+      Volver al menú
+    </button>
+  </div>`;
+}
+
+function stopSpeedGame() {
+  clearInterval(_speedTimer);
+  if (_speedState) _speedState.running = false;
+  _speedState = null;
+  // Limpiar overlays huérfanos
+  document.querySelectorAll('.speed-flash-red,.speed-flash-green,.bonus-pop,.speed-countdown').forEach(e=>e.remove());
+}
+
 // ═══════════════════ CROSSWORD ═══════════════════
 let cwData = null;
 function buildCrossword() {
@@ -3029,6 +3601,7 @@ document.addEventListener('visibilitychange', () => {
     if (currentPage === 'lista')      renderLista();
     if (currentPage === 'parejas')    renderMatchFilters();
     if (currentPage === 'crucigrama') { updateBagCount(); buildCrossword(); }
+    if (currentPage === 'velocidad')  { stopSpeedGame(); renderSpeedSetup(); }
     if (currentPage === 'perfil')     renderPerfil();
   }
 });

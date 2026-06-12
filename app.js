@@ -1803,51 +1803,292 @@ function generateCrossword(words) {
   return{grid:trimmed,clues,rows:maxR-minR+1,cols:maxC-minC+1};
 }
 
+// ── Estado de navegación del crucigrama ──
+let _cwActiveClue = null;  // { clue, pos } — pista activa y posición del cursor
+
+function _cwGetCluesAt(r, c) {
+  // Devuelve todas las pistas que pasan por la celda (r,c)
+  if (!cwData) return [];
+  return cwData.clues.filter(cl => {
+    if (cl.dir === 'H') return cl.row === r && c >= cl.col && c < cl.col + cl.cleaned.length;
+    else                return cl.col === c && r >= cl.row && r < cl.row + cl.cleaned.length;
+  });
+}
+
+function _cwHighlight(activeClue, cursorR, cursorC) {
+  // Quitar highlight anterior
+  document.querySelectorAll('#crossContent input.cw-cell').forEach(inp => {
+    inp.classList.remove('active-word','active-cursor');
+  });
+  // Quitar active-clue de todas las cards
+  document.querySelectorAll('.clue-front').forEach(f => f.classList.remove('active-clue'));
+  if (!activeClue) return;
+  // Pintar celdas de la pista activa
+  const cl = activeClue;
+  for (let i = 0; i < cl.cleaned.length; i++) {
+    const r = cl.dir === 'H' ? cl.row       : cl.row + i;
+    const c = cl.dir === 'H' ? cl.col + i   : cl.col;
+    const inp = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+    if (inp) inp.classList.add('active-word');
+  }
+  // Pintar cursor
+  const cur = document.querySelector(`input[data-r="${cursorR}"][data-c="${cursorC}"]`);
+  if (cur) { cur.classList.remove('active-word'); cur.classList.add('active-cursor'); }
+  // Highlight de la card de pista
+  const front = document.querySelector(`.clue-front[data-clue-num="${cl.num}"][data-clue-dir="${cl.dir}"]`);
+  if (front) {
+    front.classList.add('active-clue');
+    front.closest('.clue-card')?.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+  }
+}
+
+function _cwNextCell(cl, pos) {
+  // Siguiente celda vacía (o fin) siguiendo la dirección de la pista, saltando intersecciones rellenas
+  for (let i = pos + 1; i < cl.cleaned.length; i++) {
+    const r = cl.dir === 'H' ? cl.row       : cl.row + i;
+    const c = cl.dir === 'H' ? cl.col + i   : cl.col;
+    const inp = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+    // Saltar si ya tiene letra (intersección con otra palabra completada)
+    if (inp && !inp.value) return i;
+  }
+  // Si todas rellenas, ir a la última
+  return cl.cleaned.length - 1;
+}
+
+function cwFocusCell(r, c) {
+  const inp = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+  if (inp) inp.focus();
+
+  const cluesHere = _cwGetCluesAt(r, c);
+  if (!cluesHere.length) return;
+
+  // Si el clic es en la misma pista activa, mantenerla
+  if (_cwActiveClue && cluesHere.find(cl => cl.num === _cwActiveClue.num && cl.dir === _cwActiveClue.dir)) {
+    const pos = _cwActiveClue.dir === 'H' ? c - _cwActiveClue.col : r - _cwActiveClue.row;
+    _cwActiveClue = { clue: _cwActiveClue, pos };
+    // Simplificar: el objeto es la pista directamente
+    _cwActiveClue = cluesHere.find(cl => cl.num === _cwActiveClue.clue?.num && cl.dir === _cwActiveClue.clue?.dir) || cluesHere[0];
+    const p = _cwActiveClue.dir === 'H' ? c - _cwActiveClue.col : r - _cwActiveClue.row;
+    _cwHighlight(_cwActiveClue, r, c);
+    // Guardar posición
+    _cwActiveClueCursor = { r, c };
+    return;
+  }
+  // Si hay intersección: alternar entre las pistas disponibles
+  if (_cwActiveClue) {
+    const other = cluesHere.find(cl => !(cl.num === _cwActiveClue.num && cl.dir === _cwActiveClue.dir));
+    _cwActiveClue = other || cluesHere[0];
+  } else {
+    _cwActiveClue = cluesHere[0];
+  }
+  _cwActiveClueCursor = { r, c };
+  _cwHighlight(_cwActiveClue, r, c);
+}
+
+// Cursor global para saber dónde estamos
+let _cwActiveClueCursor = null;
+
 function renderCrossword() {
   if (!cwData) return;
-  const {grid,clues,rows,cols}=cwData;
-  const numMap={};for(const c of clues) numMap[`${c.row},${c.col}`]=c.num;
-  const cs=Math.min(30,Math.floor((window.innerWidth-40)/cols));
-  let gHTML=`<div class="cw-wrapper"><div class="crossword-grid" style="grid-template-columns:repeat(${cols},${cs}px);grid-template-rows:repeat(${rows},${cs}px)">`;
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
-    const val=grid[r][c],num=numMap[`${r},${c}`];
-    if(!val) gHTML+=`<div class="cw-cell black" style="width:${cs}px;height:${cs}px"></div>`;
-    else gHTML+=`<div class="cell-wrap" style="width:${cs}px;height:${cs}px">${num?`<span class="cell-number">${num}</span>`:''}<input class="cw-cell" style="width:${cs}px;height:${cs}px;font-size:${Math.max(10,cs-14)}px" maxlength="1" data-r="${r}" data-c="${c}" data-answer="${val}" oninput="cwInput(this)" onkeydown="cwNav(event,${r},${c})"></div>`;
+  _cwActiveClue = null;
+  _cwActiveClueCursor = null;
+  const {grid,clues,rows,cols} = cwData;
+  const numMap = {};
+  for (const c of clues) numMap[`${c.row},${c.col}`] = c.num;
+  const cs = Math.min(30, Math.floor((window.innerWidth - 40) / cols));
+
+  // Grid
+  let gHTML = `<div class="cw-wrapper"><div class="crossword-grid" style="grid-template-columns:repeat(${cols},${cs}px);grid-template-rows:repeat(${rows},${cs}px)">`;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const val = grid[r][c], num = numMap[`${r},${c}`];
+    if (!val) {
+      gHTML += `<div class="cw-cell black" style="width:${cs}px;height:${cs}px"></div>`;
+    } else {
+      gHTML += `<div class="cell-wrap" style="width:${cs}px;height:${cs}px">
+        ${num ? `<span class="cell-number">${num}</span>` : ''}
+        <input class="cw-cell"
+          style="width:${cs}px;height:${cs}px;font-size:${Math.max(10,cs-14)}px"
+          maxlength="1" data-r="${r}" data-c="${c}" data-answer="${val}"
+          oninput="cwInput(this)"
+          onkeydown="cwNav(event,${r},${c})"
+          onfocus="cwFocusCell(${r},${c})">
+      </div>`;
+    }
   }
-  gHTML+=`</div></div>`;
-  const cluesHTML=clues.map(cl=>`<div class="clue-item" onclick="toggleTranslation(this)">
-    <div style="flex:1">
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px">
-        <span class="clue-num">${cl.num}</span><span class="clue-dir">${cl.dir==='H'?'→':'↓'}</span>
+  gHTML += `</div></div>`;
+
+  // Clue flip cards
+  const cluesHTML = `<div class="clues-row">${clues.map(cl => `
+    <div class="clue-card" id="clue-card-${cl.num}-${cl.dir}" onclick="cwClueCardClick(${cl.num},'${cl.dir}',this)">
+      <div class="clue-card-inner">
+        <div class="clue-front" data-clue-num="${cl.num}" data-clue-dir="${cl.dir}">
+          <div class="clue-card-num">${cl.num}</div>
+          <div class="clue-card-dir">${cl.dir === 'H' ? '→' : '↓'}</div>
+          <div class="clue-card-es">${cl.word.es}</div>
+        </div>
+        <div class="clue-back">
+          <div class="clue-card-num" style="color:var(--green-t)">${cl.num}</div>
+          <div class="clue-card-de">${cl.word.display_de || displayDE(cl.word)}</div>
+        </div>
       </div>
-      <div class="clue-text">${cl.word.es}</div>
-      <div class="clue-translation">→ ${cl.word.display_de||displayDE(cl.word)}</div>
-    </div>
-  </div>`).join('');
-  document.getElementById('crossContent').innerHTML=`
+    </div>`).join('')}</div>`;
+
+  document.getElementById('crossContent').innerHTML = `
     <div class="match-header"><h2>Crucigrama</h2><div class="score-badge">${clues.length} palabras</div></div>
-    <p class="tap-hint">${t('cwHint')}</p>
     <div class="crossword-container">${gHTML}</div>
     <button class="btn-primary" onclick="checkCrossword()">${t('cwCheck')}</button>
     <button class="btn-secondary" onclick="revealCrossword()">${t('cwReveal')}</button>
     <button class="btn-blue" onclick="buildCrossword()">${t('cwNew')}</button>
-    ${cwSource==='bag'?`<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" onclick="if(confirm('¿Vaciar la bolsa?')){clearBag();buildCrossword();}">🗑 Vaciar bolsa</button>`:''}
-    <div class="clues-section"><div class="clues-title">${t('cwHintTitle')}</div>${cluesHTML}</div>`;
+    ${cwSource === 'bag' ? `<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" onclick="if(confirm('¿Vaciar la bolsa?')){clearBag();buildCrossword();}">🗑 Vaciar bolsa</button>` : ''}
+    <div class="clues-section">
+      <div class="clues-title">${t('cwHintTitle')} · toca para revelar</div>
+      ${cluesHTML}
+    </div>`;
 }
-function toggleTranslation(el){el.classList.toggle('active-clue');el.querySelector('.clue-translation').classList.toggle('visible');}
-function cwInput(el){el.value=el.value.replace(/[^a-zA-ZäöüÄÖÜß]/g,'').toUpperCase().slice(-1);const r=parseInt(el.dataset.r),c=parseInt(el.dataset.c);if(el.value){const next=document.querySelector(`input[data-r="${r}"][data-c="${c+1}"]`)||document.querySelector(`input[data-r="${r+1}"][data-c="${c}"]`);if(next)next.focus();}}
-function cwNav(e,r,c){if(e.key==='Backspace'){const inp=document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);if(inp&&inp.value){inp.value='';return;}const prev=document.querySelector(`input[data-r="${r}"][data-c="${c-1}"]`)||document.querySelector(`input[data-r="${r-1}"][data-c="${c}"]`);if(prev){prev.focus();prev.value='';}}}
-function checkCrossword(){
-  const inputs=document.querySelectorAll('#crossContent input.cw-cell');
-  let correct=0,total=0;
-  inputs.forEach(inp=>{total++;inp.classList.remove('correct','wrong-cell');if(inp.value&&inp.value.toUpperCase()===inp.dataset.answer){inp.classList.add('correct');correct++;}else if(inp.value)inp.classList.add('wrong-cell');});
-  if(cwData){cwData.clues.forEach(cl=>{const allOk=[...cl.cleaned].every((ch,i)=>{const inp=document.querySelector(cl.dir==='H'?`input[data-r="${cl.row}"][data-c="${cl.col+i}"]`:`input[data-r="${cl.row+i}"][data-c="${cl.col}"]`);return inp&&inp.value.toUpperCase()===ch;});updateWordProgress(cl.word.de,allOk);});}
-  const pct=Math.round(correct/total*100);
-  const btn=document.querySelector('#crossContent .btn-primary');
-  const orig=btn.textContent; btn.textContent=`${correct}/${total} (${pct}%)${pct===100?' 🎉':''}`;
-  setTimeout(()=>btn.textContent=orig,2800);
+
+function cwClueCardClick(num, dir, cardEl) {
+  // Flip la card
+  cardEl.classList.toggle('flipped');
+  // Mover el foco a la primera celda vacía de esa pista
+  if (!cwData) return;
+  const cl = cwData.clues.find(c => c.num === num && c.dir === dir);
+  if (!cl) return;
+  _cwActiveClue = cl;
+  // Buscar primera celda vacía
+  let targetR = cl.row, targetC = cl.col;
+  for (let i = 0; i < cl.cleaned.length; i++) {
+    const r = cl.dir === 'H' ? cl.row       : cl.row + i;
+    const c = cl.dir === 'H' ? cl.col + i   : cl.col;
+    const inp = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+    if (inp && !inp.value) { targetR = r; targetC = c; break; }
+    if (i === cl.cleaned.length - 1) { targetR = r; targetC = c; } // última si todas llenas
+  }
+  _cwActiveClueCursor = { r: targetR, c: targetC };
+  _cwHighlight(cl, targetR, targetC);
+  document.querySelector(`input[data-r="${targetR}"][data-c="${targetC}"]`)?.focus();
 }
-function revealCrossword(){document.querySelectorAll('#crossContent input.cw-cell').forEach(inp=>{inp.value=inp.dataset.answer;inp.classList.add('correct');inp.classList.remove('wrong-cell');});}
+
+function cwInput(el) {
+  const raw = el.value.replace(/[^a-zA-ZäöüÄÖÜß]/g, '').toUpperCase();
+  el.value = raw.slice(-1);
+
+  if (!el.value) return;
+
+  const r = parseInt(el.dataset.r), c = parseInt(el.dataset.c);
+
+  // Si no hay pista activa, activar la primera que pase por aquí
+  if (!_cwActiveClue) {
+    const cluesHere = _cwGetCluesAt(r, c);
+    if (cluesHere.length) _cwActiveClue = cluesHere[0];
+  }
+
+  if (!_cwActiveClue) return;
+
+  const cl = _cwActiveClue;
+  const pos = cl.dir === 'H' ? c - cl.col : r - cl.row;
+
+  // Buscar siguiente celda vacía en la pista (saltando intersecciones ya rellenas)
+  let moved = false;
+  for (let i = pos + 1; i < cl.cleaned.length; i++) {
+    const nr = cl.dir === 'H' ? cl.row       : cl.row + i;
+    const nc = cl.dir === 'H' ? cl.col + i   : cl.col;
+    const inp = document.querySelector(`input[data-r="${nr}"][data-c="${nc}"]`);
+    if (inp && !inp.value) {
+      inp.focus(); // onfocus → cwFocusCell → _cwHighlight
+      moved = true;
+      break;
+    }
+  }
+  // Si no movió (todas rellenas o fin), actualizar highlight en celda actual
+  if (!moved) {
+    _cwActiveClueCursor = { r, c };
+    _cwHighlight(cl, r, c);
+  }
+}
+
+function cwNav(e, r, c) {
+  if (e.key === 'Backspace') {
+    const inp = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+    if (inp && inp.value) { inp.value = ''; _cwHighlight(_cwActiveClue, r, c); return; }
+    // Retroceder al anterior de la pista activa
+    if (_cwActiveClue) {
+      const cl = _cwActiveClue;
+      const pos = cl.dir === 'H' ? c - cl.col : r - cl.row;
+      if (pos > 0) {
+        const pr = cl.dir === 'H' ? cl.row       : cl.row + pos - 1;
+        const pc = cl.dir === 'H' ? cl.col + pos - 1 : cl.col;
+        const prev = document.querySelector(`input[data-r="${pr}"][data-c="${pc}"]`);
+        if (prev) { prev.value = ''; prev.focus(); }
+      }
+    }
+    return;
+  }
+  // Flechas — mover dentro de la pista activa
+  if (!_cwActiveClue) return;
+  const cl = _cwActiveClue;
+  const pos = cl.dir === 'H' ? c - cl.col : r - cl.row;
+  if ((e.key === 'ArrowRight' && cl.dir === 'H') || (e.key === 'ArrowDown' && cl.dir === 'V')) {
+    e.preventDefault();
+    if (pos < cl.cleaned.length - 1) {
+      const nr = cl.dir === 'H' ? cl.row       : cl.row + pos + 1;
+      const nc = cl.dir === 'H' ? cl.col + pos + 1 : cl.col;
+      document.querySelector(`input[data-r="${nr}"][data-c="${nc}"]`)?.focus();
+    }
+  }
+  if ((e.key === 'ArrowLeft' && cl.dir === 'H') || (e.key === 'ArrowUp' && cl.dir === 'V')) {
+    e.preventDefault();
+    if (pos > 0) {
+      const pr = cl.dir === 'H' ? cl.row       : cl.row + pos - 1;
+      const pc = cl.dir === 'H' ? cl.col + pos - 1 : cl.col;
+      document.querySelector(`input[data-r="${pr}"][data-c="${pc}"]`)?.focus();
+    }
+  }
+}
+
+function checkCrossword() {
+  const inputs = document.querySelectorAll('#crossContent input.cw-cell');
+  let correct = 0, total = 0;
+  inputs.forEach(inp => {
+    total++;
+    inp.classList.remove('correct','wrong-cell');
+    if (inp.value && inp.value.toUpperCase() === inp.dataset.answer) {
+      inp.classList.add('correct'); correct++;
+    } else if (inp.value) {
+      inp.classList.add('wrong-cell');
+    }
+  });
+  if (cwData) {
+    cwData.clues.forEach(cl => {
+      const allOk = [...cl.cleaned].every((ch, i) => {
+        const inp = document.querySelector(cl.dir === 'H'
+          ? `input[data-r="${cl.row}"][data-c="${cl.col+i}"]`
+          : `input[data-r="${cl.row+i}"][data-c="${cl.col}"]`);
+        return inp && inp.value.toUpperCase() === ch;
+      });
+      updateWordProgress(cl.word.de, allOk);
+      // Auto-flip la card de pista si la palabra es correcta
+      if (allOk) {
+        const card = document.getElementById(`clue-card-${cl.num}-${cl.dir}`);
+        if (card && !card.classList.contains('flipped')) card.classList.add('flipped');
+      }
+    });
+  }
+  const pct = Math.round(correct / total * 100);
+  const btn = document.querySelector('#crossContent .btn-primary');
+  const orig = btn.textContent;
+  btn.textContent = `${correct}/${total} (${pct}%)${pct === 100 ? ' 🎉' : ''}`;
+  setTimeout(() => btn.textContent = orig, 2800);
+}
+
+function revealCrossword() {
+  document.querySelectorAll('#crossContent input.cw-cell').forEach(inp => {
+    inp.value = inp.dataset.answer;
+    inp.classList.add('correct');
+    inp.classList.remove('wrong-cell');
+  });
+  // Flip todas las cards
+  document.querySelectorAll('.clue-card').forEach(c => c.classList.add('flipped'));
+}
 
 // ═══════════════════ MODALS ═══════════════════
 function openModal(id)  { document.getElementById(id).classList.add('show'); }

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deutsch">
+<meta name="theme-color" content="#0f1117">
+<meta name="description" content="Aprende alemán offline: vocabulario, parejas y crucigrama">
+<title>Deutsch Lernen</title>
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%234ade80'/%3E%3Ctext y='145' x='18' font-size='130' font-family='sans-serif'%3E🇩🇪%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234ade80'/%3E%3Ctext y='.9em' font-size='72' x='12'%3E🇩🇪%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Deutsch%20Lernen%22%2C%22short_name%22%3A%22Deutsch%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f1117%22%2C%22theme_color%22%3A%22%234ade80%22%7D">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN PAGE ═══════════════════ -->
+<div class="page active" id="page-login">
+  <button class="login-theme-btn" onclick="toggleTheme()" id="loginThemeBtn">☀️</button>
+  <div class="login-logo">🇩🇪</div>
+  <div class="login-title">Deutsch Lernen</div>
+  <div class="login-subtitle">Tu vocabulario alemán · siempre contigo</div>
+  <div class="login-card">
+    <h2>Iniciar sesión</h2>
+    <div id="loginSpinner" style="text-align:center;padding:20px 0;display:none">
+      <div style="display:inline-block;width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite"></div>
+      <div style="font-size:12px;color:var(--text2);margin-top:8px">Conectando…</div>
+    </div>
+    <div id="loginForm">
+      <div class="form-row">
+        <div class="field-label">Correo electrónico</div>
+        <input class="field-input" id="loginEmail" type="email" placeholder="tu@correo.com" autocomplete="email" autocapitalize="off" inputmode="email">
+      </div>
+      <div class="form-row">
+        <div class="field-label">Contraseña</div>
+        <div style="position:relative">
+          <input class="field-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:42px;margin-bottom:0">
+          <button type="button" id="passToggleBtn" onclick="togglePassVis()" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg id="eyeOffIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button class="btn-login" id="loginBtn" onclick="doLogin()">Entrar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ HOME PAGE ═══════════════════ -->
+<div class="page" id="page-home">
+  <!-- Ambient canvas -->
+  <div class="home-canvas">
+    <div class="home-grid-bg"></div>
+    <div class="home-orb home-orb-1"></div>
+    <div class="home-orb home-orb-2"></div>
+    <div class="home-orb home-orb-3"></div>
+  </div>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div style="display:flex;align-items:center;gap:7px;flex:1">
+      <span style="font-size:17px">🇩🇪</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.2px">Deutsch</span>
+    </div>
+    <div class="sync-dot" id="syncDot">
+      <div class="sync-spinner" id="syncSpinner"></div>
+      <span class="sync-tick" id="syncTick" style="display:none">✓</span>
+      <span id="syncDotText">Sync…</span>
+    </div>
+    <button class="install-btn-top" onclick="showInstallModal()" title="Instalar app">📲</button>
+    <div class="user-pill" id="userPill" onclick="toggleUserDropdown()">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span id="homeUserName" style="max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <span class="pill-caret">▾</span>
+      <div class="user-dropdown" id="userDropdown">
+        <div class="dd-header">
+          <div class="dd-label" id="ddName"></div>
+          <div class="dd-email" id="ddEmail"></div>
+        </div>
+        <div class="dd-row">
+          <span data-i18n="darkMode">Modo oscuro</span>
+          <label class="toggle-track">
+            <input type="checkbox" id="themeToggleCheck" onchange="toggleTheme()">
+            <span class="toggle-bg"></span>
+          </label>
+        </div>
+        <div class="dd-row" style="border-bottom:none;padding-bottom:6px">
+          <span data-i18n="language">Idioma</span>
+          <div style="display:flex;gap:4px">
+            <button id="langBtnEs" onclick="setLang('es')" class="lang-pill active">🇪🇸</button>
+            <button id="langBtnDe" onclick="setLang('de')" class="lang-pill">🇩🇪</button>
+          </div>
+        </div>
+        <button class="dd-btn" onclick="closeDropdown();navigate('perfil','forward')">
+          <span>👤</span> <span data-i18n="profile">Mi perfil</span>
+        </button>
+        <button class="dd-btn" onclick="closeDropdown();manualSync()">
+          <span>🔄</span> <span>Sincronizar ahora</span>
+        </button>
+        <button class="dd-btn danger" onclick="doLogout()">
+          <span>🚪</span> <span data-i18n="logout">Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-inner">
+    <!-- Hero -->
+    <div class="home-hero">
+      <div class="home-hero-eyebrow">🇩🇪 Workspace</div>
+      <div class="home-hero-title">Hola,<br><em id="greetName">…</em></div>
+      <div class="home-hero-sub">¿Qué quieres practicar hoy?</div>
+    </div>
+
+    <!-- Two main workspace cards — Notion-style cromos -->
+    <div class="workspace-cards">
+
+      <!-- Vocabulario -->
+      <button class="ws-card" onclick="navigate('vocab-hub','forward')">
+        <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18) 0%,rgba(96,165,250,.12) 100%)">
+          <span class="ws-card-cover-emoji">📚</span>
+        </div>
+        <div class="ws-card-label">
+          <div class="ws-card-title">Vocabulario</div>
+          <div class="ws-card-desc"><span id="statTotal">0</span> palabras</div>
+        </div>
+      </button>
+
+      <!-- Gramática -->
+      <div class="ws-card coming">
+        <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.12) 0%,rgba(96,165,250,.08) 100%)">
+          <span class="ws-card-cover-emoji" style="opacity:.5">📖</span>
+        </div>
+        <div class="ws-card-label">
+          <div class="ws-card-title" style="color:var(--text2)">Gramática</div>
+          <span class="ws-badge soon">Soon</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Mini stats -->
+    <div class="home-stats">
+      <div class="stat-tile"><div class="stat-num" id="statDue" style="color:var(--orange)">0</div><div class="stat-lbl">Pendiente</div></div>
+      <div class="stat-tile"><div class="stat-num" id="statMastered">0</div><div class="stat-lbl">Dominada</div></div>
+      <div class="stat-tile" style="grid-column:span 2;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 14px">
+        <span style="font-size:11px;color:var(--text3);font-weight:500">Tu workspace personal · offline</span>
+      </div>
+    </div>
+    <span id="statHard" style="display:none">0</span>
+
+  </div>
+</div>
+
+<!-- ═══════════════════ VOCAB HUB ═══════════════════ -->
+<div class="page" id="page-vocab-hub">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('home', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Inicio
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Inicio</span>
+      <span class="breadcrumb-sep"> / </span>
+      Vocabulario
+    </div>
+  </div>
+
+  <div class="hub-inner">
+    <div class="hub-hero">
+      <div class="hub-hero-icon">📚</div>
+      <div class="hub-hero-title">Vocabulario</div>
+      <div class="hub-hero-sub">Elige cómo quieres practicar</div>
+    </div>
+
+    <div class="hub-cards">
+      <button class="hub-card" onclick="navigate('lista', 'forward')">
+        <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18) 0%,rgba(74,222,128,.06) 100%)">
+          <span class="hub-card-cover-emoji">📋</span>
+        </div>
+        <div class="hub-card-label">
+          <div class="hub-card-title">Lista</div>
+        </div>
+      </button>
+
+      <button class="hub-card" onclick="navigate('parejas', 'forward')">
+        <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(96,165,250,.18) 0%,rgba(96,165,250,.06) 100%)">
+          <span class="hub-card-cover-emoji">🃏</span>
+        </div>
+        <div class="hub-card-label">
+          <div class="hub-card-title">Parejas</div>
+        </div>
+      </button>
+
+      <button class="hub-card" onclick="navigate('crucigrama', 'forward')">
+        <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.18) 0%,rgba(167,139,250,.06) 100%)">
+          <span class="hub-card-cover-emoji">✏️</span>
+        </div>
+        <div class="hub-card-label">
+          <div class="hub-card-title">Crucigrama</div>
+        </div>
+      </button>
+
+      <button class="hub-card" onclick="navigate('velocidad', 'forward')">
+        <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(251,146,60,.18) 0%,rgba(251,146,60,.06) 100%)">
+          <span class="hub-card-cover-emoji">⚡</span>
+        </div>
+        <div class="hub-card-label">
+          <div class="hub-card-title">Velocidad</div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LISTA PAGE ═══════════════════ -->
+<div class="page" id="page-lista">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('vocab-hub', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Vocabulario
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Vocabulario</span>
+      <span class="breadcrumb-sep"> / </span>
+      Lista
+    </div>
+  </div>
+  <div class="lista-controls" id="listaContent">
+    <div style="padding:10px 16px 10px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showAddModal()">＋ Añadir</button>
+        <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showImportModal()">⬆ Importar</button>
+        <!-- Filter dropdown -->
+        <div class="filter-dropdown-wrap" id="listaFilterWrap">
+          <button class="filter-dropdown-btn" id="listaFilterBtn" onclick="toggleListaFilterPanel(event)">
+            <span id="listaFilterBtnLabel">Filtros</span>
+            <span class="fdb-caret">▾</span>
+          </button>
+          <div class="filter-dropdown-panel" id="listaFilterPanel">
+            <div class="fdp-section">
+              <div class="fdp-section-label">Tipo</div>
+              <div class="fdp-chips" id="fdpTipoChips"></div>
+            </div>
+            <div class="fdp-divider"></div>
+            <div class="fdp-section">
+              <div class="fdp-section-label">Dificultad</div>
+              <div class="fdp-chips" id="fdpDiffChips"></div>
+            </div>
+            <div class="fdp-divider"></div>
+            <button class="fdp-reset" onclick="resetListaFilters()">↺ Quitar filtros</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="lista-table-zone">
+    <div id="setupBanner" style="display:none;margin:12px 16px 0" class="setup-banner">
+      <b>⚠ Sincronización no activa</b> — Las tablas de Supabase no existen aún.<br>
+      Ejecuta este SQL en <b>Supabase → SQL Editor</b> y recarga:
+      <code id="setupSql">CREATE TABLE IF NOT EXISTS user_words (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  tipo text DEFAULT '', articulo text DEFAULT '',
+  de text NOT NULL, es text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_words" ON user_words
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+CREATE TABLE IF NOT EXISTS user_progress (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  word_de text NOT NULL,
+  seen int DEFAULT 0, correct int DEFAULT 0,
+  difficulty int DEFAULT 0, next_review bigint DEFAULT 0,
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (user_id, word_de)
+);
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_progress" ON user_progress
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);</code>
+      <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
+    </div>
+    <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
+    <div id="wordList"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PAREJAS PAGE ═══════════════════ -->
+<div class="page" id="page-parejas">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('vocab-hub', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Vocabulario
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Vocabulario</span>
+      <span class="breadcrumb-sep"> / </span>
+      Parejas
+    </div>
+    <button class="match-settings-btn" id="matchCfgBtn" onclick="toggleMatchCfg()" title="Configuración">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+  <div class="inner-content">
+    <div id="matchCfgDrawer" style="display:none"></div>
+    <div id="matchContent"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ CRUCIGRAMA PAGE ═══════════════════ -->
+<div class="page" id="page-crucigrama">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('vocab-hub', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Vocabulario
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Vocabulario</span>
+      <span class="breadcrumb-sep"> / </span>
+      Crucigrama
+    </div>
+  </div>
+  <div class="inner-content">
+    <div class="cw-src-row">
+      <button class="filter-chip active" id="cwSrcBtn-smart" onclick="setCwSource('smart')">🧠 Inteligente</button>
+      <button class="filter-chip" id="cwSrcBtn-bag" onclick="setCwSource('bag')">
+        🎒 Bolsa <span class="bag-badge" id="cwBagCount">0</span>
+      </button>
+    </div>
+    <div id="crossContent"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VELOCIDAD PAGE ═══════════════════ -->
+<div class="page" id="page-velocidad">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="stopSpeedGame();navigate('vocab-hub','back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Vocabulario
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Vocabulario</span>
+      <span class="breadcrumb-sep"> / </span>
+      ⚡ Velocidad
+    </div>
+  </div>
+  <div class="inner-content" id="speedContent"></div>
+</div>
+
+<!-- ═══════════════════ PERFIL PAGE ═══════════════════ -->
+<div class="page" id="page-perfil">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('home', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Inicio
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Inicio</span>
+      <span class="breadcrumb-sep"> / </span>
+      Mi perfil
+    </div>
+  </div>
+  <div class="inner-content">
+    <!-- Avatar section -->
+    <div style="text-align:center;padding:28px 0 24px">
+      <div id="perfilAvatar" style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#0f1117;margin:0 auto 14px"></div>
+      <div id="perfilEmail" style="font-size:13px;color:var(--text2)"></div>
+    </div>
+
+    <!-- Name card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">¿Cómo quieres que te llame?</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="perfilNombre" type="text" placeholder="Tu nombre o apodo…" style="flex:1;margin:0" maxlength="32">
+        <button onclick="saveNombre()" style="background:var(--green);color:#0f1117;border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Guardar</button>
+      </div>
+      <div id="perfilNombreMsg" style="font-size:12px;color:var(--green-t);margin-top:8px;min-height:18px"></div>
+    </div>
+
+    <!-- Stats card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Estadísticas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="perfilStats"></div>
+    </div>
+
+    <!-- Danger zone -->
+    <div style="background:var(--surface);border:1px solid rgba(248,113,113,.2);border-radius:var(--r-lg);padding:20px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--red);margin-bottom:14px">Zona peligrosa</div>
+      <button onclick="if(confirm('¿Cerrar sesión?'))doLogout()" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(248,113,113,.15)'" onmouseout="this.style.background='var(--red-bg)'">🚪 Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ GRAMÁTICA PAGE ═══════════════════ -->
+<div class="page" id="page-grammar">
+  <div class="top-bar">
+    <button class="top-bar-back" onclick="navigate('home', 'back')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Inicio
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Inicio</span>
+      <span class="breadcrumb-sep"> / </span>
+      Gramática
+    </div>
+  </div>
+  <div style="text-align:center;padding:60px 24px">
+    <div style="font-size:44px;margin-bottom:14px">🚧</div>
+    <div style="font-size:19px;font-weight:700;color:var(--purple);margin-bottom:8px;letter-spacing:-.3px">Próximamente</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.6">Esta sección está en construcción.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+<!-- Add word -->
+<div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal('addModal')">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeModal('addModal')">✕</button>
+    <h3>Añadir palabra</h3>
+    <div class="form-row-2">
+      <div class="form-row">
+        <div class="form-label">Tipo</div>
+        <select class="form-select" id="addTipo">
+          <option value="">—</option>
+          <option value="Nomen">Nomen</option>
+          <option value="Verb">Verb</option>
+          <option value="Adjektive">Adjektive</option>
+          <option value="Adverb">Adverb</option>
+          <option value="Redewendung">Redewendung</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Artículo</div>
+        <select class="form-select" id="addArticle">
+          <option value="">—</option>
+          <option value="der">der</option>
+          <option value="die">die</option>
+          <option value="das">das</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Alemán</div>
+      <input class="form-input" id="addDE" type="text" placeholder="ej. Schule">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Español</div>
+      <input class="form-input" id="addES" type="text" placeholder="ej. Escuela">
+    </div>
+    <div class="form-err" id="addError"></div>
+    <button class="btn-primary" onclick="saveWord()">Guardar palabra</button>
+    <button class="btn-secondary" onclick="closeModal('addModal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Import -->
+<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeModal('importModal')">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeModal('importModal')">✕</button>
+    <h3>Importar vocabulario</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">Formato CSV: <b style="color:var(--blue)">Tipo, Artículo, Alemán, Español</b></p>
+    <div class="import-zone" id="importZone" onclick="document.getElementById('importFileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleImportDrop(event)">
+      <div class="import-zone-icon">📂</div>
+      <div class="import-zone-text">Toca para elegir tu archivo CSV</div>
+    </div>
+    <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(event)">
+    <div class="import-preview" id="importPreview"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="add" checked style="accent-color:var(--green)"> Añadir</label>
+      <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="replace" style="accent-color:var(--green)"> Reemplazar</label>
+    </div>
+    <button class="btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled style="opacity:.5">Importar</button>
+    <button class="btn-secondary" onclick="closeModal('importModal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Install -->
+<div class="modal-overlay" id="installModal" onclick="if(event.target===this)closeModal('installModal')">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeModal('installModal')">✕</button>
+    <h3>Añadir a pantalla de inicio</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5">Instala la app para usarla offline en iPhone / iPad:</p>
+    <div class="install-step"><div class="step-num">1</div><div class="step-text">Abre esta página en <b style="color:var(--green)">Safari</b> (no Chrome)</div></div>
+    <div class="install-step"><div class="step-num">2</div><div class="step-text">Toca el botón <b style="color:var(--green)">Compartir ⬆️</b> en la barra</div></div>
+    <div class="install-step"><div class="step-num">3</div><div class="step-text">Pulsa <b style="color:var(--green)">"Añadir a pantalla de inicio"</b></div></div>
+    <div class="install-step"><div class="step-num">4</div><div class="step-text">Confirma con <b style="color:var(--green)">"Añadir"</b> — ¡listo!</div></div>
+    <button class="btn-primary" onclick="closeModal('installModal')">Entendido</button>
+  </div>
+</div>
+
+<div class="toast hide" id="toast"></div>
+
+<div id="buildBadge" class="build-badge">1.07.39</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1597,7 +1597,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.37</div>
+<div id="buildBadge" class="build-badge">1.07.38</div>
 
 <script>
 // ═══════════════════ i18n ═══════════════════
@@ -3223,12 +3223,13 @@ function speedSelect(lang, idx) {
         setTimeout(() => { _fillSpeedBatch(); _renderSpeedGame(); }, 350);
       }
     } else {
-      // ❌ ERROR
+      // ❌ ERROR — penalización -2s
       s.errors++;
       s.streak = 0;
+      s.timeLeft = Math.max(0, s.timeLeft - 2);
       [deEl, esEl].forEach(x => { if (x) x.classList.add('wrong'); });
       _screenFlash('red');
-      _spawnChip(deEl, '✕', 'err');
+      _spawnChip(deEl, '-2s', 'err');
       updateWordProgress(wordDE, false);
       setTimeout(() => {
         [deEl, esEl].forEach(x => { if (x) x.classList.remove('wrong', 'selected'); });

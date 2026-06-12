@@ -527,11 +527,11 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 
 /* Hub cromos — same Notion pattern, 3 in a row */
 .hub-cards{
-  display:flex;
-  flex-direction:row;
-  justify-content:center;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(100px, 1fr));
   gap:12px;
   animation:fadeUp .35s .05s ease both;
+  width:100%;
 }
 .hub-card{
   position:relative;overflow:hidden;
@@ -539,9 +539,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   border:1px solid var(--border);
   border-radius:14px;
   padding:0;
-  width:clamp(88px, 26vw, 130px);
-  height:clamp(88px, 26vw, 130px);
-  flex-shrink:0;
+  width:100%;
+  aspect-ratio:1/1;
   cursor:pointer;
   transition:box-shadow .2s,transform .2s cubic-bezier(.4,0,.2,1),border-color .2s;
   box-shadow:var(--shadow),0 0 0 1px var(--border);
@@ -563,7 +562,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
   border-radius:13px 13px 0 0;
 }
 .hub-card-cover-emoji{
-  font-size:clamp(22px, 7vw, 32px);
+  font-size:clamp(20px, 6vw, 36px);
   transition:transform .2s cubic-bezier(.4,0,.2,1);
   filter:drop-shadow(0 2px 4px rgba(0,0,0,.25));
 }
@@ -1137,13 +1136,13 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 @media (min-width: 700px) {
   .workspace-cards{max-width:420px;margin:0 auto}
   .ws-card-cover-emoji{font-size:52px}
-  .hub-card{width:160px;height:160px}
+  .hub-cards{grid-template-columns:repeat(auto-fill, minmax(130px, 1fr))}
   .hub-card-cover-emoji{font-size:40px}
 }
 @media (min-width: 1100px) {
   .workspace-cards{max-width:500px}
   .ws-card-cover-emoji{font-size:60px}
-  .hub-card{width:190px;height:190px}
+  .hub-cards{grid-template-columns:repeat(auto-fill, minmax(160px, 1fr))}
   .hub-card-cover-emoji{font-size:48px}
 }
 

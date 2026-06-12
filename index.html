@@ -213,6 +213,15 @@
           <div class="hub-card-title">Velocidad</div>
         </div>
       </button>
+
+      <button class="hub-card" onclick="navigate('lectura', 'forward')">
+        <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.22) 0%,rgba(96,165,250,.08) 100%)">
+          <span class="hub-card-cover-emoji">📖</span>
+        </div>
+        <div class="hub-card-label">
+          <div class="hub-card-title">Lectura</div>
+        </div>
+      </button>
     </div>
   </div>
 </div>
@@ -283,6 +292,20 @@ CREATE TABLE IF NOT EXISTS user_progress (
 );
 ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_progress" ON user_progress
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+CREATE TABLE IF NOT EXISTS user_books (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  book_id text NOT NULL,
+  title text NOT NULL,
+  total_pages int DEFAULT 0,
+  page_idx int DEFAULT 0,
+  storage_path text DEFAULT '',
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (user_id, book_id)
+);
+ALTER TABLE user_books ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_books" ON user_books
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);</code>
       <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
     </div>
@@ -417,6 +440,96 @@ CREATE POLICY "own_progress" ON user_progress
   </div>
 </div>
 
+<!-- ═══════════════════ LECTURA PAGE ═══════════════════ -->
+<div class="page" id="page-lectura">
+  <div class="top-bar" id="lecturaTopBar">
+    <button class="top-bar-back" onclick="exitLectura()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Vocabulario
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Vocabulario</span>
+      <span class="breadcrumb-sep"> / </span>
+      <span id="lecturaBookTitle">Lectura</span>
+    </div>
+    <button class="lectura-toolbar-btn" id="lecturaFullBtn" onclick="toggleLecturaFull()" title="Pantalla completa">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+    </button>
+    <button class="lectura-toolbar-btn" id="lecturaFontBtn" onclick="toggleLecturaFontPanel()" title="Tipografía">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    </button>
+  </div>
+
+  <!-- Font panel -->
+  <div id="lecturaFontPanel" style="display:none;position:absolute;top:52px;right:8px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;min-width:220px;box-shadow:var(--shadow-lg);animation:dropIn .15s ease both">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Tamaño</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <button onclick="adjLecturaFont(-1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+      <span id="lecturaFontSizeLabel" style="flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--text)">16px</span>
+      <button onclick="adjLecturaFont(1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+    </div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Ancho línea</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button onclick="setLecturaWidth('narrow')" id="lwNarrow" class="lectura-width-btn active">Estrecho</button>
+      <button onclick="setLecturaWidth('medium')" id="lwMedium" class="lectura-width-btn">Medio</button>
+      <button onclick="setLecturaWidth('wide')"   id="lwWide"   class="lectura-width-btn">Ancho</button>
+    </div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Tema</div>
+    <div style="display:flex;gap:6px">
+      <button onclick="setLecturaTheme('dark')"  id="ltDark"  class="lectura-theme-btn" title="Oscuro"  style="background:#0f1117;border:2px solid var(--green);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
+      <button onclick="setLecturaTheme('light')" id="ltLight" class="lectura-theme-btn" title="Claro"   style="background:#f7f7f5;border:1px solid var(--border);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
+      <button onclick="setLecturaTheme('sepia')" id="ltSepia" class="lectura-theme-btn" title="Sepia"   style="background:#f4ecd8;border:1px solid var(--border);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
+    </div>
+  </div>
+
+  <!-- Shell principal -->
+  <div class="lectura-shell" id="lecturaShell">
+
+    <!-- Upload / Biblioteca -->
+    <div id="lecturaUpload" class="lectura-upload-zone">
+      <div style="font-size:52px;margin-bottom:16px">📖</div>
+      <div style="font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.3px;margin-bottom:8px">Lector inmersivo</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:28px;max-width:260px;text-align:center">
+        Sube un PDF o EPUB en alemán.<br>
+        Toca cualquier palabra para traducirla y guardarla en tu lista.
+      </div>
+      <button class="lectura-upload-btn" onclick="document.getElementById('lecturaFileIn').click()">
+        📂 Subir PDF o EPUB
+      </button>
+      <input type="file" id="lecturaFileIn" accept=".pdf,.epub" style="display:none" onchange="handleLecturaFile(event)">
+      <div id="lecturaLibrarySection" style="width:100%;max-width:560px;margin-top:32px"></div>
+    </div>
+
+    <!-- Lector -->
+    <div id="lecturaReader" style="display:none;flex-direction:column;width:100%;height:100%">
+      <div class="lectura-prog-bar"><div class="lectura-prog-fill" id="lecturaProgFill" style="width:0%"></div></div>
+      <div class="lectura-scroll" id="lecturaScroll">
+        <div class="lectura-content" id="lecturaContent"></div>
+      </div>
+      <div class="lectura-bottom-bar">
+        <span id="lecturaPageInfo" style="font-size:11px;color:var(--text3);min-width:64px">p. 1</span>
+        <div style="display:flex;gap:8px">
+          <button class="lectura-nav-btn" onclick="lecturaChangePage(-1)">‹</button>
+          <button class="lectura-nav-btn" onclick="lecturaChangePage(1)">›</button>
+        </div>
+        <button onclick="document.getElementById('lecturaFileIn').click()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">📂 Otro</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Popup traducción -->
+<div id="lecturaPopup" class="lectura-popup" style="display:none">
+  <div class="lectura-popup-word" id="lpWord"></div>
+  <div class="lectura-popup-trans" id="lpTrans"></div>
+  <div class="lectura-popup-actions">
+    <button class="lectura-popup-save" id="lpSaveBtn" onclick="savePopupWord()" style="display:none">＋ Guardar en lista</button>
+    <button class="lectura-popup-close" onclick="closeLecturaPopup()">✕</button>
+  </div>
+</div>
+<div id="lecturaPopupOverlay" style="display:none;position:fixed;inset:0;z-index:800" onclick="closeLecturaPopup()"></div>
+
 <!-- ═══════════════════ MODALS ═══════════════════ -->
 <!-- Add word -->
 <div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal('addModal')">
@@ -499,7 +612,7 @@ CREATE POLICY "own_progress" ON user_progress
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.42</div>
+<div id="buildBadge" class="build-badge">1.07.43</div>
 
 <script src="app.js"></script>
 </body>

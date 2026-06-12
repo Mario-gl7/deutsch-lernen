@@ -1753,8 +1753,11 @@ function buildCrossword() {
       return sb-sa;
     });
   }
-  const candidates = pool.map(w=>({...w,display_de:displayDE(w),grid_word:w.de.replace(/[^a-zA-ZäöüÄÖÜß]/g,'')}))
-    .filter(w=>w.grid_word.length>=3&&w.grid_word.length<=11).slice(0,12);
+  const seenGW = new Set();
+  const candidates = shuffle(pool.map(w=>({...w,display_de:displayDE(w),grid_word:w.de.replace(/[^a-zA-ZäöüÄÖÜß]/g,'')}))
+    .filter(w=>w.grid_word.length>=3&&w.grid_word.length<=11))
+    .filter(w=>{ if(seenGW.has(w.grid_word.toUpperCase())) return false; seenGW.add(w.grid_word.toUpperCase()); return true; })
+    .slice(0,12);
   if (candidates.length<3) { document.getElementById('crossContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)">No hay suficientes palabras válidas para el crucigrama.</div>`; return; }
   cwData = generateCrossword(candidates);
   renderCrossword();

@@ -2532,6 +2532,16 @@ function _showReader() {
   reader.style.flexDirection = 'column';
   reader.style.height = '100%';
   document.getElementById('lecturaBookTitle').textContent = _lectura.current.title;
+  // Tap en zona vacía del scroll → mostrar botón exit en fullscreen
+  const scroll = document.getElementById('lecturaScroll');
+  if (scroll && !scroll._lecturaListenerSet) {
+    scroll.addEventListener('click', e => {
+      if (_lectura.fullscreen && !e.target.classList.contains('lw')) {
+        _showExitFullBtn();
+      }
+    });
+    scroll._lecturaListenerSet = true;
+  }
   _renderLecturaPage();
 }
 
@@ -2725,6 +2735,20 @@ document.addEventListener('click', e => {
 });
 
 // ── Fullscreen ──────────────────────────────────────────────────
+let _lecturaHideExitTimer = null;
+
+function _showExitFullBtn() {
+  const btn = document.getElementById('lecturaExitFullBtn');
+  if (!btn || !_lectura.fullscreen) return;
+  btn.style.display = 'flex';
+  btn.style.opacity = '1';
+  btn.classList.remove('fading');
+  clearTimeout(_lecturaHideExitTimer);
+  _lecturaHideExitTimer = setTimeout(() => {
+    if (btn) { btn.classList.add('fading'); setTimeout(() => { if (_lectura.fullscreen) btn.style.display = 'none'; }, 2000); }
+  }, 3000);
+}
+
 function toggleLecturaFull() {
   _lectura.fullscreen = !_lectura.fullscreen;
   const page = document.getElementById('page-lectura');
@@ -2736,10 +2760,15 @@ function toggleLecturaFull() {
       ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>'
       : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
   }
-  if (_lectura.fullscreen && document.documentElement.requestFullscreen) {
-    document.documentElement.requestFullscreen().catch(() => {});
-  } else if (!_lectura.fullscreen && document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {});
+  const exitBtn = document.getElementById('lecturaExitFullBtn');
+  if (exitBtn) exitBtn.style.display = 'none';
+  clearTimeout(_lecturaHideExitTimer);
+  if (_lectura.fullscreen) {
+    // Mostrar botón al entrar y luego ocultarlo
+    setTimeout(_showExitFullBtn, 400);
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }
 }
 

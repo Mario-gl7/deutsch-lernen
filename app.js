@@ -1856,33 +1856,27 @@ function _cwNextCell(cl, pos) {
 }
 
 function cwFocusCell(r, c) {
-  const inp = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
-  if (inp) inp.focus();
-
   const cluesHere = _cwGetCluesAt(r, c);
   if (!cluesHere.length) return;
 
-  // Si el clic es en la misma pista activa, mantenerla
-  if (_cwActiveClue && cluesHere.find(cl => cl.num === _cwActiveClue.num && cl.dir === _cwActiveClue.dir)) {
-    const pos = _cwActiveClue.dir === 'H' ? c - _cwActiveClue.col : r - _cwActiveClue.row;
-    _cwActiveClue = { clue: _cwActiveClue, pos };
-    // Simplificar: el objeto es la pista directamente
-    _cwActiveClue = cluesHere.find(cl => cl.num === _cwActiveClue.clue?.num && cl.dir === _cwActiveClue.clue?.dir) || cluesHere[0];
-    const p = _cwActiveClue.dir === 'H' ? c - _cwActiveClue.col : r - _cwActiveClue.row;
-    _cwHighlight(_cwActiveClue, r, c);
-    // Guardar posición
+  const sameClue = _cwActiveClue && cluesHere.find(cl => cl.num === _cwActiveClue.num && cl.dir === _cwActiveClue.dir);
+
+  if (sameClue) {
+    // Ya estamos en esta pista — solo mover el cursor
     _cwActiveClueCursor = { r, c };
-    return;
-  }
-  // Si hay intersección: alternar entre las pistas disponibles
-  if (_cwActiveClue) {
+    _cwHighlight(_cwActiveClue, r, c);
+  } else if (_cwActiveClue && cluesHere.length > 1) {
+    // Intersección: alternar a la otra pista
     const other = cluesHere.find(cl => !(cl.num === _cwActiveClue.num && cl.dir === _cwActiveClue.dir));
     _cwActiveClue = other || cluesHere[0];
+    _cwActiveClueCursor = { r, c };
+    _cwHighlight(_cwActiveClue, r, c);
   } else {
+    // Nueva celda sin pista activa previa, o solo hay una pista aquí
     _cwActiveClue = cluesHere[0];
+    _cwActiveClueCursor = { r, c };
+    _cwHighlight(_cwActiveClue, r, c);
   }
-  _cwActiveClueCursor = { r, c };
-  _cwHighlight(_cwActiveClue, r, c);
 }
 
 // Cursor global para saber dónde estamos

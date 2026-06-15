@@ -876,11 +876,25 @@ function toggleListaFilterPanel(e) {
   e.stopPropagation();
   const panel = document.getElementById('listaFilterPanel');
   const btn   = document.getElementById('listaFilterBtn');
-  if (!panel) return;
+  if (!panel || !btn) return;
   const isOpen = panel.classList.contains('open');
-  panel.classList.toggle('open', !isOpen);
-  btn.classList.toggle('open', !isOpen);
-  if (!isOpen) _buildFilterPanelChips();
+  if (!isOpen) {
+    _buildFilterPanelChips();
+    panel.classList.add('open');
+    btn.classList.add('open');
+    // Calcular posición fixed para no salirse de pantalla
+    const rect = btn.getBoundingClientRect();
+    const panelW = 220;
+    const top = rect.bottom + 5;
+    let left = rect.left;
+    if (left + panelW > window.innerWidth - 8) left = window.innerWidth - panelW - 8;
+    if (left < 8) left = 8;
+    panel.style.top  = top + 'px';
+    panel.style.left = left + 'px';
+  } else {
+    panel.classList.remove('open');
+    btn.classList.remove('open');
+  }
 }
 
 function resetListaFilters() {
@@ -2970,7 +2984,8 @@ function _renderFolderView() {
     html += `<div class="folder-card" onclick="openFolder('${f.id}')">
       <div class="folder-card-cover" style="background:linear-gradient(135deg,${colLight},${col}18)">
         <span class="folder-card-icon">🗂️</span>
-        <button class="folder-menu-btn" onclick="event.stopPropagation();showFolderMenu('${f.id}')" title="Opciones">⋯</button>
+        <button class="folder-edit-btn" onclick="event.stopPropagation();showFolderModal('${f.id}')" title="Editar carpeta">✏️</button>
+        <button class="folder-menu-btn" onclick="event.stopPropagation();confirmDeleteFolder('${f.id}')" title="Eliminar carpeta">🗑</button>
       </div>
       <div class="folder-card-body">
         <div class="folder-card-name">${_esc(f.name)}</div>

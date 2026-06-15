@@ -2676,14 +2676,13 @@ function savePopupWord() {
   if (btn) { btn.textContent = '✓ Guardada'; btn.disabled = true; }
 }
 
-// ── Translation API (MyMemory, gratuita) ────────────────────────
+// ── Translation API (DeepL via proxy /api/translate) ────────────
 async function _translateWord(word) {
   try {
-    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=de|es', { signal: AbortSignal.timeout(5000) });
+    const r = await fetch('/api/translate?word=' + encodeURIComponent(word), { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
     const j = await r.json();
-    const t = j?.responseData?.translatedText;
-    if (t && t.toLowerCase() !== word.toLowerCase() && !t.includes('QUERY')) return t;
-    return j?.matches?.[0]?.translation || null;
+    return j?.translation || null;
   } catch(e) { return null; }
 }
 

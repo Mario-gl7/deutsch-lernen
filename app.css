@@ -1333,3 +1333,130 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(74,222,128,.12) 0%
 .lectura-exit-full-btn:active{transform:scale(.95)}
 .lectura-exit-full-btn.fading{animation:lecturaFadeOut 2s ease forwards}
 @keyframes lecturaFadeOut{0%{opacity:1}70%{opacity:1}100%{opacity:0;pointer-events:none}}
+
+/* ═══════════════════ CARPETAS ═══════════════════ */
+
+/* Vista de carpetas */
+.folders-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  padding:14px 14px 80px;
+}
+.folder-card{
+  position:relative;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:0;
+  cursor:pointer;overflow:hidden;
+  transition:border-color .15s,transform .15s,box-shadow .15s;
+  display:flex;flex-direction:column;
+  text-align:left;min-height:110px;
+}
+.folder-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.folder-card:active{transform:scale(.97)}
+.folder-card-cover{
+  height:62px;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.folder-card-icon{font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))}
+.folder-card-body{
+  padding:8px 10px 10px;
+  border-top:1px solid var(--border);
+  flex:1;
+}
+.folder-card-name{
+  font-size:12px;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-bottom:2px;
+}
+.folder-card-count{font-size:10px;color:var(--text3)}
+
+/* Botón nueva carpeta */
+.folder-card.new-folder{
+  border-style:dashed;background:transparent;
+  align-items:center;justify-content:center;
+  min-height:110px;
+}
+.folder-card.new-folder:hover{background:var(--surface);border-color:var(--border2)}
+.folder-card-new-inner{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:20px 10px;
+}
+.folder-card-new-plus{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--surface2);border:1.5px dashed var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--text3);
+}
+.folder-card-new-lbl{font-size:11px;font-weight:600;color:var(--text3)}
+
+/* Menú contextual de carpeta (editar/eliminar) */
+.folder-menu-btn{
+  position:absolute;top:6px;right:6px;
+  width:26px;height:26px;border-radius:6px;
+  background:rgba(0,0,0,.25);border:none;
+  color:rgba(255,255,255,.8);font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s;z-index:2;
+  line-height:1;
+}
+.folder-menu-btn:hover{background:rgba(0,0,0,.5)}
+
+/* Barra superior dinámica de Lista */
+.lista-top-bar-inner{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.lista-back-btn{
+  display:flex;align-items:center;gap:5px;
+  background:none;border:none;color:var(--text2);
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;padding:5px 6px;border-radius:6px;
+  transition:background .15s,color .15s;margin-left:-4px;
+}
+.lista-back-btn:hover{background:var(--surface2);color:var(--text)}
+.lista-back-btn svg{width:14px;height:14px}
+
+/* Modo selección */
+.sel-bar{
+  display:none;
+  align-items:center;gap:8px;
+  padding:8px 14px;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  position:sticky;bottom:0;z-index:20;
+  flex-wrap:wrap;
+}
+.sel-bar.active{display:flex}
+.sel-count{
+  font-size:12px;font-weight:700;color:var(--text);
+  flex:1;white-space:nowrap;
+}
+.sel-action-btn{
+  padding:7px 12px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface2);
+  color:var(--text2);font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .13s;white-space:nowrap;
+}
+.sel-action-btn:hover{border-color:var(--border2);color:var(--text)}
+.sel-action-btn.danger{color:var(--red);border-color:rgba(248,113,113,.35)}
+.sel-action-btn.danger:hover{background:var(--red-bg)}
+.sel-action-btn.primary{background:var(--green-bg);border-color:rgba(74,222,128,.35);color:var(--green-t)}
+
+/* Checkbox en filas */
+.row-check{
+  width:17px;height:17px;flex-shrink:0;
+  accent-color:var(--green);cursor:pointer;
+  border-radius:4px;
+}
+td.td-check{width:36px;padding:0 6px 0 10px;vertical-align:middle}
+.vocab-table tbody tr.row-selected{background:rgba(74,222,128,.05)!important;outline:1px solid rgba(74,222,128,.25);outline-offset:-1px}
+
+/* Color picker */
+.folder-color-swatch{
+  width:28px;height:28px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:transform .12s,border-color .12s;
+  flex-shrink:0;
+}
+.folder-color-swatch.active{border-color:var(--text);transform:scale(1.18)}
+.folder-color-swatch:hover{transform:scale(1.12)}

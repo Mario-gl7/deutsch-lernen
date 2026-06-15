@@ -231,33 +231,9 @@
       Lista
     </div>
   </div>
+  <!-- La barra de controles se renderiza dinámicamente por JS -->
   <div class="lista-controls" id="listaContent">
-    <div style="padding:10px 16px 10px">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showAddModal()">＋ Añadir</button>
-        <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showImportModal()">⬆ Importar</button>
-        <!-- Filter dropdown -->
-        <div class="filter-dropdown-wrap" id="listaFilterWrap">
-          <button class="filter-dropdown-btn" id="listaFilterBtn" onclick="toggleListaFilterPanel(event)">
-            <span id="listaFilterBtnLabel">Filtros</span>
-            <span class="fdb-caret">▾</span>
-          </button>
-          <div class="filter-dropdown-panel" id="listaFilterPanel">
-            <div class="fdp-section">
-              <div class="fdp-section-label">Tipo</div>
-              <div class="fdp-chips" id="fdpTipoChips"></div>
-            </div>
-            <div class="fdp-divider"></div>
-            <div class="fdp-section">
-              <div class="fdp-section-label">Dificultad</div>
-              <div class="fdp-chips" id="fdpDiffChips"></div>
-            </div>
-            <div class="fdp-divider"></div>
-            <button class="fdp-reset" onclick="resetListaFilters()">↺ Quitar filtros</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="listaTopBar" style="padding:10px 16px"></div>
   </div>
   <div class="lista-table-zone">
     <div id="setupBanner" style="display:none;margin:12px 16px 0" class="setup-banner">
@@ -298,7 +274,20 @@ CREATE TABLE IF NOT EXISTS user_books (
 );
 ALTER TABLE user_books ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_books" ON user_books
-  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);</code>
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+CREATE TABLE IF NOT EXISTS user_folders (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name text NOT NULL,
+  color text DEFAULT '#4ade80',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE user_folders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_folders" ON user_folders
+  USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_folders(id) ON DELETE SET NULL;</code>
       <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
     </div>
     <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
@@ -527,6 +516,36 @@ CREATE POLICY "own_books" ON user_books
 <div id="lecturaPopupOverlay" style="display:none;position:fixed;inset:0;z-index:800" onclick="closeLecturaPopup()"></div>
 
 <!-- ═══════════════════ MODALS ═══════════════════ -->
+<!-- Nueva carpeta -->
+<div class="modal-overlay" id="folderModal" onclick="if(event.target===this)closeModal('folderModal')">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeModal('folderModal')">✕</button>
+    <h3 id="folderModalTitle">Nueva carpeta</h3>
+    <div class="form-row">
+      <div class="form-label">Nombre</div>
+      <input class="form-input" id="folderNameInput" type="text" placeholder="ej. Verbos irregulares" maxlength="40"
+             onkeydown="if(event.key==='Enter')saveFolderModal()">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Color</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="folderColorPicker"></div>
+    </div>
+    <div class="form-err" id="folderModalErr"></div>
+    <button class="btn-primary" onclick="saveFolderModal()">Guardar</button>
+    <button class="btn-secondary" onclick="closeModal('folderModal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Mover palabras -->
+<div class="modal-overlay" id="moveModal" onclick="if(event.target===this)closeModal('moveModal')">
+  <div class="modal-box">
+    <button class="modal-close-x" onclick="closeModal('moveModal')">✕</button>
+    <h3>Mover <span id="moveModalCount"></span></h3>
+    <div id="moveModalFolders" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+    <button class="btn-secondary" onclick="closeModal('moveModal')">Cancelar</button>
+  </div>
+</div>
+
 <!-- Add word -->
 <div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal('addModal')">
   <div class="modal-box">
@@ -608,7 +627,7 @@ CREATE POLICY "own_books" ON user_books
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.45</div>
+<div id="buildBadge" class="build-badge">1.07.46</div>
 
 <script src="app.js"></script>
 </body>

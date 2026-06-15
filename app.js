@@ -644,7 +644,7 @@ async function _fetchWordsFromDB() {
     const sb = await getSupabase();
     const { data, error } = await sb
       .from('user_words')
-      .select('id,tipo,articulo,de,es')
+      .select('id,tipo,articulo,de,es,folder_id')
       .eq('user_id', currentUser.id)
       .order('created_at');
     if (error) {
@@ -658,7 +658,7 @@ async function _fetchWordsFromDB() {
       if (baseWords && baseWords.length > 0) { await _seedWords(baseWords); return baseWords; }
       return [];
     }
-    const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
+    const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null }));
     _cacheWords(words);
     return words;
   } catch(e) {
@@ -700,10 +700,10 @@ async function _flushWords(words) {
     const { error: delErr } = await sb.from('user_words').delete().eq('user_id', currentUser.id);
     if (delErr) throw delErr;
     if (words.length > 0) {
-      const rows = words.map(w => ({ user_id:currentUser.id, tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es }));
-      const { data, error } = await sb.from('user_words').insert(rows).select('id,tipo,articulo,de,es');
+      const rows = words.map(w => ({ user_id:currentUser.id, tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es, folder_id:w.folder_id||null }));
+      const { data, error } = await sb.from('user_words').insert(rows).select('id,tipo,articulo,de,es,folder_id');
       if (error) throw error;
-      if (data) _cacheWords(data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id })));
+      if (data) _cacheWords(data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null })));
     }
     setSyncState('ok', 'Guardado ✓');
   } catch(e) {
@@ -2795,6 +2795,608 @@ function _hideLecturaLoader() {
   const l = document.getElementById('lecturaLoader');
   if (l) l.style.display = 'none';
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// CARPETAS — Sistema de organización de palabras
+// Tablas Supabase: user_folders + columna folder_id en user_words
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Estado carpetas ──────────────────────────────────────────────
+let _folders = [];           // Array de carpetas cargadas
+let _currentFolderId = null; // null = vista carpetas, string = dentro de carpeta
+let _selMode = false;        // Modo selección activo
+let _selSet  = new Set();    // IDs seleccionados (índice global en getWords())
+let _editingFolderId = null; // Para el modal de editar carpeta
+const FOLDER_COLORS = ['#4ade80','#60a5fa','#f87171','#fb923c','#a78bfa','#f472b6','#34d399','#fbbf24'];
+const FOLDER_DEFAULT_COLOR = '#4ade80';
+
+// ── Caché de carpetas en localStorage ───────────────────────────
+function _lsFoldersKey() { return 'folders_' + (currentUser?.id || 'anon'); }
+function _cacheFolders(f) { try { localStorage.setItem(_lsFoldersKey(), JSON.stringify(f)); } catch(e) {} }
+function _cachedFolders() { try { const s = localStorage.getItem(_lsFoldersKey()); return s ? JSON.parse(s) : []; } catch(e) { return []; } }
+
+// ── Cargar carpetas de Supabase ──────────────────────────────────
+async function loadFolders() {
+  _folders = _cachedFolders();
+  if (!currentUser || !_dbReady) return;
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('user_folders')
+      .select('id,name,color,created_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at');
+    if (error) { if (error.code === '42P01') return; throw error; }
+    _folders = data || [];
+    _cacheFolders(_folders);
+  } catch(e) { console.warn('[folders] load:', e.message); }
+}
+
+// ── Crear carpeta ────────────────────────────────────────────────
+async function createFolder(name, color) {
+  if (!currentUser) return null;
+  const tempId = 'tmp_' + Date.now();
+  const newF = { id: tempId, name, color: color || FOLDER_DEFAULT_COLOR };
+  _folders.push(newF);
+  _cacheFolders(_folders);
+  if (!_dbReady) return tempId;
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb
+      .from('user_folders')
+      .insert({ user_id: currentUser.id, name, color: color || FOLDER_DEFAULT_COLOR })
+      .select('id,name,color').single();
+    if (error) throw error;
+    // Reemplazar id temporal
+    const idx = _folders.findIndex(f => f.id === tempId);
+    if (idx >= 0) _folders[idx] = data;
+    _cacheFolders(_folders);
+    // Actualizar palabras que apuntaban al id temporal
+    const words = getWords();
+    words.forEach(w => { if (w.folder_id === tempId) w.folder_id = data.id; });
+    saveWords(words);
+    return data.id;
+  } catch(e) {
+    console.warn('[folders] create:', e.message);
+    return tempId;
+  }
+}
+
+async function updateFolder(id, name, color) {
+  const f = _folders.find(x => x.id === id);
+  if (f) { f.name = name; f.color = color; }
+  _cacheFolders(_folders);
+  if (!_dbReady) return;
+  try {
+    const sb = await getSupabase();
+    await sb.from('user_folders').update({ name, color }).eq('id', id).eq('user_id', currentUser.id);
+  } catch(e) { console.warn('[folders] update:', e.message); }
+}
+
+async function deleteFolder(id) {
+  // Mover palabras de esa carpeta a sin carpeta
+  const words = getWords();
+  words.forEach(w => { if (w.folder_id === id) w.folder_id = null; });
+  saveWords(words);
+  _folders = _folders.filter(f => f.id !== id);
+  _cacheFolders(_folders);
+  if (!_dbReady) return;
+  try {
+    const sb = await getSupabase();
+    await sb.from('user_folders').delete().eq('id', id).eq('user_id', currentUser.id);
+  } catch(e) { console.warn('[folders] delete:', e.message); }
+}
+
+// ── Mover palabras a carpeta ─────────────────────────────────────
+async function moveWordsToFolder(indices, folderId) {
+  const words = getWords();
+  indices.forEach(i => { if (words[i]) words[i].folder_id = folderId; });
+  saveWords(words);
+  // Actualizar en Supabase directamente (por _id)
+  if (_dbReady) {
+    const ids = indices.map(i => words[i]?._id).filter(Boolean);
+    if (ids.length > 0) {
+      try {
+        const sb = await getSupabase();
+        await sb.from('user_words').update({ folder_id: folderId }).in('id', ids);
+      } catch(e) { console.warn('[folders] move:', e.message); }
+    }
+  }
+}
+
+// ── renderLista PRINCIPAL — reemplaza la función original ────────
+function renderLista() {
+  if (_currentFolderId === null) {
+    _renderFolderView();
+  } else {
+    _renderFolderContent(_currentFolderId);
+  }
+}
+
+// ── Vista de carpetas ────────────────────────────────────────────
+function _renderFolderView() {
+  _selMode = false; _selSet.clear();
+
+  // Top bar
+  const topBar = document.getElementById('listaTopBar');
+  if (topBar) topBar.innerHTML = `
+    <div class="lista-top-bar-inner">
+      <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showAddModal()">＋ Añadir</button>
+      <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showImportModal()">⬆ Importar</button>
+    </div>`;
+
+  // Count label
+  const lbl = document.getElementById('listaCountLbl');
+  if (lbl) lbl.textContent = '';
+
+  // Contar palabras por carpeta
+  const words = getWords();
+  const countByFolder = {};
+  const unassigned = words.filter(w => !w.folder_id).length;
+  words.forEach(w => { if (w.folder_id) countByFolder[w.folder_id] = (countByFolder[w.folder_id]||0) + 1; });
+
+  let html = '<div class="folders-grid">';
+
+  // Carpeta "Todas mis palabras"
+  html += `<div class="folder-card" onclick="openFolder('__all__')">
+    <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18),rgba(96,165,250,.12))">
+      <span class="folder-card-icon">📚</span>
+    </div>
+    <div class="folder-card-body">
+      <div class="folder-card-name">Todas</div>
+      <div class="folder-card-count">${words.length} palabras</div>
+    </div>
+  </div>`;
+
+  // Carpeta "Sin carpeta" solo si hay palabras sin asignar
+  if (unassigned > 0 || _folders.length === 0) {
+    html += `<div class="folder-card" onclick="openFolder('__none__')">
+      <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(122,139,168,.15),rgba(62,79,106,.1))">
+        <span class="folder-card-icon">📂</span>
+      </div>
+      <div class="folder-card-body">
+        <div class="folder-card-name">Sin carpeta</div>
+        <div class="folder-card-count">${unassigned} palabras</div>
+      </div>
+    </div>`;
+  }
+
+  // Carpetas del usuario
+  for (const f of _folders) {
+    const count = countByFolder[f.id] || 0;
+    const col = f.color || FOLDER_DEFAULT_COLOR;
+    const colLight = col + '30';
+    html += `<div class="folder-card" onclick="openFolder('${f.id}')">
+      <div class="folder-card-cover" style="background:linear-gradient(135deg,${colLight},${col}18)">
+        <span class="folder-card-icon">🗂️</span>
+        <button class="folder-menu-btn" onclick="event.stopPropagation();showFolderMenu('${f.id}')" title="Opciones">⋯</button>
+      </div>
+      <div class="folder-card-body">
+        <div class="folder-card-name">${_esc(f.name)}</div>
+        <div class="folder-card-count">${count} palabras</div>
+      </div>
+    </div>`;
+  }
+
+  // Botón nueva carpeta
+  html += `<div class="folder-card new-folder" onclick="showFolderModal(null)">
+    <div class="folder-card-new-inner">
+      <div class="folder-card-new-plus">＋</div>
+      <div class="folder-card-new-lbl">Nueva carpeta</div>
+    </div>
+  </div>`;
+
+  html += '</div>';
+
+  document.getElementById('wordList').innerHTML = html;
+
+  // Ocultar sel-bar
+  const selBar = document.getElementById('selBar');
+  if (selBar) selBar.classList.remove('active');
+}
+
+function openFolder(folderId) {
+  _currentFolderId = folderId;
+  _selMode = false; _selSet.clear();
+  _renderFolderContent(folderId);
+}
+
+// ── Vista de contenido de carpeta ────────────────────────────────
+function _renderFolderContent(folderId) {
+  const allWords = getWords();
+  const p = getProgress();
+
+  // Filtrar palabras según carpeta
+  let words;
+  let folderName;
+  if (folderId === '__all__') {
+    words = allWords; folderName = 'Todas';
+  } else if (folderId === '__none__') {
+    words = allWords.filter(w => !w.folder_id); folderName = 'Sin carpeta';
+  } else {
+    const f = _folders.find(x => x.id === folderId);
+    folderName = f ? f.name : 'Carpeta';
+    words = allWords.filter(w => w.folder_id === folderId);
+  }
+
+  // Aplicar filtros tipo/dificultad
+  if (activeFilter !== 'Todos') words = words.filter(w => w.tipo === activeFilter);
+  if (vocabDiffFilter === '🔴 Difícil') words = words.filter(w => p[w.de]?.difficulty === 1);
+  else if (vocabDiffFilter === '🟢 Fácil') words = words.filter(w => p[w.de]?.difficulty === 2);
+  else if (vocabDiffFilter === '📊 Normal') words = words.filter(w => !p[w.de] || p[w.de].difficulty === 0);
+  else if (vocabDiffFilter === '🆕 Nuevas') words = words.filter(w => !p[w.de] || p[w.de].seen === 0);
+  words = getSortedWords(words);
+
+  // Top bar con back + filtros + modo selección
+  const topBar = document.getElementById('listaTopBar');
+  if (topBar) topBar.innerHTML = `
+    <div class="lista-top-bar-inner">
+      <button class="lista-back-btn" onclick="closeFolder()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+        Carpetas
+      </button>
+      <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(folderName)}</span>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" onclick="showAddModal()">＋</button>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" onclick="toggleSelMode()">☑</button>
+      <div class="filter-dropdown-wrap" id="listaFilterWrap">
+        <button class="filter-dropdown-btn" id="listaFilterBtn" onclick="toggleListaFilterPanel(event)">
+          <span id="listaFilterBtnLabel">Filtros</span>
+          <span class="fdb-caret">▾</span>
+        </button>
+        <div class="filter-dropdown-panel" id="listaFilterPanel">
+          <div class="fdp-section">
+            <div class="fdp-section-label">Tipo</div>
+            <div class="fdp-chips" id="fdpTipoChips"></div>
+          </div>
+          <div class="fdp-divider"></div>
+          <div class="fdp-section">
+            <div class="fdp-section-label">Dificultad</div>
+            <div class="fdp-chips" id="fdpDiffChips"></div>
+          </div>
+          <div class="fdp-divider"></div>
+          <button class="fdp-reset" onclick="resetListaFilters()">↺ Quitar filtros</button>
+        </div>
+      </div>
+    </div>`;
+
+  _buildFilterLabel();
+
+  // Etiqueta de conteo
+  const lbl = document.getElementById('listaCountLbl');
+  if (lbl) lbl.textContent = `${words.length} ${t('words')}`;
+
+  // Tabla
+  const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
+  const ART_OPT  = ['','der','die','das'];
+  const allSelChecked = words.length > 0 && words.every(w => {
+    const gi = allWords.findIndex(x => x === w);
+    return _selSet.has(gi);
+  });
+
+  const thead = `<thead>
+    <tr>
+      ${_selMode ? `<th class="col-act" style="width:36px;padding:0 6px 0 10px"><input type="checkbox" class="row-check" ${allSelChecked?'checked':''} onchange="toggleSelAll(this.checked,${JSON.stringify(words.map(w=>allWords.findIndex(x=>x===w)))})" title="Seleccionar todo"></th>` : ''}
+      <th class="col-tipo">Tipo</th>
+      <th class="col-art">Art.</th>
+      <th class="col-de">Alemán</th>
+      <th class="col-es">Español</th>
+      <th class="col-act" style="text-align:center">⚙</th>
+    </tr>
+  </thead>`;
+
+  const rows = words.map(w => {
+    const gIdx = allWords.findIndex(x => x === w || (x.de===w.de&&x.es===w.es&&x.tipo===w.tipo&&x.articulo===w.articulo));
+    const pe = p[w.de]||{};
+    const pct = pe.seen>0 ? Math.round(pe.correct/pe.seen*100) : -1;
+    const col = pct>=75?'var(--green)':pct>=40?'var(--orange)':'var(--red)';
+    const diffDot = pe.difficulty===1
+      ? '<span class="diff-dot" style="background:var(--red)"></span>'
+      : pe.difficulty===2 ? '<span class="diff-dot" style="background:var(--green)"></span>' : '';
+    const progMini = pct>=0
+      ? `<div class="prog-mini"><div class="prog-mini-track"><div class="prog-mini-fill" style="width:${pct}%;background:${col}"></div></div><span class="prog-mini-pct" style="color:${col}">${pct}%</span></div>`
+      : '';
+    const isSel = _selSet.has(gIdx);
+    const selClass = isSel ? 'row-selected' : '';
+    const checkCell = _selMode
+      ? `<td class="td-check"><input type="checkbox" class="row-check" ${isSel?'checked':''} onchange="toggleSelRow(${gIdx},this.checked)"></td>`
+      : '';
+
+    if (_editingIdx === gIdx) {
+      const tipoOpts = TIPO_OPT.map(o=>`<option value="${o}" ${w.tipo===o?'selected':''}>${o||'—'}</option>`).join('');
+      const artOpts  = ART_OPT.map(o =>`<option value="${o}" ${w.articulo===o?'selected':''}>${o||'—'}</option>`).join('');
+      return `<tr class="row-editing ${selClass}" id="row-${gIdx}">
+        ${checkCell}
+        <td class="td-tipo"><select class="cell-select" id="edit-tipo">${tipoOpts}</select></td>
+        <td class="td-art"><select class="cell-select" id="edit-art">${artOpts}</select></td>
+        <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}"></td>
+        <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
+        <td class="td-actions">
+          <button class="row-btn save-btn" onclick="saveEditRow(${gIdx})">✓</button>
+          <button class="row-btn cancel-btn" onclick="cancelEditRow()">✕</button>
+        </td>
+      </tr>`;
+    }
+
+    return `<tr id="row-${gIdx}" class="${selClass}" onclick="${_selMode?`toggleSelRow(${gIdx})`:''}" style="${_selMode?'cursor:pointer':''}">
+      ${checkCell}
+      <td class="td-tipo">${w.tipo?`<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>`:'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+      <td class="td-art" style="color:var(--text2);font-size:12px">${_esc(w.articulo)||'<span style="color:var(--text3)">—</span>'}</td>
+      <td class="td-de">${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
+      <td class="td-es">${_esc(w.es)}</td>
+      <td class="td-actions" onclick="event.stopPropagation()">
+        <button class="row-btn" onclick="startEditRow(${gIdx})">✏️</button>
+        <button class="row-btn delete-btn" onclick="deleteRow(${gIdx})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('wordList').innerHTML =
+    `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>`;
+
+  // Sel-bar (barra de acciones de selección)
+  _renderSelBar();
+}
+
+function closeFolder() {
+  _currentFolderId = null;
+  _selMode = false; _selSet.clear();
+  _editingIdx = null;
+  loadFolders().then(() => _renderFolderView());
+}
+
+// ── Modo selección ───────────────────────────────────────────────
+function toggleSelMode() {
+  _selMode = !_selMode;
+  _selSet.clear();
+  _renderFolderContent(_currentFolderId);
+}
+
+function toggleSelRow(gIdx, checked) {
+  if (checked === undefined) {
+    // toggle
+    if (_selSet.has(gIdx)) _selSet.delete(gIdx); else _selSet.add(gIdx);
+  } else {
+    if (checked) _selSet.add(gIdx); else _selSet.delete(gIdx);
+  }
+  _renderSelBar();
+  // Actualizar checkbox de la fila
+  const chk = document.querySelector(`#row-${gIdx} .row-check`);
+  if (chk) chk.checked = _selSet.has(gIdx);
+  const row = document.getElementById(`row-${gIdx}`);
+  if (row) row.classList.toggle('row-selected', _selSet.has(gIdx));
+  // Actualizar checkbox de cabecera
+  _updateHeaderCheck();
+}
+
+function toggleSelAll(checked, indices) {
+  if (checked) indices.forEach(i => _selSet.add(i));
+  else indices.forEach(i => _selSet.delete(i));
+  _renderSelBar();
+  // Refrescar checkboxes sin re-renderizar tabla
+  indices.forEach(i => {
+    const chk = document.querySelector(`#row-${i} .row-check`);
+    if (chk) chk.checked = checked;
+    const row = document.getElementById(`row-${i}`);
+    if (row) row.classList.toggle('row-selected', checked);
+  });
+}
+
+function _updateHeaderCheck() {
+  const allWords = getWords();
+  const fWords = _getVisibleIndices();
+  const allSel = fWords.length > 0 && fWords.every(i => _selSet.has(i));
+  const hchk = document.querySelector('thead .row-check');
+  if (hchk) hchk.checked = allSel;
+}
+
+function _getVisibleIndices() {
+  const rows = document.querySelectorAll('#wordList tbody tr');
+  const indices = [];
+  rows.forEach(r => {
+    const id = r.id?.replace('row-','');
+    if (id !== undefined && id !== '') indices.push(parseInt(id));
+  });
+  return indices;
+}
+
+function _renderSelBar() {
+  // Inyectar sel-bar si no existe
+  let bar = document.getElementById('selBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'selBar';
+    bar.className = 'sel-bar';
+    document.querySelector('.lista-table-zone')?.appendChild(bar);
+  }
+  if (!_selMode || _currentFolderId === null) { bar.classList.remove('active'); return; }
+  bar.classList.add('active');
+  const n = _selSet.size;
+  const selArr = [..._selSet];
+  bar.innerHTML = `
+    <span class="sel-count">${n} seleccionada${n!==1?'s':''}</span>
+    <button class="sel-action-btn primary" onclick="showMoveModal()" ${n===0?'disabled':''}>📁 Mover</button>
+    <button class="sel-action-btn danger" onclick="deleteSelWords()" ${n===0?'disabled':''}>🗑 Eliminar</button>
+    <button class="sel-action-btn" onclick="toggleSelMode()">✕ Cancelar</button>`;
+}
+
+// ── Modal mover palabras ─────────────────────────────────────────
+function showMoveModal() {
+  if (_selSet.size === 0) return;
+  const count = document.getElementById('moveModalCount');
+  if (count) count.textContent = _selSet.size + ' palabra' + (_selSet.size!==1?'s':'');
+  const cont = document.getElementById('moveModalFolders');
+  if (!cont) return;
+  const currentFid = _currentFolderId;
+
+  let html = '';
+  // Opción "Sin carpeta"
+  if (currentFid !== '__none__') {
+    html += `<button class="folder-move-opt" onclick="confirmMoveWords(null)">
+      <span style="font-size:20px">📂</span>
+      <span style="font-size:13px;font-weight:500;color:var(--text)">Sin carpeta</span>
+    </button>`;
+  }
+  // Carpetas existentes
+  for (const f of _folders) {
+    if (f.id === currentFid) continue;
+    html += `<button class="folder-move-opt" onclick="confirmMoveWords('${f.id}')">
+      <span style="width:14px;height:14px;border-radius:50%;background:${f.color||FOLDER_DEFAULT_COLOR};display:inline-block;flex-shrink:0"></span>
+      <span style="font-size:13px;font-weight:500;color:var(--text)">${_esc(f.name)}</span>
+    </button>`;
+  }
+  // Nueva carpeta
+  html += `<button class="folder-move-opt" onclick="closeModal('moveModal');showFolderModal(null, true)">
+    <span style="font-size:20px">＋</span>
+    <span style="font-size:13px;font-weight:500;color:var(--text2)">Nueva carpeta…</span>
+  </button>`;
+
+  cont.innerHTML = html;
+  openModal('moveModal');
+}
+
+async function confirmMoveWords(folderId) {
+  closeModal('moveModal');
+  const indices = [..._selSet];
+  await moveWordsToFolder(indices, folderId);
+  _selMode = false; _selSet.clear();
+  showToast(`✓ ${indices.length} palabra${indices.length!==1?'s':''} movida${indices.length!==1?'s':''}`);
+  _renderFolderContent(_currentFolderId);
+}
+
+async function deleteSelWords() {
+  const n = _selSet.size;
+  if (!confirm(`¿Eliminar ${n} palabra${n!==1?'s':''}?`)) return;
+  const indices = [..._selSet].sort((a,b) => b-a); // mayor primero para no desplazar índices
+  const words = getWords();
+  indices.forEach(i => words.splice(i, 1));
+  saveWords(words);
+  _selMode = false; _selSet.clear();
+  showToast(`🗑 ${n} palabra${n!==1?'s':''} eliminada${n!==1?'s':''}`);
+  _renderFolderContent(_currentFolderId);
+  updateStats();
+}
+
+// ── Modal carpeta (crear / editar) ───────────────────────────────
+let _folderMoveAfterCreate = false;
+
+function showFolderModal(folderId, moveAfter) {
+  _editingFolderId = folderId || null;
+  _folderMoveAfterCreate = !!moveAfter;
+  const isEdit = !!folderId;
+  const f = isEdit ? _folders.find(x => x.id === folderId) : null;
+  const titleEl = document.getElementById('folderModalTitle');
+  if (titleEl) titleEl.textContent = isEdit ? 'Editar carpeta' : 'Nueva carpeta';
+  const nameEl = document.getElementById('folderNameInput');
+  if (nameEl) { nameEl.value = isEdit ? (f?.name||'') : ''; }
+  const errEl = document.getElementById('folderModalErr');
+  if (errEl) errEl.textContent = '';
+  // Color picker
+  const pickerEl = document.getElementById('folderColorPicker');
+  const currentColor = isEdit ? (f?.color || FOLDER_DEFAULT_COLOR) : FOLDER_DEFAULT_COLOR;
+  if (pickerEl) {
+    pickerEl.innerHTML = FOLDER_COLORS.map(c =>
+      `<div class="folder-color-swatch ${c===currentColor?'active':''}" style="background:${c}" data-color="${c}" onclick="selectFolderColor(this)"></div>`
+    ).join('');
+  }
+  openModal('folderModal');
+  setTimeout(() => nameEl?.focus(), 120);
+}
+
+function selectFolderColor(el) {
+  document.querySelectorAll('.folder-color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function saveFolderModal() {
+  const name = (document.getElementById('folderNameInput')?.value||'').trim();
+  const errEl = document.getElementById('folderModalErr');
+  if (!name) { if(errEl) errEl.textContent = 'El nombre es obligatorio'; return; }
+  const colorEl = document.querySelector('.folder-color-swatch.active');
+  const color = colorEl?.dataset.color || FOLDER_DEFAULT_COLOR;
+  closeModal('folderModal');
+  if (_editingFolderId) {
+    await updateFolder(_editingFolderId, name, color);
+    showToast('✓ Carpeta actualizada');
+    _renderFolderView();
+  } else {
+    const newId = await createFolder(name, color);
+    showToast('✓ Carpeta creada: ' + name);
+    if (_folderMoveAfterCreate && _selSet.size > 0) {
+      await confirmMoveWords(newId);
+    } else {
+      _renderFolderView();
+    }
+  }
+}
+
+// ── Menú de opciones de carpeta ──────────────────────────────────
+function showFolderMenu(folderId) {
+  const f = _folders.find(x => x.id === folderId);
+  if (!f) return;
+  // Usar un confirm sencillo para no añadir otro modal
+  // En su lugar mostrar un pequeño dropdown inline
+  const existing = document.getElementById('folderCtxMenu');
+  if (existing) existing.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'folderCtxMenu';
+  menu.style.cssText = `position:fixed;z-index:500;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-lg);box-shadow:var(--shadow-lg);min-width:160px;overflow:hidden;animation:dropIn .12s ease both`;
+
+  menu.innerHTML = `
+    <button onclick="showFolderModal('${folderId}');document.getElementById('folderCtxMenu')?.remove()" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-align:left" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+      ✏️ Editar
+    </button>
+    <button onclick="confirmDeleteFolder('${folderId}');document.getElementById('folderCtxMenu')?.remove()" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;text-align:left" onmouseover="this.style.background='var(--red-bg)'" onmouseout="this.style.background='none'">
+      🗑 Eliminar
+    </button>`;
+
+  // Posicionar cerca del botón que llamó
+  document.body.appendChild(menu);
+  const rect = event.target.getBoundingClientRect();
+  let top = rect.bottom + 4;
+  let left = rect.right - 160;
+  if (left < 8) left = 8;
+  if (top + 100 > window.innerHeight) top = rect.top - 100;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+
+  setTimeout(() => {
+    document.addEventListener('click', function h() {
+      menu.remove();
+      document.removeEventListener('click', h);
+    }, { once: true });
+  }, 50);
+}
+
+async function confirmDeleteFolder(folderId) {
+  const f = _folders.find(x => x.id === folderId);
+  if (!f) return;
+  const count = getWords().filter(w => w.folder_id === folderId).length;
+  const msg = count > 0
+    ? `¿Eliminar la carpeta "${f.name}"? Las ${count} palabras pasarán a "Sin carpeta".`
+    : `¿Eliminar la carpeta "${f.name}"?`;
+  if (!confirm(msg)) return;
+  await deleteFolder(folderId);
+  showToast('🗑 Carpeta eliminada');
+  _renderFolderView();
+}
+
+// ── Estilo inline para folder-move-opt ──────────────────────────
+(function _injectFolderMoveStyle() {
+  const s = document.createElement('style');
+  s.textContent = `.folder-move-opt{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-family:Inter,sans-serif;cursor:pointer;transition:border-color .13s,background .13s;text-align:left}.folder-move-opt:hover{background:var(--surface2);border-color:var(--border2)}`;
+  document.head.appendChild(s);
+})();
+
+// ── Integrar loadFolders en el login ────────────────────────────
+// Se llama tras loadUserData en onLoginSuccess — hook mínimo
+const _origLoadUserData = loadUserData;
+loadUserData = async function() {
+  await _origLoadUserData();
+  await loadFolders();
+};
 
 (function(){
   if(!('serviceWorker' in navigator)) return;

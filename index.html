@@ -433,6 +433,9 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <span class="breadcrumb-sep"> / </span>
       <span id="lecturaBookTitle">Lectura</span>
     </div>
+    <button class="lectura-toolbar-btn" id="lecturaViewBtn" onclick="toggleLecturaView()" title="Texto / página original" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    </button>
     <button class="lectura-toolbar-btn" id="lecturaFullBtn" onclick="toggleLecturaFull()" title="Pantalla completa">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
     </button>
@@ -487,7 +490,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
     <!-- Lector -->
     <div id="lecturaReader" style="display:none;flex-direction:column;width:100%;height:100%">
-      <div class="lectura-prog-bar"><div class="lectura-prog-fill" id="lecturaProgFill" style="width:0%"></div></div>
+      <div class="lectura-prog-bar" id="lecturaProgBar"><div class="lectura-prog-fill" id="lecturaProgFill" style="width:0%"></div></div>
       <!-- Botón exit fullscreen flotante — visible solo en fullscreen tras inactividad -->
       <button id="lecturaExitFullBtn" class="lectura-exit-full-btn" onclick="toggleLecturaFull()" title="Salir de pantalla completa" style="display:none">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
@@ -495,9 +498,10 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <div class="lectura-scroll" id="lecturaScroll">
         <div class="lectura-content" id="lecturaContent"></div>
       </div>
+      <iframe id="lecturaFrame" class="lectura-frame" sandbox="allow-scripts" title="Página original"></iframe>
       <div class="lectura-bottom-bar">
         <span id="lecturaPageInfo" style="font-size:11px;color:var(--text3);min-width:64px">p. 1</span>
-        <div style="display:flex;gap:8px">
+        <div id="lecturaNavBtns" style="display:flex;gap:8px">
           <button class="lectura-nav-btn" onclick="lecturaChangePage(-1)">‹</button>
           <button class="lectura-nav-btn" onclick="lecturaChangePage(1)">›</button>
         </div>
@@ -515,6 +519,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   <div class="lectura-popup-trans" id="lpTrans"></div>
   <div class="lectura-popup-actions">
     <button class="lectura-popup-save" id="lpSaveBtn" onclick="savePopupWord()" style="display:none">＋ Guardar en lista</button>
+    <button class="lectura-popup-save" id="lpLinkBtn" onclick="openPopupLink()" style="display:none;flex:none;background:var(--surface2);color:var(--text);border:1px solid var(--border)">↗ Enlace</button>
     <button class="lectura-popup-close" onclick="closeLecturaPopup()">✕</button>
   </div>
 </div>
@@ -632,7 +637,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.28</div>
+<div id="buildBadge" class="build-badge">1.07.29</div>
 
 <script src="app.js"></script>
 </body>

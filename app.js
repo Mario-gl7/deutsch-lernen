@@ -2361,6 +2361,7 @@ async function openLecturaUrl(raw) {
     let host = ''; try { host = new URL(j.url || url).hostname; } catch(e) {}
     const bookData = { id: 'web_' + Date.now(), title: j.title || host || url, ext: 'web', url: j.url || url, pages, pageIdx: 0, ts: Date.now() };
     _saveBooksLS(bookData);
+    _lectura.webView = false;
     _lectura.current = bookData;
     _hideLecturaLoader();
     const inp = document.getElementById('lecturaUrlIn'); if (inp) inp.value = '';
@@ -2529,6 +2530,7 @@ async function openBookFromLibrary(bookId) {
   const cached = _getAllBooksLS();
   const book = cached.find(b => b.id === bookId);
   if (book && book.pages && book.pages.length > 0) {
+    _lectura.webView = false;
     _lectura.current = book;
     document.getElementById('lecturaUpload').style.display = 'none';
     _showReader();
@@ -2594,7 +2596,7 @@ function _showReader() {
     });
     scroll._lecturaListenerSet = true;
   }
-  _renderLecturaPage();
+  _applyLecturaView();
 }
 
 function _renderLecturaPage() {
@@ -2639,6 +2641,7 @@ function _highlightSavedWords() {
 function lecturaChangePage(delta) {
   const book = _lectura.current;
   if (!book) return;
+  if (book.ext === 'web' && _lectura.webView) return;
   book.pageIdx = Math.max(0, Math.min(book.pages.length - 1, (book.pageIdx||0) + delta));
   _saveProgressLS(book.id, book.pageIdx);
   _saveLecturaProgress();
@@ -2650,7 +2653,12 @@ async function lecturaWordTap(el) {
   const word = el.dataset.w || el.textContent;
   document.querySelectorAll('#lecturaContent .lw-selected').forEach(e => e.classList.remove('lw-selected'));
   el.classList.add('lw-selected');
+  return _openWordPopup(word, el.getBoundingClientRect(), null);
+}
+
+async function _openWordPopup(word, rect, href) {
   _lectura.popup.word = word;
+  _lectura.popup.href = href || null;
 
   const popup   = document.getElementById('lecturaPopup');
   const overlay = document.getElementById('lecturaPopupOverlay');
@@ -2662,9 +2670,10 @@ async function lecturaWordTap(el) {
   lpTrans.innerHTML = '<div style="display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle"></div>';
   lpSave.style.display = 'none';
   lpSave.disabled = false;
+  const lpLink = document.getElementById('lpLinkBtn');
+  if (lpLink) lpLink.style.display = href ? '' : 'none';
 
   // Posicionar
-  const rect = el.getBoundingClientRect();
   const pw = 270;
   let top  = rect.bottom + 8;
   let left = Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8));
@@ -2672,7 +2681,8 @@ async function lecturaWordTap(el) {
   popup.style.top  = top  + 'px';
   popup.style.left = left + 'px';
   popup.style.display = 'block';
-  overlay.style.display = 'block';
+  // En vista original el overlay taparía el iframe: se deja pasar el toque (el propio iframe cierra/cambia el popup)
+  overlay.style.display = (_lectura.webView && _lectura.current?.ext === 'web') ? 'none' : 'block';
 
   // Traducir
   let trans = _lecturaTranslateCache[word.toLowerCase()];
@@ -2680,6 +2690,7 @@ async function lecturaWordTap(el) {
     trans = await _translateWord(word);
     if (trans) _lecturaTranslateCache[word.toLowerCase()] = trans;
   }
+  if (_lectura.popup.word !== word) return; // el popup cambió mientras traducía
   _lectura.popup.translation = trans;
   lpTrans.textContent = trans || '(sin traducción disponible)';
 
@@ -2698,6 +2709,9 @@ function closeLecturaPopup() {
   document.getElementById('lecturaPopupOverlay').style.display = 'none';
   document.querySelectorAll('#lecturaContent .lw-selected').forEach(e => e.classList.remove('lw-selected'));
   _lectura.popup.word = null;
+  _lectura.popup.href = null;
+  const lpLink = document.getElementById('lpLinkBtn'); if (lpLink) lpLink.style.display = 'none';
+  try { document.getElementById('lecturaFrame')?.contentWindow?.postMessage({ __vo: 1, type: 'clear' }, '*'); } catch(e) {}
 }
 
 function savePopupWord() {
@@ -2723,6 +2737,80 @@ async function _translateWord(word) {
     return j?.translation || null;
   } catch(e) { return null; }
 }
+
+// ── Vista de página original (iframe vía /api/proxy-page) ───────
+function _applyLecturaView() {
+  const book = _lectura.current;
+  const isWeb = book?.ext === 'web';
+  const orig = isWeb && !!_lectura.webView;
+  const $ = id => document.getElementById(id);
+  const vb = $('lecturaViewBtn');
+  if (vb) { vb.style.display = isWeb ? 'flex' : 'none'; vb.classList.toggle('active', orig); }
+  if ($('lecturaFrame')) $('lecturaFrame').style.display = orig ? 'block' : 'none';
+  if ($('lecturaScroll')) $('lecturaScroll').style.display = orig ? 'none' : '';
+  if ($('lecturaNavBtns')) $('lecturaNavBtns').style.visibility = orig ? 'hidden' : '';
+  if ($('lecturaProgBar')) $('lecturaProgBar').style.display = orig ? 'none' : '';
+  if (orig) {
+    const info = $('lecturaPageInfo'); if (info) info.textContent = 'Original';
+    if (_lectura.frameBook !== book.id) {
+      _lectura.frameBook = book.id;
+      _lectura.frameUrl = book.url;
+      _loadLecturaFrame(book.url);
+    }
+  } else if (book) {
+    _renderLecturaPage();
+  }
+}
+
+function _loadLecturaFrame(url) {
+  const f = document.getElementById('lecturaFrame');
+  if (!f) return;
+  _showLecturaLoader('Cargando página…');
+  f.onload = _hideLecturaLoader;
+  f.src = '/api/proxy-page?url=' + encodeURIComponent(url);
+  setTimeout(_hideLecturaLoader, 15000);
+}
+
+function _lecturaFrameNavigate(href) {
+  if (!/^https?:\/\//i.test(href || '')) return;
+  _lectura.frameUrl = href;
+  _loadLecturaFrame(href);
+}
+
+function toggleLecturaView() {
+  const book = _lectura.current;
+  if (!book || book.ext !== 'web') return;
+  closeLecturaPopup();
+  // Si en la vista original navegó a otro enlace, al volver a "Texto" se abre el texto de esa página
+  if (_lectura.webView && _lectura.frameBook === book.id && _lectura.frameUrl && _lectura.frameUrl !== book.url) {
+    openLecturaUrl(_lectura.frameUrl);
+    return;
+  }
+  _lectura.webView = !_lectura.webView;
+  _applyLecturaView();
+}
+
+function openPopupLink() {
+  const h = _lectura.popup.href;
+  closeLecturaPopup();
+  if (h) _lecturaFrameNavigate(h);
+}
+
+window.addEventListener('message', e => {
+  const f = document.getElementById('lecturaFrame');
+  if (!f || e.source !== f.contentWindow) return;
+  const d = e.data;
+  if (!d || !d.__vo) return;
+  if (d.type === 'word' && d.word) {
+    const fr = f.getBoundingClientRect();
+    _openWordPopup(d.word, { left: fr.left + d.l, top: fr.top + d.t, bottom: fr.top + d.b }, d.href || null);
+  } else if (d.type === 'nav') {
+    closeLecturaPopup();
+    _lecturaFrameNavigate(d.href);
+  } else if (d.type === 'close') {
+    closeLecturaPopup();
+  }
+});
 
 // ── Visual settings ─────────────────────────────────────────────
 function adjLecturaFont(delta) {

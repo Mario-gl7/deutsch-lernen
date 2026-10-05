@@ -1477,3 +1477,6 @@ td.td-check{width:36px;padding:0 6px 0 10px;vertical-align:middle}
 .lectura-url-row .form-input{flex:1;min-width:0}
 .lectura-url-btn{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:0 16px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s}
 .lectura-url-btn:hover{border-color:var(--border2)}
+
+/* Lectura — vista de página original */
+.lectura-frame{display:none;flex:1;width:100%;border:0;background:#fff;margin-bottom:56px;-webkit-overflow-scrolling:touch}

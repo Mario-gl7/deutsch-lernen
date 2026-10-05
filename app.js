@@ -2335,6 +2335,43 @@ async function handleLecturaFile(e) {
   }
 }
 
+// ── Abrir enlace web (vía /api/fetch-page) ──────────────────────
+function _splitTextToPages(text, chunk = 3000) {
+  const pages = []; let cur = '';
+  for (const para of text.split(/\n\n+/)) {
+    cur += para + '\n\n';
+    if (cur.length >= chunk) { pages.push(cur.trim()); cur = ''; }
+  }
+  if (cur.trim()) pages.push(cur.trim());
+  return pages;
+}
+
+async function openLecturaUrl(raw) {
+  let url = (raw || '').trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if (_lectura.current) _saveLecturaProgress();
+  _showLecturaLoader('Cargando página…');
+  try {
+    const r = await fetch('/api/fetch-page?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'No se pudo cargar la página');
+    const pages = _splitTextToPages(j.text || '');
+    if (!pages.length) throw new Error('Sin contenido legible');
+    let host = ''; try { host = new URL(j.url || url).hostname; } catch(e) {}
+    const bookData = { id: 'web_' + Date.now(), title: j.title || host || url, ext: 'web', url: j.url || url, pages, pageIdx: 0, ts: Date.now() };
+    _saveBooksLS(bookData);
+    _lectura.current = bookData;
+    _hideLecturaLoader();
+    const inp = document.getElementById('lecturaUrlIn'); if (inp) inp.value = '';
+    document.getElementById('lecturaUpload').style.display = 'none';
+    _showReader();
+  } catch(err) {
+    _hideLecturaLoader();
+    showToast('❌ ' + err.message);
+  }
+}
+
 // ── PDF extraction ──────────────────────────────────────────────
 async function _extractPdfPages(file) {
   if (!window.pdfjsLib) {
@@ -2442,6 +2479,7 @@ async function _saveLecturaProgress() {
   if (!_lectura.current) return;
   const { id, pageIdx } = _lectura.current;
   _saveProgressLS(id, pageIdx || 0);
+  if (_lectura.current.ext === 'web') return; // las webs solo viven en localStorage
   if (!currentUser || !_dbReady) return;
   try {
     const sb = await getSupabase();
@@ -2474,7 +2512,7 @@ async function _renderLecturaLibrary() {
     books.map(b => {
       const total = b.pages?.length || b.totalPages || 1;
       const pct = Math.round(((b.pageIdx||0) / total) * 100);
-      const icon = b.noCache ? '☁️' : (b.ext === 'epub' ? '📗' : '📕');
+      const icon = b.noCache ? '☁️' : (b.ext === 'web' ? '🌐' : b.ext === 'epub' ? '📗' : '📕');
       return '<div class="lectura-lib-card" onclick="openBookFromLibrary(\'' + b.id + '\')">' +
         '<div class="lectura-lib-card-icon">' + icon + '</div>' +
         '<div class="lectura-lib-card-info">' +

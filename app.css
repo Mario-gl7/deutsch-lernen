@@ -1471,3 +1471,9 @@ td.td-check{width:36px;padding:0 6px 0 10px;vertical-align:middle}
 }
 .folder-color-swatch.active{border-color:var(--text);transform:scale(1.18)}
 .folder-color-swatch:hover{transform:scale(1.12)}
+
+/* Lectura — abrir enlace web */
+.lectura-url-row{display:flex;gap:8px;width:100%;max-width:360px;margin-top:14px}
+.lectura-url-row .form-input{flex:1;min-width:0}
+.lectura-url-btn{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:0 16px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s}
+.lectura-url-btn:hover{border-color:var(--border2)}

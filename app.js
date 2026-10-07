@@ -1012,8 +1012,6 @@ async function saveEditRow(gIdx) {
   }
   _editingIdx = null;
   saveWords(allWords);
-  setSyncState('syncing','Guardando…');
-  _updateWordInDB(allWords[gIdx]).then(()=>setSyncState('ok','Guardado ✓'));
   renderLista();
   updateStats();
   showToast('✓ Guardado');
@@ -1024,11 +1022,9 @@ async function deleteRow(gIdx) {
   const w = allWords[gIdx];
   if (!w) return;
   if (!confirm(`¿Eliminar "${displayDE(w)}"?`)) return;
-  _deleteWordInDB(w);
   allWords.splice(gIdx,1);
   if (_editingIdx===gIdx) _editingIdx=null;
-  _cacheWords(allWords);
-  updateStats();
+  saveWords(allWords);
   renderLista();
   showToast('🗑 Eliminada');
 }
@@ -3217,11 +3213,11 @@ function _renderFolderContent(folderId) {
   const thead = `<thead>
     <tr>
       ${_selMode ? `<th class="col-act" style="width:36px;padding:0 6px 0 10px"><input type="checkbox" class="row-check" ${allSelChecked?'checked':''} onchange="toggleSelAll(this.checked,${JSON.stringify(words.map(w=>allWords.findIndex(x=>x===w)))})" title="Seleccionar todo"></th>` : ''}
-      <th class="col-tipo">Tipo</th>
-      <th class="col-art">Art.</th>
-      <th class="col-de">Alemán</th>
-      <th class="col-es">Español</th>
-      <th class="col-act" style="text-align:center">⚙</th>
+      <th class="col-tipo"><span class="th-ico">◉</span>Tipo</th>
+      <th class="col-art"><span class="th-ico">◉</span>Art.</th>
+      <th class="col-de"><span class="th-ico">Aa</span>Alemán</th>
+      <th class="col-es"><span class="th-ico">Aa</span>Español</th>
+      <th class="col-act" style="text-align:center"></th>
     </tr>
   </thead>`;
 
@@ -3258,21 +3254,22 @@ function _renderFolderContent(folderId) {
       </tr>`;
     }
 
+    const tdAct = (f) => `onclick="openCellEdit(${gIdx},'${f}',this)"`;
     return `<tr id="row-${gIdx}" class="${selClass}" onclick="${_selMode?`toggleSelRow(${gIdx})`:''}" style="${_selMode?'cursor:pointer':''}">
       ${checkCell}
-      <td class="td-tipo">${w.tipo?`<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>`:'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
-      <td class="td-art" style="color:var(--text2);font-size:12px">${_esc(w.articulo)||'<span style="color:var(--text3)">—</span>'}</td>
-      <td class="td-de">${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
-      <td class="td-es">${_esc(w.es)}</td>
+      <td class="td-tipo" ${tdAct('tipo')}>${w.tipo?`<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>`:''}</td>
+      <td class="td-art" ${tdAct('articulo')}>${w.articulo?`<span class="art-tag ${_esc(w.articulo)}">${_esc(w.articulo)}</span>`:''}</td>
+      <td class="td-de" ${tdAct('de')}>${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
+      <td class="td-es" ${tdAct('es')}>${_esc(w.es)}</td>
       <td class="td-actions" onclick="event.stopPropagation()">
-        <button class="row-btn" onclick="startEditRow(${gIdx})">✏️</button>
-        <button class="row-btn delete-btn" onclick="deleteRow(${gIdx})">🗑</button>
+        <button class="row-btn" onclick="openRowMenu(${gIdx})" aria-label="Más opciones">⋯</button>
       </td>
     </tr>`;
   }).join('');
 
   document.getElementById('wordList').innerHTML =
-    `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>`;
+    `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>
+     <div class="notion-add-row" onclick="showAddModal()">＋ Nueva palabra</div>`;
 
   // Sel-bar (barra de acciones de selección)
   _renderSelBar();
@@ -3544,3 +3541,134 @@ loadUserData = async function() {
     navigator.serviceWorker.register('sw.js').then(()=>console.log('[SW] ready')).catch(e=>console.warn('[SW]',e));
   });
 })();
+
+
+// ── Edición de celdas en popup (estilo Notion) ───────────────────
+const _CELL_FIELDS = {
+  tipo:     { label:'Tipo',     kind:'select', opts:['Nomen','Verb','Adjektive','Redewendung','Adverb'] },
+  articulo: { label:'Artículo', kind:'select', opts:['der','die','das'] },
+  de:       { label:'Alemán',   kind:'text',   required:true },
+  es:       { label:'Español',  kind:'text',   required:true }
+};
+let _cellPop = null, _cellTd = null;
+
+function _cellPopEnsure() {
+  if (_cellPop) return _cellPop;
+  const ov = document.createElement('div');
+  ov.id = 'cellPopOverlay';
+  ov.className = 'cell-pop-overlay';
+  ov.innerHTML = '<div class="cell-pop" id="cellPop" role="dialog" aria-modal="true"></div>';
+  ov.addEventListener('click', e => { if (e.target === ov) closeCellPop(); });
+  document.body.appendChild(ov);
+  // iOS: con el teclado abierto el visual viewport cambia; el popup se ajusta para no quedar tapado
+  const vv = window.visualViewport;
+  if (vv) {
+    ov._fit = () => { ov.style.top = vv.offsetTop + 'px'; ov.style.height = vv.height + 'px'; };
+    vv.addEventListener('resize', ov._fit);
+    vv.addEventListener('scroll', ov._fit);
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('show')) closeCellPop(); });
+  _cellPop = ov;
+  return ov;
+}
+
+function _cellTag(field, val) {
+  return field === 'tipo'
+    ? `<span class="tipo-badge ${_esc(val)}">${_esc(val)}</span>`
+    : `<span class="art-tag ${_esc(val)}">${_esc(val)}</span>`;
+}
+
+function _cellPopShow(html, td) {
+  const ov = _cellPopEnsure();
+  ov.querySelector('#cellPop').innerHTML = html;
+  if (_cellTd) _cellTd.classList.remove('cell-active');
+  _cellTd = td || null;
+  if (_cellTd) _cellTd.classList.add('cell-active');
+  ov.classList.add('show');
+  if (ov._fit) ov._fit();
+  return ov;
+}
+
+function openCellEdit(gIdx, field, td) {
+  if (_selMode) return;
+  const w = getWords()[gIdx];
+  const cfg = _CELL_FIELDS[field];
+  if (!w || !cfg) return;
+  const cur = w[field] || '';
+  const head = `<div class="cell-pop-head"><span class="cell-pop-prop">${cfg.label}</span><span class="cell-pop-word">${_esc(w.de)}</span></div>`;
+
+  if (cfg.kind === 'select') {
+    const rows = ['', ...cfg.opts].map(o => `
+      <button type="button" class="cell-opt${o === cur ? ' sel' : ''}" onclick="pickCellOption(${gIdx},'${field}','${o}')">
+        ${o ? _cellTag(field, o) : '<span class="cell-opt-none">Sin valor</span>'}
+        ${o === cur ? '<span class="cell-opt-check">✓</span>' : ''}
+      </button>`).join('');
+    _cellPopShow(head + `<div class="cell-opt-list">${rows}</div>`, td);
+    return;
+  }
+
+  _cellPopShow(head + `
+    <textarea id="cellPopInput" class="cell-pop-input" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">${_esc(cur)}</textarea>
+    <div class="cell-pop-actions">
+      <button type="button" class="cell-pop-btn" onclick="closeCellPop()">Cancelar</button>
+      <button type="button" class="cell-pop-btn primary" onclick="saveCellPop(${gIdx},'${field}')">Guardar</button>
+    </div>`, td);
+  // focus dentro del gesto del toque: iOS solo abre el teclado así
+  const ta = document.getElementById('cellPopInput');
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveCellPop(gIdx, field); }
+  });
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function closeCellPop() {
+  const ov = _cellPop;
+  if (!ov) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  ov.classList.remove('show');
+  ov.style.top = ''; ov.style.height = '';
+  if (_cellTd) { _cellTd.classList.remove('cell-active'); _cellTd = null; }
+}
+
+function pickCellOption(gIdx, field, val) {
+  const w = getWords()[gIdx];
+  closeCellPop();
+  if (w && (w[field] || '') !== val) _commitCell(gIdx, field, val);
+}
+
+function saveCellPop(gIdx, field) {
+  const cfg = _CELL_FIELDS[field];
+  const val = (document.getElementById('cellPopInput')?.value || '').trim();
+  if (cfg.required && !val) { showToast(`⚠ ${cfg.label} es obligatorio`); return; }
+  const w = getWords()[gIdx];
+  closeCellPop();
+  if (w && (w[field] || '') !== val) _commitCell(gIdx, field, val);
+}
+
+function _commitCell(gIdx, field, value) {
+  const allWords = getWords();
+  const oldWord = allWords[gIdx];
+  if (!oldWord) return;
+  const oldDE = oldWord.de;
+  allWords[gIdx] = { ...oldWord, [field]: value };
+  if (field === 'de' && oldDE !== value) {
+    const prog = getProgress();
+    if (prog[oldDE]) { prog[value] = prog[oldDE]; delete prog[oldDE]; saveProgress(prog); }
+  }
+  saveWords(allWords);
+  renderLista();
+  updateStats();
+  showToast('✓ Guardado');
+}
+
+function openRowMenu(gIdx) {
+  const w = getWords()[gIdx];
+  if (!w) return;
+  _cellPopShow(`
+    <div class="cell-pop-head"><span class="cell-pop-prop">Palabra</span><span class="cell-pop-word">${_esc(displayDE(w))} — ${_esc(w.es)}</span></div>
+    <div class="cell-opt-list">
+      <button type="button" class="cell-opt danger" onclick="closeCellPop();deleteRow(${gIdx})">🗑 Eliminar palabra</button>
+    </div>
+    <div class="cell-pop-actions"><button type="button" class="cell-pop-btn" onclick="closeCellPop()">Cerrar</button></div>`, null);
+}

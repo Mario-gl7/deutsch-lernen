@@ -3540,6 +3540,7 @@ loadUserData = async function() {
 
 (function(){
   if(!('serviceWorker' in navigator)) return;
-  const swSrc=["const CACHE='deutsch-v2',FONTS='deutsch-fonts-v1';","self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll([self.location.href])).then(()=>self.skipWaiting()));});","self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k!==FONTS).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});","self.addEventListener('fetch',e=>{const u=e.request.url;const cacheName=(u.includes('fonts.google')||u.includes('fonts.gstatic'))?FONTS:CACHE;e.respondWith(caches.open(cacheName).then(c=>c.match(e.request).then(cached=>{if(cached)return cached;return fetch(e.request).then(r=>{if(r&&r.ok)c.put(e.request,r.clone());return r;}).catch(()=>cached||new Response('Offline',{status:503}));}))); });"].join('\n');
-  try{const blob=new Blob([swSrc],{type:'application/javascript'});const url=URL.createObjectURL(blob);navigator.serviceWorker.register(url,{scope:location.pathname.replace(/\/[^/]*$/,'/')||'/'}).then(()=>console.log('[SW] ready')).catch(e=>console.warn('[SW]',e));}catch(e){console.warn('[SW]',e);}
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(()=>console.log('[SW] ready')).catch(e=>console.warn('[SW]',e));
+  });
 })();

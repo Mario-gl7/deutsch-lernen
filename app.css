@@ -1548,7 +1548,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
    LISTA estilo Notion + popup de celda  (v1.07.31)
 ═══════════════════════════════════════════════ */
 .lista-table-zone{padding-left:0;padding-right:0}
-.vocab-table{border-collapse:collapse;border-spacing:0;table-layout:fixed;width:100%;min-width:600px;font-size:14px}
+.vocab-table{border-collapse:collapse;border-spacing:0;table-layout:auto;width:100%;min-width:560px;font-size:14px}
 .vocab-table thead th{
   position:sticky;top:0;z-index:5;background:var(--bg);
   padding:7px 8px;font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;
@@ -1572,11 +1572,16 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .vocab-table tbody tr:hover{background:transparent}
   .vocab-table td:not(.td-actions):not(.td-check):hover{background:var(--surface2)}
 }
-.vocab-table .col-tipo{width:116px;min-width:100px}
-.vocab-table .col-art{width:72px;min-width:60px}
-.vocab-table .col-de{width:190px;min-width:150px}
-.vocab-table .col-es{min-width:160px}
-.vocab-table .col-act{width:44px;min-width:40px}
+.vocab-table .col-tipo{width:1%;min-width:84px}   /* se ajusta al tipo más largo (Redewendung…) */
+.vocab-table .col-art{width:1%;min-width:60px}
+.vocab-table .col-de,.vocab-table .col-es{width:50%;min-width:150px}   /* reparten el resto a partes iguales */
+.vocab-table .col-act{width:1%;min-width:44px}
+.vocab-table td.td-tipo,.vocab-table td.td-art{white-space:nowrap}
+/* Textos largos: se parten en varias líneas en vez de cortarse */
+.vocab-table td.td-de,.vocab-table td.td-es{
+  white-space:normal;overflow:visible;text-overflow:clip;
+  overflow-wrap:break-word;word-break:normal;line-height:1.35;
+}
 .vocab-table .tipo-badge{font-size:12px;padding:1px 8px;border-radius:4px;font-weight:500}
 .art-tag{display:inline-block;font-size:12px;font-weight:500;padding:1px 8px;border-radius:4px;background:var(--surface2);color:var(--text2)}
 .art-tag.der{background:rgba(96,165,250,.18);color:#60a5fa}

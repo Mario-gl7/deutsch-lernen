@@ -1548,7 +1548,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 /* ═══════════════════════════════════════════════
    LISTA estilo Notion + popup de celda  (v1.07.31)
 ═══════════════════════════════════════════════ */
-.lista-table-zone{padding-left:0;padding-right:0}
+@media (max-width:699px){.lista-table-zone{padding-left:0;padding-right:0}}   /* móvil: tabla a ancho completo (en PC la centra --lista-max) */
 .vocab-table{border-collapse:collapse;border-spacing:0;table-layout:auto;width:100%;min-width:560px;font-size:14px}
 .vocab-table thead th{
   position:sticky;top:0;z-index:5;background:var(--bg);

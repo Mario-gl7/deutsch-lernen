@@ -2301,7 +2301,7 @@ function exitLectura() {
   _saveLecturaProgress();
   closeLecturaPopup();
   if (_lectura.fullscreen) toggleLecturaFull();
-  navigate('vocab-hub', 'back');
+  navigate('home', 'back');
 }
 
 // ── File upload ─────────────────────────────────────────────────

@@ -1533,8 +1533,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 /* PC: contenido centrado con ancho máximo (antes se estiraba a todo el ancho) */
 @media (min-width:700px){
   .inner-content,.hub-inner,.home-inner{width:100%;max-width:760px;margin-left:auto;margin-right:auto}
-  .lista-controls{padding-left:max(0px,calc((100% - 960px)/2));padding-right:max(0px,calc((100% - 960px)/2))}
-  .lista-table-zone{padding-left:max(12px,calc((100% - 960px)/2));padding-right:max(12px,calc((100% - 960px)/2))}
+  :root{--lista-max:720px}   /* ancho máximo de la tabla en PC; en móvil no se aplica */
+  .lista-controls{padding-left:max(0px,calc((100% - var(--lista-max))/2));padding-right:max(0px,calc((100% - var(--lista-max))/2))}
+  .lista-table-zone{padding-left:max(12px,calc((100% - var(--lista-max))/2));padding-right:max(12px,calc((100% - var(--lista-max))/2))}
 }
 @media (min-width:1000px){
   .top-bar{

@@ -3,6 +3,7 @@
 import { randomBytes } from 'crypto';
 import { fetchSafe } from './_net.js';
 import { requireUser } from './_auth.js';
+import { absolutizePageUrls } from './_reader-html.js';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -148,12 +149,12 @@ export default async function handler(req, res) {
       .replace(/<base\b[^>]*>/gi, '')
       .replace(/<meta[^>]+http-equiv=["']?(content-security-policy|refresh)["']?[^>]*>/gi, '')
       .replace(/<meta[^>]+charset=[^>]*>/gi, '');
+    html = absolutizePageUrls(html, cur);
 
     const nonce = randomBytes(16).toString('base64');
     const hasViewport = /<meta[^>]+name=["']viewport/i.test(html);
     const headInject =
       '<meta charset="utf-8">' +
-      `<base href="${esc(cur)}">` +
       '<meta name="referrer" content="no-referrer">' +
       (hasViewport ? '' : '<meta name="viewport" content="width=device-width,initial-scale=1">') +
       '<style>html,body,body *{cursor:pointer;-webkit-tap-highlight-color:transparent}' +

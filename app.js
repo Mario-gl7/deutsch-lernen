@@ -298,7 +298,7 @@ const _cfg = (() => {
 let _supabase = null;
 async function getSupabase() {
   if (_supabase) return _supabase;
-  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js', 'sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R');
   _supabase = window.supabase.createClient(_cfg.url, _cfg.key);
   return _supabase;
 }
@@ -310,11 +310,13 @@ async function _apiAuthHeaders() {
     return session?.access_token ? { Authorization: 'Bearer ' + session.access_token } : {};
   } catch(e) { return {}; }
 }
-function loadScript(src) {
+// integrity = hash SRI: el navegador rechaza el script si el CDN lo modifica
+function loadScript(src, integrity) {
   return new Promise((res, rej) => {
     if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
     const s = document.createElement('script');
     s.src = src; s.onload = res; s.onerror = rej;
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
     document.head.appendChild(s);
   });
 }
@@ -447,12 +449,20 @@ function onLoginSuccess(user) {
   loadUserData();
 }
 
+// Borra del dispositivo las cachés que se vuelven a descargar de Supabase al entrar
+function _clearLocalUserCache(uid) {
+  if (!uid) return;
+  ['words_', 'prog_', 'folders_'].forEach(k => { try { localStorage.removeItem(k + uid); } catch(e) {} });
+}
+
 async function doLogout() {
   closeDropdown();
+  const _uid = currentUser?.id;
   _onLoginSuccessFired = false;
   try { localStorage.removeItem(STATE_KEY); } catch(e) {}
   try { const sb = await getSupabase(); await sb.auth.signOut(); } catch(e) {}
   // Clear all sensitive state
+  _clearLocalUserCache(_uid);
   currentUser = null; currentEmail = '';
   matchState = {}; currentBatch = []; cwData = null; importParsed = null;
   // Sanitize DOM — clear any user data rendered in the UI
@@ -2495,9 +2505,9 @@ async function openLecturaUrl(raw, textView) {
 // ── PDF extraction ──────────────────────────────────────────────
 async function _extractPdfPages(file) {
   if (!window.pdfjsLib) {
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', 'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e');
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
   }
   const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
   const pages = [];
@@ -2521,7 +2531,7 @@ async function _extractPdfPages(file) {
 
 // ── EPUB extraction ─────────────────────────────────────────────
 async function _extractEpubPages(file) {
-  if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+  if (!window.JSZip) await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG');
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
   let opfPath = '';
   try {

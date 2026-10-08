@@ -1,66 +1,108 @@
 -- ══════════════════════════════════════════════════════════
--- DEUTSCH LERNEN — Supabase Setup v2
--- Run this in: Supabase → SQL Editor → New Query
+-- DEUTSCH LERNEN — Supabase Setup (v3, 1.07.40)
+-- Estado final de la base de datos. Ejecutar en: Supabase → SQL Editor.
+-- Para una base YA existente usa supabase-migration-1.07.40.sql.
+--
+-- ANTES: Authentication → Sign In / Providers → desactivar
+--        "Allow new users to sign up". Los usuarios se crean a mano
+--        (Authentication → Users → Add user). Sin registro público
+--        no hace falta whitelist de correos.
 -- ══════════════════════════════════════════════════════════
 
--- ── 1. DROP old trigger if it exists (from v1) ───────────
-DROP TRIGGER IF EXISTS enforce_email_whitelist ON auth.users;
-DROP FUNCTION IF EXISTS check_allowed_email();
-
--- ── 2. ALLOWED EMAILS whitelist ──────────────────────────
-CREATE TABLE IF NOT EXISTS public.allowed_emails (
-  email TEXT PRIMARY KEY,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- ── Carpetas ─────────────────────────────────────────────
+create table if not exists public.user_folders (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 100),
+  color      text default '#4ade80' check (char_length(color) <= 20),
+  created_at timestamptz default now()
 );
 
--- The two authorised users
-INSERT INTO public.allowed_emails (email) VALUES
-  ('mariogutierrezlopez@icloud.com'),
-  ('majasplete@web.de')
-ON CONFLICT DO NOTHING;
-
--- Anyone can read (so the app can check), nobody can write from client
-ALTER TABLE public.allowed_emails ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "read allowed emails" ON public.allowed_emails;
-CREATE POLICY "read allowed emails"
-  ON public.allowed_emails FOR SELECT TO anon, authenticated USING (true);
-
--- ── 3. WORD PROGRESS table ───────────────────────────────
--- Stores per-user spaced-repetition data for each word
-CREATE TABLE IF NOT EXISTS public.word_progress (
-  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_email    TEXT NOT NULL,
-  word_de       TEXT NOT NULL,
-  seen          INT  DEFAULT 0,   -- times shown
-  correct       INT  DEFAULT 0,   -- times answered correctly
-  difficulty    INT  DEFAULT 0,   -- 0=normal 1=hard (user-flagged)
-  next_review   TIMESTAMPTZ DEFAULT now(), -- spaced repetition next date
-  last_seen     TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (user_email, word_de)
+-- ── Palabras del usuario ─────────────────────────────────
+create table if not exists public.user_words (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  tipo       text default '' check (char_length(tipo) <= 50),
+  articulo   text default '' check (char_length(articulo) <= 20),
+  de         text not null check (char_length(de) between 1 and 300),
+  es         text not null check (char_length(es) between 1 and 500),
+  created_at timestamptz default now(),
+  folder_id  uuid references public.user_folders(id) on delete set null
 );
 
-ALTER TABLE public.word_progress ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "users manage own progress" ON public.word_progress;
-CREATE POLICY "users manage own progress"
-  ON public.word_progress FOR ALL TO authenticated
-  USING (user_email = auth.jwt() ->> 'email')
-  WITH CHECK (user_email = auth.jwt() ->> 'email');
+-- ── Progreso (repetición espaciada) ──────────────────────
+create table if not exists public.user_progress (
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  word_de     text not null check (char_length(word_de) <= 300),
+  seen        integer default 0,
+  correct     integer default 0,
+  difficulty  integer default 0,
+  next_review bigint default 0,
+  updated_at  timestamptz default now(),
+  primary key (user_id, word_de)
+);
 
--- ── 4. Re-invite helper: function to check if email allowed ─
--- The app calls this RPC before attempting sign-in/invite
-CREATE OR REPLACE FUNCTION public.is_email_allowed(check_email TEXT)
-RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT EXISTS (SELECT 1 FROM public.allowed_emails WHERE email = lower(check_email));
-$$;
+-- ── Libros (Lectura) ─────────────────────────────────────
+create table if not exists public.user_books (
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  book_id      text not null check (char_length(book_id) <= 100),
+  title        text check (char_length(title) <= 300),
+  total_pages  integer,
+  page_idx     integer default 0,
+  storage_path text check (char_length(storage_path) <= 300),
+  updated_at   timestamptz default now(),
+  primary key (user_id, book_id)
+);
 
--- ══════════════════════════════════════════════════════════
--- DONE.
---
--- NOW: go to Authentication → Users → Add user (NOT invite)
--- Use "Create new user" with email + temporary password.
--- The user can then change their password from the app.
---
--- Or use the invite flow — but first set Site URL in:
--- Authentication → URL Configuration → Site URL
--- to your GitHub Pages URL, THEN invite.
--- ══════════════════════════════════════════════════════════
+-- ── Vocabulario base (solo lectura) ──────────────────────
+create table if not exists public.base_words (
+  id       serial primary key,
+  "Tipo"     text default '',
+  "Artículo" text default '',
+  "Alemán"   text not null,
+  "Español"  text not null
+);
+
+-- ── Índices (RLS y claves foráneas) ──────────────────────
+create index if not exists user_words_user_id_idx    on public.user_words(user_id);
+create index if not exists user_words_folder_id_idx  on public.user_words(folder_id);
+create index if not exists user_folders_user_id_idx  on public.user_folders(user_id);
+
+-- ── RLS: cada usuario solo ve y modifica sus filas ───────
+do $$
+declare t text;
+begin
+  foreach t in array array['user_words','user_progress','user_folders','user_books'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('drop policy if exists "own_rows" on public.%I', t);
+    execute format($p$create policy "own_rows" on public.%I
+      for all to authenticated
+      using ((select auth.uid()) = user_id)
+      with check ((select auth.uid()) = user_id)$p$, t);
+  end loop;
+end $$;
+
+alter table public.base_words enable row level security;
+drop policy if exists "read_base_words" on public.base_words;
+create policy "read_base_words" on public.base_words for select to anon, authenticated using (true);
+revoke insert, update, delete, truncate on public.base_words from anon, authenticated;
+
+-- ── Storage: bucket privado, cada usuario en su carpeta <uid>/ ──
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('books', 'books', false, 26214400)
+on conflict (id) do update set public = false, file_size_limit = 26214400;
+
+drop policy if exists "books select own" on storage.objects;
+drop policy if exists "books insert own" on storage.objects;
+drop policy if exists "books update own" on storage.objects;
+drop policy if exists "books delete own" on storage.objects;
+create policy "books select own" on storage.objects for select to authenticated
+  using (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "books insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "books update own" on storage.objects for update to authenticated
+  using (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text)
+  with check (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "books delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text);

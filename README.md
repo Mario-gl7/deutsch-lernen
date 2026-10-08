@@ -20,11 +20,13 @@ Autenticación con Supabase · Instalable en iPhone/iPad.
 
 1. En tu proyecto Supabase → **SQL Editor** → "New query"
 2. Pega el contenido de `supabase-setup.sql` y pulsa **Run**
-3. Verás el mensaje "Success" — esto crea la whitelist de correos y el bloqueo de registros no autorizados
+3. Verás el mensaje "Success" — esto crea las tablas, la RLS (cada usuario solo ve sus datos) y el bucket privado `books`
+4. Si ya tenías la base de datos creada, ejecuta en su lugar `supabase-migration-1.07.40.sql`
+5. **Desactiva el registro público:** Authentication → Sign In / Providers → "Allow new users to sign up" (apagado)
 
-### Paso 3 — Invitar a los dos usuarios
+### Paso 3 — Crear los dos usuarios
 
-1. En Supabase → **Authentication** → **Users** → "Invite user"
+1. En Supabase → **Authentication** → **Users** → "Add user" (con contraseña)
 2. Invita: ``
 3. Invita: ``
 4. Cada usuario recibirá un correo con un enlace para establecer su contraseña

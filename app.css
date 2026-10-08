@@ -238,6 +238,10 @@ button{font-family:'Inter',sans-serif}
 }
 .btn-login:hover{opacity:.9}
 .btn-login:active{transform:scale(.98)}
+.hover-dim-button:hover,.speed-hover-button:hover{opacity:.88}
+.hover-danger-button:hover{background:rgba(248,113,113,.15)!important}
+.hover-border-button:hover{border-color:var(--border2)!important}
+.folder-context-hover:hover{background:var(--surface2)!important}
 .login-theme-btn{
   position:absolute;top:16px;right:16px;z-index:2;
   background:var(--surface);border:1px solid var(--border);

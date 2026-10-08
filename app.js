@@ -999,14 +999,14 @@ function _buildFilterPanelChips() {
   const tipoEl = document.getElementById('fdpTipoChips');
   if (tipoEl) tipoEl.innerHTML = TIPOS_KEYS.map((k,i) => {
     const isActive = k === activeFilter;
-    return `<button class="fdp-chip ${isActive ? 'active' : ''}" onclick="setListaFilter('${k}')">${TIPOS[i]}</button>`;
+    return `<button class="fdp-chip ${isActive ? 'active' : ''}" data-ui-click="list-filter-type" data-value="${k}">${TIPOS[i]}</button>`;
   }).join('');
 
   const diffEl = document.getElementById('fdpDiffChips');
   if (diffEl) diffEl.innerHTML = DIFF_FILTER_KEYS.map((k,i) => {
     const isActive = k === vocabDiffFilter;
     const cls = isActive ? (diffActiveClass[k] || 'active') : '';
-    return `<button class="fdp-chip ${cls}" onclick="setListaDiff('${k.replace(/'/g,"\\'")}')">${DIFF_FILTERS[i]}</button>`;
+    return `<button class="fdp-chip ${cls}" data-ui-click="list-filter-diff" data-value="${k}">${DIFF_FILTERS[i]}</button>`;
   }).join('');
 }
 
@@ -1104,8 +1104,8 @@ function renderLista() {
         <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}"></td>
         <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
         <td class="td-actions">
-          <button class="row-btn save-btn" onclick="saveEditRow(${gIdx})" title="Guardar">✓</button>
-          <button class="row-btn cancel-btn" onclick="cancelEditRow()" title="Cancelar">✕</button>
+          <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}" title="Guardar">✓</button>
+          <button class="row-btn cancel-btn" data-ui-click="row-cancel" title="Cancelar">✕</button>
         </td>
       </tr>`;
     }
@@ -1115,9 +1115,9 @@ function renderLista() {
       <td class="td-art" style="color:var(--text2);font-size:12px">${_esc(w.articulo)||'<span style="color:var(--text3)">—</span>'}</td>
       <td class="td-de">${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
       <td class="td-es">${_esc(w.es)}</td>
-      <td class="td-actions">
-        <button class="row-btn" onclick="startEditRow(${gIdx})" title="Editar">✏️</button>
-        <button class="row-btn delete-btn" onclick="deleteRow(${gIdx})" title="Eliminar">🗑</button>
+      <td class="td-actions" data-ui-stop>
+        <button class="row-btn" data-ui-click="row-edit" data-index="${gIdx}" title="Editar">✏️</button>
+        <button class="row-btn delete-btn" data-ui-click="row-delete" data-index="${gIdx}" title="Eliminar">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -1289,31 +1289,31 @@ function renderMatchCfgDrawer() {
   drawer.innerHTML = `<div class="match-cfg-drawer">
     <div class="cfg-section">
       <div class="cfg-section-title">Modo de selección</div>
-      <div class="cfg-chips">${modeOptions.map(([v,l])=>`<button class="cfg-chip ${matchMode===v?'active':''}" onclick="setMatchMode('${v}')">${l}</button>`).join('')}</div>
+      <div class="cfg-chips">${modeOptions.map(([v,l])=>`<button class="cfg-chip ${matchMode===v?'active':''}" data-ui-click="match-mode" data-value="${v}">${l}</button>`).join('')}</div>
     </div>
     <div class="cfg-section">
       <div class="cfg-section-title">Filtro por tipo</div>
-      <div class="cfg-chips">${tipoOptions.map(([v,l])=>`<button class="cfg-chip ${matchFilter===v?'active':''}" onclick="setMatchFilter('${v}')">${l}</button>`).join('')}</div>
+      <div class="cfg-chips">${tipoOptions.map(([v,l])=>`<button class="cfg-chip ${matchFilter===v?'active':''}" data-ui-click="match-filter" data-value="${v}">${l}</button>`).join('')}</div>
     </div>
     <div class="cfg-section" style="display:flex;gap:20px;align-items:flex-start">
       <div>
         <div class="cfg-section-title">Palabras / ronda</div>
         <div class="cfg-stepper">
-          <button class="cfg-step-btn" onclick="adjustMatchSetting('wordsPerRound',-2)">−</button>
+          <button class="cfg-step-btn" data-ui-click="match-adjust" data-setting="wordsPerRound" data-delta="-2">−</button>
           <div class="cfg-step-val" id="cfgWordsVal">${wordsPerRound}</div>
-          <button class="cfg-step-btn" onclick="adjustMatchSetting('wordsPerRound',2)">+</button>
+          <button class="cfg-step-btn" data-ui-click="match-adjust" data-setting="wordsPerRound" data-delta="2">+</button>
         </div>
       </div>
       <div>
         <div class="cfg-section-title">Rondas seguidas</div>
         <div class="cfg-stepper">
-          <button class="cfg-step-btn" onclick="adjustMatchSetting('totalRounds',-1)">−</button>
+          <button class="cfg-step-btn" data-ui-click="match-adjust" data-setting="totalRounds" data-delta="-1">−</button>
           <div class="cfg-step-val" id="cfgRoundsVal">${totalRounds}</div>
-          <button class="cfg-step-btn" onclick="adjustMatchSetting('totalRounds',1)">+</button>
+          <button class="cfg-step-btn" data-ui-click="match-adjust" data-setting="totalRounds" data-delta="1">+</button>
         </div>
       </div>
     </div>
-    <button class="btn-primary" style="margin-top:14px" onclick="applyMatchCfg()">▶ Empezar</button>
+    <button class="btn-primary" style="margin-top:14px" data-ui-click="match-apply">▶ Empezar</button>
   </div>`;
 }
 
@@ -1399,13 +1399,13 @@ function renderMatch() {
         <p style="color:var(--text2);margin-bottom:4px">${roundSession.total} ronda${roundSession.total>1?'s':''} terminadas</p>
         <p style="color:var(--text2);margin-bottom:16px">${errMsg}</p>
         <div style="text-align:left;margin-bottom:16px">${summary}</div>
-        <button class="btn-primary" onclick="startRoundSession()">${t('matchNewRound')}</button></div>`;
+        <button class="btn-primary" data-ui-click="match-round-start">${t('matchNewRound')}</button></div>`;
     } else {
       c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy" style="font-size:36px">⭐</div>
         <h2 style="color:var(--blue)">Ronda ${roundSession.current} ✓</h2>
         <p style="color:var(--text2);margin-bottom:16px">${errMsg}</p>
         <div style="text-align:left;margin-bottom:16px">${summary}</div>
-        <button class="btn-primary" onclick="startMatch()">Siguiente ronda →</button></div>`;
+        <button class="btn-primary" data-ui-click="match-next">Siguiente ronda →</button></div>`;
     }
     return;
   }
@@ -1417,8 +1417,8 @@ function renderMatch() {
   for (let i=0;i<currentBatch.length;i++) {
     const d=dew[i], e=esw[i], pe=p[d.de]||{};
     const dot=pe.difficulty===1?'<span style="position:absolute;top:3px;right:4px;font-size:8px">🔴</span>':pe.difficulty===2?'<span style="position:absolute;top:3px;right:4px;font-size:8px">🟢</span>':'';
-    rows+=`<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" onclick="selectCard('de',${d.idx})" style="position:relative">${dot}${displayDE(d)}</div>
-           <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" onclick="selectCard('es',${e.idx})">${e.es}</div>`;
+    rows+=`<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" data-ui-click="match-card" data-language="de" data-index="${d.idx}" style="position:relative">${dot}${displayDE(d)}</div>
+           <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" data-ui-click="match-card" data-language="es" data-index="${e.idx}">${e.es}</div>`;
   }
   c.innerHTML=`${renderRoundsBar()}
     <div class="match-header"><h2>${t('matchTitle')}</h2><div class="score-badge">${s.matched.size}/${s.total}</div></div>
@@ -1495,7 +1495,7 @@ function renderSpeedSetup() {
       <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;margin:0 auto">
         <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:2px">Duración</div>
         <div style="display:flex;gap:8px;justify-content:center">
-          ${[30,60,90].map(s=>`<button onclick="setSpeedDuration(${s})" id="sdBtn${s}"
+          ${[30,60,90].map(s=>`<button data-ui-click="speed-duration" data-value="${s}" id="sdBtn${s}"
             style="flex:1;padding:10px 6px;border-radius:var(--r);border:1px solid ${dur===s?'rgba(251,146,60,.5)':'var(--border)'};
             background:${dur===s?'rgba(251,146,60,.1)':'var(--surface)'};
             color:${dur===s?'var(--orange)':'var(--text2)'};
@@ -1507,7 +1507,7 @@ function renderSpeedSetup() {
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center" id="speedTipoWrap">
           ${['Todos',...['Nomen','Verb','Adjektive','Redewendung','Adverb']].map(k=>{
             const active = (localStorage.getItem('speedTipo')||'Todos') === k;
-            return `<button onclick="setSpeedTipo('${k}')" id="speedTipo_${k}"
+            return `<button data-ui-click="speed-type" data-value="${k}" id="speedTipo_${k}"
               style="padding:5px 12px;border-radius:20px;border:1px solid ${active?'rgba(251,146,60,.4)':'var(--border)'};
               background:${active?'rgba(251,146,60,.1)':'var(--surface)'};
               color:${active?'var(--orange)':'var(--text2)'};
@@ -1515,12 +1515,12 @@ function renderSpeedSetup() {
           }).join('')}
         </div>
 
-        <button onclick="startSpeedGame()"
+        <button data-ui-click="speed-start"
           style="margin-top:12px;width:100%;background:var(--orange);color:#fff;border:none;
           padding:14px;border-radius:var(--r);font-family:Inter,sans-serif;
           font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px;
           transition:opacity .15s;box-shadow:0 4px 20px rgba(251,146,60,.35)"
-          onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+          class="speed-hover-button">
           ▶ Empezar
         </button>
       </div>
@@ -1658,8 +1658,8 @@ function _renderSpeedGame() {
     const d = dew[i], e = esw[i];
     const dm = s.matched.has(d.idx) ? 'matched' : '';
     const em = s.matched.has(e.idx) ? 'matched' : '';
-    deCards += `<div class="word-card ${dm}" id="spd-de-${d.idx}" onclick="speedSelect('de',${d.idx})" style="position:relative;min-height:52px">${displayDE(d)}</div>`;
-    esCards += `<div class="word-card ${em}" id="spd-es-${e.idx}" onclick="speedSelect('es',${e.idx})" style="position:relative;min-height:52px">${e.es}</div>`;
+    deCards += `<div class="word-card ${dm}" id="spd-de-${d.idx}" data-ui-click="speed-card" data-language="de" data-index="${d.idx}" style="position:relative;min-height:52px">${displayDE(d)}</div>`;
+    esCards += `<div class="word-card ${em}" id="spd-es-${e.idx}" data-ui-click="speed-card" data-language="es" data-index="${e.idx}" style="position:relative;min-height:52px">${e.es}</div>`;
   }
 
   c.innerHTML = `
@@ -1861,14 +1861,14 @@ function _renderSpeedGameOver() {
       <div class="speed-stat"><div class="speed-stat-num" style="color:var(--red)">${s.errors}</div><div class="speed-stat-lbl">Errores</div></div>
       <div class="speed-stat"><div class="speed-stat-num" style="color:var(--blue)">${accuracy}%</div><div class="speed-stat-lbl">Precisión</div></div>
     </div>
-    <button onclick="renderSpeedSetup()"
+    <button data-ui-click="speed-setup"
       style="width:100%;background:var(--orange);color:#fff;border:none;padding:13px;
       border-radius:var(--r);font-family:Inter,sans-serif;font-weight:700;font-size:14px;
       cursor:pointer;margin-bottom:8px;transition:opacity .15s"
-      onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      class="speed-hover-button">
       ↺ Jugar de nuevo
     </button>
-    <button onclick="stopSpeedGame();navigate('vocab-hub','back')"
+    <button data-ui-click="speed-back"
       style="width:100%;background:var(--surface);color:var(--text2);border:1px solid var(--border);
       padding:11px;border-radius:var(--r);font-family:Inter,sans-serif;font-weight:500;font-size:13px;
       cursor:pointer;transition:all .15s">
@@ -2056,9 +2056,9 @@ function renderCrossword() {
         <input class="cw-cell"
           style="width:${cs}px;height:${cs}px;font-size:${Math.max(10,cs-14)}px"
           maxlength="1" data-r="${r}" data-c="${c}" data-answer="${val}"
-          oninput="cwInput(this)"
-          onkeydown="cwNav(event,${r},${c})"
-          onfocus="cwFocusCell(${r},${c})">
+          data-ui-input="crossword-input"
+          data-ui-keydown="crossword-navigation"
+          data-ui-focus="crossword-focus" data-row="${r}" data-col="${c}">
       </div>`;
     }
   }
@@ -2066,7 +2066,7 @@ function renderCrossword() {
 
   // Clue flip cards
   const cluesHTML = `<div class="clues-row">${clues.map(cl => `
-    <div class="clue-card" id="clue-card-${cl.num}-${cl.dir}" onclick="cwClueCardClick(${cl.num},'${cl.dir}',this)">
+    <div class="clue-card" id="clue-card-${cl.num}-${cl.dir}" data-ui-click="crossword-clue" data-number="${cl.num}" data-direction="${cl.dir}">
       <div class="clue-card-inner">
         <div class="clue-front" data-clue-num="${cl.num}" data-clue-dir="${cl.dir}">
           <div class="clue-card-num">${cl.num}</div>
@@ -2083,10 +2083,10 @@ function renderCrossword() {
   document.getElementById('crossContent').innerHTML = `
     <div class="match-header"><h2>Crucigrama</h2><div class="score-badge">${clues.length} palabras</div></div>
     <div class="crossword-container">${gHTML}</div>
-    <button class="btn-primary" onclick="checkCrossword()">${t('cwCheck')}</button>
-    <button class="btn-secondary" onclick="revealCrossword()">${t('cwReveal')}</button>
-    <button class="btn-blue" onclick="buildCrossword()">${t('cwNew')}</button>
-    ${cwSource === 'bag' ? `<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" onclick="if(confirm('¿Vaciar la bolsa?')){clearBag();buildCrossword();}">🗑 Vaciar bolsa</button>` : ''}
+    <button class="btn-primary" data-ui-click="crossword-check">${t('cwCheck')}</button>
+    <button class="btn-secondary" data-ui-click="crossword-reveal">${t('cwReveal')}</button>
+    <button class="btn-blue" data-ui-click="crossword-new">${t('cwNew')}</button>
+    ${cwSource === 'bag' ? `<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" data-ui-click="crossword-clear-bag">🗑 Vaciar bolsa</button>` : ''}
     <div class="clues-section">
       <div class="clues-title">${t('cwHintTitle')} · toca para revelar</div>
       ${cluesHTML}
@@ -2680,14 +2680,14 @@ async function _renderLecturaLibrary() {
       const total = b.pages?.length || b.totalPages || 1;
       const pct = Math.round(((b.pageIdx||0) / total) * 100);
       const icon = b.noCache ? '☁️' : (b.ext === 'web' ? '🌐' : b.ext === 'epub' ? '📗' : '📕');
-      return '<div class="lectura-lib-card" onclick="openBookFromLibrary(\'' + b.id + '\')">' +
+      return '<div class="lectura-lib-card" data-ui-click="book-open" data-book-id="' + _esc(b.id) + '">' +
         '<div class="lectura-lib-card-icon">' + icon + '</div>' +
         '<div class="lectura-lib-card-info">' +
           '<div class="lectura-lib-card-title">' + _esc(b.title) + '</div>' +
           '<div class="lectura-lib-card-meta">p. ' + ((b.pageIdx||0)+1) + ' de ' + total + ' · ' + pct + '%</div>' +
           '<div class="lectura-lib-prog"><div class="lectura-lib-prog-fill" style="width:' + pct + '%"></div></div>' +
         '</div>' +
-        '<button class="lectura-lib-del" onclick="event.stopPropagation();deleteBook(\'' + b.id + '\')" title="Eliminar">🗑</button>' +
+        '<button class="lectura-lib-del" data-ui-click="book-delete" data-book-id="' + _esc(b.id) + '" title="Eliminar">🗑</button>' +
       '</div>';
     }).join('') + '</div>';
 }
@@ -2794,7 +2794,7 @@ function _buildLecturaHTML(text) {
     '<p style="margin-bottom:1.1em">' +
     para.split(/\n/).map(line =>
       line.replace(/([a-zA-Z\u00c0-\u024f\u1e00-\u1eff]+(?:[-'][a-zA-Z\u00c0-\u024f]+)*)|([^a-zA-Z\u00c0-\u024f\u1e00-\u1eff]+)/g, (m, word, nonword) => {
-        if (word) { const s = _esc(word); return '<span class="lw" data-w="' + s + '" onclick="lecturaWordTap(this)">' + s + '</span>'; }
+        if (word) { const s = _esc(word); return '<span class="lw" data-w="' + s + '" data-ui-click="reading-word">' + s + '</span>'; }
         return _esc(nonword || '');
       })
     ).join('<br>') + '</p>'
@@ -3259,8 +3259,8 @@ function _renderFolderView() {
   const topBar = document.getElementById('listaTopBar');
   if (topBar) topBar.innerHTML = `
     <div class="lista-top-bar-inner">
-      <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showAddModal()">＋ Añadir</button>
-      <button class="list-action-btn" style="flex:none;padding:7px 14px" onclick="showImportModal()">⬆ Importar</button>
+      <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="add-open">＋ Añadir</button>
+      <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="import-open">⬆ Importar</button>
     </div>`;
 
   // Count label
@@ -3276,7 +3276,7 @@ function _renderFolderView() {
   let html = '<div class="folders-grid">';
 
   // Carpeta "Todas mis palabras"
-  html += `<div class="folder-card" onclick="openFolder('__all__')">
+  html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="__all__">
     <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18),rgba(96,165,250,.12))">
       <span class="folder-card-icon">📚</span>
     </div>
@@ -3288,7 +3288,7 @@ function _renderFolderView() {
 
   // Carpeta "Sin carpeta" solo si hay palabras sin asignar
   if (unassigned > 0 || _folders.length === 0) {
-    html += `<div class="folder-card" onclick="openFolder('__none__')">
+    html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="__none__">
       <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(122,139,168,.15),rgba(62,79,106,.1))">
         <span class="folder-card-icon">📂</span>
       </div>
@@ -3304,11 +3304,11 @@ function _renderFolderView() {
     const count = countByFolder[f.id] || 0;
     const col = _safeFolderColor(f.color);
     const colLight = col + '30';
-    html += `<div class="folder-card" onclick="openFolder('${f.id}')">
+    html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="${_esc(f.id)}">
       <div class="folder-card-cover" style="background:linear-gradient(135deg,${colLight},${col}18)">
         <span class="folder-card-icon">🗂️</span>
-        <button class="folder-edit-btn" onclick="event.stopPropagation();showFolderModal('${f.id}')" title="Editar carpeta">✏️</button>
-        <button class="folder-menu-btn" onclick="event.stopPropagation();confirmDeleteFolder('${f.id}')" title="Eliminar carpeta">🗑</button>
+        <button class="folder-edit-btn" data-ui-click="folder-edit" data-folder-id="${_esc(f.id)}" title="Editar carpeta">✏️</button>
+        <button class="folder-menu-btn" data-ui-click="folder-delete" data-folder-id="${_esc(f.id)}" title="Eliminar carpeta">🗑</button>
       </div>
       <div class="folder-card-body">
         <div class="folder-card-name">${_esc(f.name)}</div>
@@ -3318,7 +3318,7 @@ function _renderFolderView() {
   }
 
   // Botón nueva carpeta
-  html += `<div class="folder-card new-folder" onclick="showFolderModal(null)">
+  html += `<div class="folder-card new-folder" data-ui-click="folder-new">
     <div class="folder-card-new-inner">
       <div class="folder-card-new-plus">＋</div>
       <div class="folder-card-new-lbl">Nueva carpeta</div>
@@ -3370,15 +3370,15 @@ function _renderFolderContent(folderId) {
   const topBar = document.getElementById('listaTopBar');
   if (topBar) topBar.innerHTML = `
     <div class="lista-top-bar-inner">
-      <button class="lista-back-btn" onclick="closeFolder()">
+      <button class="lista-back-btn" data-ui-click="folder-close">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
         Carpetas
       </button>
       <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(folderName)}</span>
-      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" onclick="showAddModal()">＋</button>
-      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" onclick="toggleSelMode()">☑</button>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="add-open">＋</button>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="selection-toggle">☑</button>
       <div class="filter-dropdown-wrap" id="listaFilterWrap">
-        <button class="filter-dropdown-btn" id="listaFilterBtn" onclick="toggleListaFilterPanel(event)">
+        <button class="filter-dropdown-btn" id="listaFilterBtn" data-ui-click="list-filter-toggle">
           <span id="listaFilterBtnLabel">Filtros</span>
           <span class="fdb-caret">▾</span>
         </button>
@@ -3393,7 +3393,7 @@ function _renderFolderContent(folderId) {
             <div class="fdp-chips" id="fdpDiffChips"></div>
           </div>
           <div class="fdp-divider"></div>
-          <button class="fdp-reset" onclick="resetListaFilters()">↺ Quitar filtros</button>
+          <button class="fdp-reset" data-ui-click="list-filter-reset">↺ Quitar filtros</button>
         </div>
       </div>
     </div>`;
@@ -3414,7 +3414,7 @@ function _renderFolderContent(folderId) {
 
   const thead = `<thead>
     <tr>
-      ${_selMode ? `<th class="col-act" style="width:36px;padding:0 6px 0 10px"><input type="checkbox" class="row-check" ${allSelChecked?'checked':''} onchange="toggleSelAll(this.checked,${JSON.stringify(words.map(w=>allWords.findIndex(x=>x===w)))})" title="Seleccionar todo"></th>` : ''}
+      ${_selMode ? `<th class="col-act" style="width:36px;padding:0 6px 0 10px"><input type="checkbox" class="row-check" ${allSelChecked?'checked':''} data-ui-change="selection-all" data-indices="${words.map(w=>allWords.findIndex(x=>x===w)).join(',')}" title="Seleccionar todo"></th>` : ''}
       <th class="col-tipo"><span class="th-ico">◉</span>Tipo</th>
       <th class="col-art"><span class="th-ico">◉</span>Art.</th>
       <th class="col-de"><span class="th-ico">Aa</span>Alemán</th>
@@ -3437,7 +3437,7 @@ function _renderFolderContent(folderId) {
     const isSel = _selSet.has(gIdx);
     const selClass = isSel ? 'row-selected' : '';
     const checkCell = _selMode
-      ? `<td class="td-check"><input type="checkbox" class="row-check" ${isSel?'checked':''} onchange="toggleSelRow(${gIdx},this.checked)"></td>`
+      ? `<td class="td-check"><input type="checkbox" class="row-check" ${isSel?'checked':''} data-ui-change="selection-row" data-index="${gIdx}"></td>`
       : '';
 
     if (_editingIdx === gIdx) {
@@ -3450,28 +3450,28 @@ function _renderFolderContent(folderId) {
         <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}"></td>
         <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
         <td class="td-actions">
-          <button class="row-btn save-btn" onclick="saveEditRow(${gIdx})">✓</button>
-          <button class="row-btn cancel-btn" onclick="cancelEditRow()">✕</button>
+          <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}">✓</button>
+          <button class="row-btn cancel-btn" data-ui-click="row-cancel">✕</button>
         </td>
       </tr>`;
     }
 
-    const tdAct = (f) => `onclick="openCellEdit(${gIdx},'${f}',this)"`;
-    return `<tr id="row-${gIdx}" class="${selClass}" onclick="${_selMode?`toggleSelRow(${gIdx})`:''}" style="${_selMode?'cursor:pointer':''}">
+    const tdAct = (f) => `data-ui-click="cell-edit" data-index="${gIdx}" data-field="${f}"`;
+    return `<tr id="row-${gIdx}" class="${selClass}" ${_selMode?`data-ui-click="selection-toggle-row" data-index="${gIdx}"`:''} style="${_selMode?'cursor:pointer':''}">
       ${checkCell}
       <td class="td-tipo" ${tdAct('tipo')}>${w.tipo?`<span class="tipo-badge ${_esc(w.tipo)}">${_esc(w.tipo)}</span>`:''}</td>
       <td class="td-art" ${tdAct('articulo')}>${w.articulo?`<span class="art-tag ${_esc(w.articulo)}">${_esc(w.articulo)}</span>`:''}</td>
       <td class="td-de" ${tdAct('de')}>${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
       <td class="td-es" ${tdAct('es')}>${_esc(w.es)}</td>
-      <td class="td-actions" onclick="event.stopPropagation()">
-        <button class="row-btn" onclick="openRowMenu(${gIdx})" aria-label="Más opciones">⋯</button>
+      <td class="td-actions">
+        <button class="row-btn" data-ui-click="row-menu" data-index="${gIdx}" aria-label="Más opciones">⋯</button>
       </td>
     </tr>`;
   }).join('');
 
   document.getElementById('wordList').innerHTML =
     `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>
-     <div class="notion-add-row" onclick="showAddModal()">＋ Nueva palabra</div>`;
+     <div class="notion-add-row" data-ui-click="add-open">＋ Nueva palabra</div>`;
 
   // Sel-bar (barra de acciones de selección)
   _renderSelBar();
@@ -3554,9 +3554,9 @@ function _renderSelBar() {
   const selArr = [..._selSet];
   bar.innerHTML = `
     <span class="sel-count">${n} seleccionada${n!==1?'s':''}</span>
-    <button class="sel-action-btn primary" onclick="showMoveModal()" ${n===0?'disabled':''}>📁 Mover</button>
-    <button class="sel-action-btn danger" onclick="deleteSelWords()" ${n===0?'disabled':''}>🗑 Eliminar</button>
-    <button class="sel-action-btn" onclick="toggleSelMode()">✕ Cancelar</button>`;
+    <button class="sel-action-btn primary" data-ui-click="selection-move" ${n===0?'disabled':''}>📁 Mover</button>
+    <button class="sel-action-btn danger" data-ui-click="selection-delete" ${n===0?'disabled':''}>🗑 Eliminar</button>
+    <button class="sel-action-btn" data-ui-click="selection-toggle">✕ Cancelar</button>`;
 }
 
 // ── Modal mover palabras ─────────────────────────────────────────
@@ -3571,7 +3571,7 @@ function showMoveModal() {
   let html = '';
   // Opción "Sin carpeta"
   if (currentFid !== '__none__') {
-    html += `<button class="folder-move-opt" onclick="confirmMoveWords(null)">
+    html += `<button class="folder-move-opt" data-ui-click="folder-move-none">
       <span style="font-size:20px">📂</span>
       <span style="font-size:13px;font-weight:500;color:var(--text)">Sin carpeta</span>
     </button>`;
@@ -3579,13 +3579,13 @@ function showMoveModal() {
   // Carpetas existentes
   for (const f of _folders) {
     if (f.id === currentFid) continue;
-    html += `<button class="folder-move-opt" onclick="confirmMoveWords('${f.id}')">
+    html += `<button class="folder-move-opt" data-ui-click="folder-move" data-folder-id="${_esc(f.id)}">
       <span style="width:14px;height:14px;border-radius:50%;background:${_safeFolderColor(f.color)};display:inline-block;flex-shrink:0"></span>
       <span style="font-size:13px;font-weight:500;color:var(--text)">${_esc(f.name)}</span>
     </button>`;
   }
   // Nueva carpeta
-  html += `<button class="folder-move-opt" onclick="closeModal('moveModal');showFolderModal(null, true)">
+  html += `<button class="folder-move-opt" data-ui-click="folder-move-new">
     <span style="font-size:20px">＋</span>
     <span style="font-size:13px;font-weight:500;color:var(--text2)">Nueva carpeta…</span>
   </button>`;
@@ -3635,7 +3635,7 @@ function showFolderModal(folderId, moveAfter) {
   const currentColor = isEdit ? _safeFolderColor(f?.color) : FOLDER_DEFAULT_COLOR;
   if (pickerEl) {
     pickerEl.innerHTML = FOLDER_COLORS.map(c =>
-      `<div class="folder-color-swatch ${c===currentColor?'active':''}" style="background:${c}" data-color="${c}" onclick="selectFolderColor(this)"></div>`
+      `<div class="folder-color-swatch ${c===currentColor?'active':''}" style="background:${c}" data-color="${c}" data-ui-click="folder-color"></div>`
     ).join('');
   }
   openModal('folderModal');
@@ -3670,7 +3670,7 @@ async function saveFolderModal() {
 }
 
 // ── Menú de opciones de carpeta ──────────────────────────────────
-function showFolderMenu(folderId) {
+function showFolderMenu(folderId, triggerEl) {
   const f = _folders.find(x => x.id === folderId);
   if (!f) return;
   // Usar un confirm sencillo para no añadir otro modal
@@ -3684,16 +3684,16 @@ function showFolderMenu(folderId) {
     border-radius:var(--r-lg);box-shadow:var(--shadow-lg);min-width:160px;overflow:hidden;animation:dropIn .12s ease both`;
 
   menu.innerHTML = `
-    <button onclick="showFolderModal('${folderId}');document.getElementById('folderCtxMenu')?.remove()" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-align:left" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+    <button data-ui-click="folder-menu-edit" data-folder-id="${_esc(folderId)}" class="folder-context-hover" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-align:left">
       ✏️ Editar
     </button>
-    <button onclick="confirmDeleteFolder('${folderId}');document.getElementById('folderCtxMenu')?.remove()" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;text-align:left" onmouseover="this.style.background='var(--red-bg)'" onmouseout="this.style.background='none'">
+    <button data-ui-click="folder-menu-delete" data-folder-id="${_esc(folderId)}" class="folder-context-hover" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;text-align:left">
       🗑 Eliminar
     </button>`;
 
   // Posicionar cerca del botón que llamó
   document.body.appendChild(menu);
-  const rect = event.target.getBoundingClientRect();
+  const rect = (triggerEl || document.activeElement).getBoundingClientRect();
   let top = rect.bottom + 4;
   let left = rect.right - 160;
   if (left < 8) left = 8;
@@ -3801,7 +3801,7 @@ function openCellEdit(gIdx, field, td) {
 
   if (cfg.kind === 'select') {
     const rows = ['', ...cfg.opts].map(o => `
-      <button type="button" class="cell-opt${o === cur ? ' sel' : ''}" onclick="pickCellOption(${gIdx},'${field}','${o}')">
+      <button type="button" class="cell-opt${o === cur ? ' sel' : ''}" data-ui-click="cell-option" data-index="${gIdx}" data-field="${field}" data-value="${_esc(o)}">
         ${o ? _cellTag(field, o) : '<span class="cell-opt-none">Sin valor</span>'}
         ${o === cur ? '<span class="cell-opt-check">✓</span>' : ''}
       </button>`).join('');
@@ -3812,8 +3812,8 @@ function openCellEdit(gIdx, field, td) {
   _cellPopShow(head + `
     <textarea id="cellPopInput" class="cell-pop-input" rows="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">${_esc(cur)}</textarea>
     <div class="cell-pop-actions">
-      <button type="button" class="cell-pop-btn" onclick="closeCellPop()">Cancelar</button>
-      <button type="button" class="cell-pop-btn primary" onclick="saveCellPop(${gIdx},'${field}')">Guardar</button>
+      <button type="button" class="cell-pop-btn" data-ui-click="cell-close">Cancelar</button>
+      <button type="button" class="cell-pop-btn primary" data-ui-click="cell-save" data-index="${gIdx}" data-field="${field}">Guardar</button>
     </div>`, td);
   // focus dentro del gesto del toque: iOS solo abre el teclado así
   const ta = document.getElementById('cellPopInput');
@@ -3870,7 +3870,167 @@ function openRowMenu(gIdx) {
   _cellPopShow(`
     <div class="cell-pop-head"><span class="cell-pop-prop">Palabra</span><span class="cell-pop-word">${_esc(displayDE(w))} — ${_esc(w.es)}</span></div>
     <div class="cell-opt-list">
-      <button type="button" class="cell-opt danger" onclick="closeCellPop();deleteRow(${gIdx})">🗑 Eliminar palabra</button>
+      <button type="button" class="cell-opt danger" data-ui-click="cell-delete" data-index="${gIdx}">🗑 Eliminar palabra</button>
     </div>
-    <div class="cell-pop-actions"><button type="button" class="cell-pop-btn" onclick="closeCellPop()">Cerrar</button></div>`, null);
+    <div class="cell-pop-actions"><button type="button" class="cell-pop-btn" data-ui-click="cell-close">Cerrar</button></div>`, null);
 }
+
+// Delegación explícita de eventos: permite bloquear por CSP los atributos onclick.
+function _handleUiClick(event) {
+  const el = event.target.closest('[data-ui-click]');
+  if (!el) return;
+  if (el.dataset.uiClick === 'selection-toggle-row' && event.target.closest('[data-ui-change]')) return;
+  const index = Number(el.dataset.index);
+  switch (el.dataset.uiClick) {
+    case 'theme': toggleTheme(); break;
+    case 'pass-toggle': togglePassVis(); break;
+    case 'login': doLogin(); break;
+    case 'install-open': showInstallModal(); break;
+    case 'user-dropdown': toggleUserDropdown(); break;
+    case 'lang-es': setLang('es'); break;
+    case 'lang-de': setLang('de'); break;
+    case 'profile-open': closeDropdown(); navigate('perfil', 'forward'); break;
+    case 'sync-manual': closeDropdown(); manualSync(); break;
+    case 'logout': doLogout(); break;
+    case 'logout-confirm': if (confirm('¿Cerrar sesión?')) doLogout(); break;
+    case 'nav-vocab': navigate('vocab-hub', 'forward'); break;
+    case 'nav-reading': navigate('lectura', 'forward'); break;
+    case 'nav-home-back': navigate('home', 'back'); break;
+    case 'nav-hub-back': navigate('vocab-hub', 'back'); break;
+    case 'nav-lista': navigate('lista', 'forward'); break;
+    case 'nav-parejas': navigate('parejas', 'forward'); break;
+    case 'nav-crucigrama': navigate('crucigrama', 'forward'); break;
+    case 'nav-velocidad': navigate('velocidad', 'forward'); break;
+    case 'copy-sql': copySql(); break;
+    case 'match-settings': toggleMatchCfg(); break;
+    case 'cw-source-smart': setCwSource('smart'); break;
+    case 'cw-source-bag': setCwSource('bag'); break;
+    case 'speed-back': stopSpeedGame(); navigate('vocab-hub', 'back'); break;
+    case 'save-name': saveNombre(); break;
+    case 'reading-exit': exitLectura(); break;
+    case 'reading-view': toggleLecturaView(); break;
+    case 'reading-full': toggleLecturaFull(); break;
+    case 'reading-font-panel': toggleLecturaFontPanel(); break;
+    case 'reading-font-down': adjLecturaFont(-1); break;
+    case 'reading-font-up': adjLecturaFont(1); break;
+    case 'reading-width': setLecturaWidth(el.dataset.value); break;
+    case 'reading-theme': setLecturaTheme(el.dataset.value); break;
+    case 'reading-file-open': document.getElementById('lecturaFileIn').click(); break;
+    case 'reading-url-open': openLecturaUrl(document.getElementById('lecturaUrlIn').value); break;
+    case 'reading-url-prompt': { const url = prompt('Pega el enlace de la página:'); if (url) openLecturaUrl(url); break; }
+    case 'reading-prev': lecturaChangePage(-1); break;
+    case 'reading-next': lecturaChangePage(1); break;
+    case 'popup-save': savePopupWord(); break;
+    case 'popup-link': openPopupLink(); break;
+    case 'popup-close': closeLecturaPopup(); break;
+    case 'save-folder': saveFolderModal(); break;
+    case 'save-word': saveWord(); break;
+    case 'import-file-open': document.getElementById('importFileInput').click(); break;
+    case 'import-confirm': confirmImport(); break;
+    case 'list-filter-type': setListaFilter(el.dataset.value); break;
+    case 'list-filter-diff': setListaDiff(el.dataset.value); break;
+    case 'row-save': saveEditRow(index); break;
+    case 'row-cancel': cancelEditRow(); break;
+    case 'row-edit': startEditRow(index); break;
+    case 'row-delete': deleteRow(index); break;
+    case 'match-mode': setMatchMode(el.dataset.value); break;
+    case 'match-filter': setMatchFilter(el.dataset.value); break;
+    case 'match-adjust': adjustMatchSetting(el.dataset.setting, Number(el.dataset.delta)); break;
+    case 'match-apply': applyMatchCfg(); break;
+    case 'match-round-start': startRoundSession(); break;
+    case 'match-next': startMatch(); break;
+    case 'match-card': selectCard(el.dataset.language, index); break;
+    case 'speed-duration': setSpeedDuration(Number(el.dataset.value)); break;
+    case 'speed-type': setSpeedTipo(el.dataset.value); break;
+    case 'speed-start': startSpeedGame(); break;
+    case 'speed-card': speedSelect(el.dataset.language, index); break;
+    case 'speed-setup': renderSpeedSetup(); break;
+    case 'crossword-clue': cwClueCardClick(Number(el.dataset.number), el.dataset.direction, el); break;
+    case 'crossword-check': checkCrossword(); break;
+    case 'crossword-reveal': revealCrossword(); break;
+    case 'crossword-new': buildCrossword(); break;
+    case 'crossword-clear-bag': if (confirm('¿Vaciar la bolsa?')) { clearBag(); buildCrossword(); } break;
+    case 'book-open': openBookFromLibrary(el.dataset.bookId); break;
+    case 'book-delete': event.stopPropagation(); deleteBook(el.dataset.bookId); break;
+    case 'reading-word': lecturaWordTap(el); break;
+    case 'add-open': showAddModal(); break;
+    case 'import-open': showImportModal(); break;
+    case 'folder-open': openFolder(el.dataset.folderId); break;
+    case 'folder-edit': event.stopPropagation(); showFolderModal(el.dataset.folderId); break;
+    case 'folder-delete': event.stopPropagation(); confirmDeleteFolder(el.dataset.folderId); break;
+    case 'folder-new': showFolderModal(null); break;
+    case 'folder-close': closeFolder(); break;
+    case 'selection-toggle': toggleSelMode(); break;
+    case 'list-filter-toggle': toggleListaFilterPanel(event); break;
+    case 'list-filter-reset': resetListaFilters(); break;
+    case 'selection-move': showMoveModal(); break;
+    case 'selection-delete': deleteSelWords(); break;
+    case 'folder-move-none': confirmMoveWords(null); break;
+    case 'folder-move': confirmMoveWords(el.dataset.folderId); break;
+    case 'folder-move-new': closeModal('moveModal'); showFolderModal(null, true); break;
+    case 'folder-color': selectFolderColor(el); break;
+    case 'folder-menu-edit': showFolderModal(el.dataset.folderId); document.getElementById('folderCtxMenu')?.remove(); break;
+    case 'folder-menu-delete': confirmDeleteFolder(el.dataset.folderId); document.getElementById('folderCtxMenu')?.remove(); break;
+    case 'cell-edit': if (_selMode) toggleSelRow(index); else openCellEdit(index, el.dataset.field, el); break;
+    case 'row-menu': event.stopPropagation(); openRowMenu(index); break;
+    case 'selection-toggle-row': toggleSelRow(index); break;
+    case 'cell-option': pickCellOption(index, el.dataset.field, el.dataset.value); break;
+    case 'cell-close': closeCellPop(); break;
+    case 'cell-save': saveCellPop(index, el.dataset.field); break;
+    case 'cell-delete': closeCellPop(); deleteRow(index); break;
+  }
+}
+
+document.addEventListener('click', event => {
+  const stopContainer = event.target.closest('[data-ui-stop]');
+  if (stopContainer) {
+    event.stopPropagation();
+    const action = event.target.closest('[data-ui-click]');
+    if (!action || !stopContainer.contains(action)) return;
+  }
+  _handleUiClick(event);
+  const closeId = event.target.closest('[data-ui-modal-close]')?.dataset.uiModalClose;
+  if (closeId) closeModal(closeId);
+  const overlay = event.target.closest('[data-ui-overlay]');
+  if (overlay && event.target === overlay) closeModal(overlay.dataset.uiOverlay);
+});
+document.addEventListener('change', event => {
+  const el = event.target.closest('[data-ui-change]');
+  if (!el) return;
+  switch (el.dataset.uiChange) {
+    case 'theme-check': toggleTheme(); break;
+    case 'reading-file': handleLecturaFile(event); break;
+    case 'import-file': handleImportFile(event); break;
+    case 'selection-row': toggleSelRow(Number(el.dataset.index), el.checked); break;
+    case 'selection-all': toggleSelAll(el.checked, el.dataset.indices.split(',').filter(Boolean).map(Number)); break;
+  }
+});
+document.addEventListener('keydown', event => {
+  const el = event.target.closest('[data-ui-enter], [data-ui-keydown]');
+  if (!el) return;
+  if (el.dataset.uiEnter && event.key === 'Enter') {
+    if (el.dataset.uiEnter === 'login') doLogin();
+    if (el.dataset.uiEnter === 'reading-url') openLecturaUrl(el.value);
+    if (el.dataset.uiEnter === 'save-folder') saveFolderModal();
+  }
+  if (el.dataset.uiKeydown === 'crossword-navigation') cwNav(event, Number(el.dataset.row), Number(el.dataset.col));
+});
+document.addEventListener('input', event => {
+  const el = event.target.closest('[data-ui-input="crossword-input"]');
+  if (el) cwInput(el);
+});
+document.addEventListener('focusin', event => {
+  const el = event.target.closest('[data-ui-focus="crossword-focus"]');
+  if (el) cwFocusCell(Number(el.dataset.row), Number(el.dataset.col));
+});
+document.addEventListener('dragover', event => {
+  const zone = event.target.closest('[data-ui-dropzone]');
+  if (zone) { event.preventDefault(); zone.classList.add('drag'); }
+});
+document.addEventListener('dragleave', event => {
+  event.target.closest('[data-ui-dropzone]')?.classList.remove('drag');
+});
+document.addEventListener('drop', event => {
+  const zone = event.target.closest('[data-ui-dropzone]');
+  if (zone) { event.preventDefault(); handleImportDrop(event); }
+});

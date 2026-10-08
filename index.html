@@ -22,7 +22,7 @@
 
 <!-- ═══════════════════ LOGIN PAGE ═══════════════════ -->
 <div class="page active" id="page-login">
-  <button class="login-theme-btn" onclick="toggleTheme()" id="loginThemeBtn">☀️</button>
+  <button class="login-theme-btn" data-ui-click="theme" id="loginThemeBtn">☀️</button>
   <div class="login-logo">🇩🇪</div>
   <div class="login-title">Deutsch Lernen</div>
   <div class="login-subtitle">Tu vocabulario alemán · siempre contigo</div>
@@ -40,8 +40,8 @@
       <div class="form-row">
         <div class="field-label">Contraseña</div>
         <div style="position:relative">
-          <input class="field-input" id="loginPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:42px;margin-bottom:0">
-          <button type="button" id="passToggleBtn" onclick="togglePassVis()" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">
+          <input class="field-input" id="loginPass" type="password" placeholder="••••••••" data-ui-enter="login">
+          <button type="button" id="passToggleBtn" data-ui-click="pass-toggle" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">
             <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <svg id="eyeOffIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
@@ -49,7 +49,7 @@
       </div>
       <div id="loginTurnstile" class="login-turnstile" aria-label="Verificación de seguridad"></div>
       <div class="login-error" id="loginError"></div>
-      <button class="btn-login" id="loginBtn" onclick="doLogin()">Entrar →</button>
+      <button class="btn-login" id="loginBtn" data-ui-click="login">Entrar →</button>
     </div>
   </div>
 </div>
@@ -75,8 +75,8 @@
       <span class="sync-tick" id="syncTick" style="display:none">✓</span>
       <span id="syncDotText">Sync…</span>
     </div>
-    <button class="install-btn-top" onclick="showInstallModal()" title="Instalar app">📲</button>
-    <div class="user-pill" id="userPill" onclick="toggleUserDropdown()">
+    <button class="install-btn-top" data-ui-click="install-open" title="Instalar app">📲</button>
+    <div class="user-pill" id="userPill" data-ui-click="user-dropdown">
       <div class="user-avatar" id="userAvatar">?</div>
       <span id="homeUserName" style="max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <span class="pill-caret">▾</span>
@@ -88,24 +88,24 @@
         <div class="dd-row">
           <span data-i18n="darkMode">Modo oscuro</span>
           <label class="toggle-track">
-            <input type="checkbox" id="themeToggleCheck" onchange="toggleTheme()">
+            <input type="checkbox" id="themeToggleCheck" data-ui-change="theme-check">
             <span class="toggle-bg"></span>
           </label>
         </div>
         <div class="dd-row" style="border-bottom:none;padding-bottom:6px">
           <span data-i18n="language">Idioma</span>
           <div style="display:flex;gap:4px">
-            <button id="langBtnEs" onclick="setLang('es')" class="lang-pill active">🇪🇸</button>
-            <button id="langBtnDe" onclick="setLang('de')" class="lang-pill">🇩🇪</button>
+            <button id="langBtnEs" data-ui-click="lang-es" class="lang-pill active">🇪🇸</button>
+            <button id="langBtnDe" data-ui-click="lang-de" class="lang-pill">🇩🇪</button>
           </div>
         </div>
-        <button class="dd-btn" onclick="closeDropdown();navigate('perfil','forward')">
+        <button class="dd-btn" data-ui-click="profile-open">
           <span>👤</span> <span data-i18n="profile">Mi perfil</span>
         </button>
-        <button class="dd-btn" onclick="closeDropdown();manualSync()">
+        <button class="dd-btn" data-ui-click="sync-manual">
           <span>🔄</span> <span>Sincronizar ahora</span>
         </button>
-        <button class="dd-btn danger" onclick="doLogout()">
+        <button class="dd-btn danger" data-ui-click="logout">
           <span>🚪</span> <span data-i18n="logout">Cerrar sesión</span>
         </button>
       </div>
@@ -124,7 +124,7 @@
     <div class="workspace-cards">
 
       <!-- Vocabulario -->
-      <button class="ws-card" onclick="navigate('vocab-hub','forward')">
+      <button class="ws-card" data-ui-click="nav-vocab">
         <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18) 0%,rgba(96,165,250,.12) 100%)">
           <span class="ws-card-cover-emoji">📚</span>
         </div>
@@ -135,7 +135,7 @@
       </button>
 
       <!-- Lectura -->
-      <button class="ws-card" onclick="navigate('lectura','forward')">
+      <button class="ws-card" data-ui-click="nav-reading">
         <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.22) 0%,rgba(96,165,250,.10) 100%)">
           <span class="ws-card-cover-emoji">📖</span>
         </div>
@@ -163,7 +163,7 @@
 <!-- ═══════════════════ VOCAB HUB ═══════════════════ -->
 <div class="page" id="page-vocab-hub">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="navigate('home', 'back')">
+    <button class="top-bar-back" data-ui-click="nav-home-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Inicio
     </button>
@@ -182,7 +182,7 @@
     </div>
 
     <div class="hub-cards">
-      <button class="hub-card" onclick="navigate('lista', 'forward')">
+      <button class="hub-card" data-ui-click="nav-lista">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18) 0%,rgba(74,222,128,.06) 100%)">
           <span class="hub-card-cover-emoji">📋</span>
         </div>
@@ -191,7 +191,7 @@
         </div>
       </button>
 
-      <button class="hub-card" onclick="navigate('parejas', 'forward')">
+      <button class="hub-card" data-ui-click="nav-parejas">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(96,165,250,.18) 0%,rgba(96,165,250,.06) 100%)">
           <span class="hub-card-cover-emoji">🃏</span>
         </div>
@@ -200,7 +200,7 @@
         </div>
       </button>
 
-      <button class="hub-card" onclick="navigate('crucigrama', 'forward')">
+      <button class="hub-card" data-ui-click="nav-crucigrama">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.18) 0%,rgba(167,139,250,.06) 100%)">
           <span class="hub-card-cover-emoji">✏️</span>
         </div>
@@ -209,7 +209,7 @@
         </div>
       </button>
 
-      <button class="hub-card" onclick="navigate('velocidad', 'forward')">
+      <button class="hub-card" data-ui-click="nav-velocidad">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(251,146,60,.18) 0%,rgba(251,146,60,.06) 100%)">
           <span class="hub-card-cover-emoji">⚡</span>
         </div>
@@ -225,7 +225,7 @@
 <!-- ═══════════════════ LISTA PAGE ═══════════════════ -->
 <div class="page" id="page-lista">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="navigate('vocab-hub', 'back')">
+    <button class="top-bar-back" data-ui-click="nav-hub-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Vocabulario
     </button>
@@ -292,7 +292,7 @@ CREATE POLICY "own_folders" ON user_folders
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 
 ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_folders(id) ON DELETE SET NULL;</code>
-      <button class="copy-sql-btn" onclick="copySql()">📋 Copiar SQL</button>
+      <button class="copy-sql-btn" data-ui-click="copy-sql">📋 Copiar SQL</button>
     </div>
     <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
     <div id="wordList"></div>
@@ -302,7 +302,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 <!-- ═══════════════════ PAREJAS PAGE ═══════════════════ -->
 <div class="page" id="page-parejas">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="navigate('vocab-hub', 'back')">
+    <button class="top-bar-back" data-ui-click="nav-hub-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Vocabulario
     </button>
@@ -311,7 +311,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <span class="breadcrumb-sep"> / </span>
       Parejas
     </div>
-    <button class="match-settings-btn" id="matchCfgBtn" onclick="toggleMatchCfg()" title="Configuración">
+    <button class="match-settings-btn" id="matchCfgBtn" data-ui-click="match-settings" title="Configuración">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
   </div>
@@ -324,7 +324,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 <!-- ═══════════════════ CRUCIGRAMA PAGE ═══════════════════ -->
 <div class="page" id="page-crucigrama">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="navigate('vocab-hub', 'back')">
+    <button class="top-bar-back" data-ui-click="nav-hub-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Vocabulario
     </button>
@@ -336,8 +336,8 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   </div>
   <div class="inner-content">
     <div class="cw-src-row">
-      <button class="filter-chip active" id="cwSrcBtn-smart" onclick="setCwSource('smart')">🧠 Inteligente</button>
-      <button class="filter-chip" id="cwSrcBtn-bag" onclick="setCwSource('bag')">
+      <button class="filter-chip active" id="cwSrcBtn-smart" data-ui-click="cw-source-smart">🧠 Inteligente</button>
+      <button class="filter-chip" id="cwSrcBtn-bag" data-ui-click="cw-source-bag">
         🎒 Bolsa <span class="bag-badge" id="cwBagCount">0</span>
       </button>
     </div>
@@ -348,7 +348,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 <!-- ═══════════════════ VELOCIDAD PAGE ═══════════════════ -->
 <div class="page" id="page-velocidad">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="stopSpeedGame();navigate('vocab-hub','back')">
+    <button class="top-bar-back" data-ui-click="speed-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Vocabulario
     </button>
@@ -364,7 +364,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 <!-- ═══════════════════ PERFIL PAGE ═══════════════════ -->
 <div class="page" id="page-perfil">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="navigate('home', 'back')">
+    <button class="top-bar-back" data-ui-click="nav-home-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Inicio
     </button>
@@ -386,7 +386,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">¿Cómo quieres que te llame?</div>
       <div style="display:flex;gap:8px">
         <input class="form-input" id="perfilNombre" type="text" placeholder="Tu nombre o apodo…" style="flex:1;margin:0" maxlength="32">
-        <button onclick="saveNombre()" style="background:var(--green);color:#0f1117;border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Guardar</button>
+        <button data-ui-click="save-name" class="hover-dim-button" style="background:var(--green);color:#0f1117;border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s">Guardar</button>
       </div>
       <div id="perfilNombreMsg" style="font-size:12px;color:var(--green-t);margin-top:8px;min-height:18px"></div>
     </div>
@@ -400,7 +400,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <!-- Danger zone -->
     <div style="background:var(--surface);border:1px solid rgba(248,113,113,.2);border-radius:var(--r-lg);padding:20px">
       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--red);margin-bottom:14px">Zona peligrosa</div>
-      <button onclick="if(confirm('¿Cerrar sesión?'))doLogout()" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(248,113,113,.15)'" onmouseout="this.style.background='var(--red-bg)'">🚪 Cerrar sesión</button>
+      <button data-ui-click="logout-confirm" class="hover-danger-button" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s">🚪 Cerrar sesión</button>
     </div>
   </div>
 </div>
@@ -408,7 +408,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 <!-- ═══════════════════ GRAMÁTICA PAGE ═══════════════════ -->
 <div class="page" id="page-grammar">
   <div class="top-bar">
-    <button class="top-bar-back" onclick="navigate('home', 'back')">
+    <button class="top-bar-back" data-ui-click="nav-home-back">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       Inicio
     </button>
@@ -428,7 +428,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 <!-- ═══════════════════ LECTURA PAGE ═══════════════════ -->
 <div class="page" id="page-lectura">
   <div class="top-bar" id="lecturaTopBar">
-    <button class="top-bar-back" onclick="exitLectura()">
+    <button class="top-bar-back" data-ui-click="reading-exit">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
       <span id="lecturaBackLabel">Inicio</span>
     </button>
@@ -437,13 +437,13 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <span class="breadcrumb-sep"> / </span>
       <span id="lecturaBookTitle">Lectura</span>
     </div>
-    <button class="lectura-toolbar-btn" id="lecturaViewBtn" onclick="toggleLecturaView()" title="Texto / página original" style="display:none">
+    <button class="lectura-toolbar-btn" id="lecturaViewBtn" data-ui-click="reading-view" title="Texto / página original" style="display:none">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
     </button>
-    <button class="lectura-toolbar-btn" id="lecturaFullBtn" onclick="toggleLecturaFull()" title="Pantalla completa">
+    <button class="lectura-toolbar-btn" id="lecturaFullBtn" data-ui-click="reading-full" title="Pantalla completa">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
     </button>
-    <button class="lectura-toolbar-btn" id="lecturaFontBtn" onclick="toggleLecturaFontPanel()" title="Tipografía">
+    <button class="lectura-toolbar-btn" id="lecturaFontBtn" data-ui-click="reading-font-panel" title="Tipografía">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
     </button>
   </div>
@@ -452,21 +452,21 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   <div id="lecturaFontPanel" style="display:none;position:absolute;top:52px;right:8px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;min-width:220px;box-shadow:var(--shadow-lg);animation:dropIn .15s ease both">
     <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Tamaño</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-      <button onclick="adjLecturaFont(-1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+      <button data-ui-click="reading-font-down" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
       <span id="lecturaFontSizeLabel" style="flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--text)">16px</span>
-      <button onclick="adjLecturaFont(1)" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+      <button data-ui-click="reading-font-up" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
     </div>
     <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Ancho línea</div>
     <div style="display:flex;gap:6px;margin-bottom:14px">
-      <button onclick="setLecturaWidth('narrow')" id="lwNarrow" class="lectura-width-btn active">Estrecho</button>
-      <button onclick="setLecturaWidth('medium')" id="lwMedium" class="lectura-width-btn">Medio</button>
-      <button onclick="setLecturaWidth('wide')"   id="lwWide"   class="lectura-width-btn">Ancho</button>
+      <button data-ui-click="reading-width" data-value="narrow" id="lwNarrow" class="lectura-width-btn active">Estrecho</button>
+      <button data-ui-click="reading-width" data-value="medium" id="lwMedium" class="lectura-width-btn">Medio</button>
+      <button data-ui-click="reading-width" data-value="wide" id="lwWide" class="lectura-width-btn">Ancho</button>
     </div>
     <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Tema</div>
     <div style="display:flex;gap:6px">
-      <button onclick="setLecturaTheme('dark')"  id="ltDark"  class="lectura-theme-btn" title="Oscuro"  style="background:#0f1117;border:2px solid var(--green);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
-      <button onclick="setLecturaTheme('light')" id="ltLight" class="lectura-theme-btn" title="Claro"   style="background:#f7f7f5;border:1px solid var(--border);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
-      <button onclick="setLecturaTheme('sepia')" id="ltSepia" class="lectura-theme-btn" title="Sepia"   style="background:#f4ecd8;border:1px solid var(--border);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
+      <button data-ui-click="reading-theme" data-value="dark" id="ltDark" class="lectura-theme-btn" title="Oscuro" style="background:#0f1117;border:2px solid var(--green);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
+      <button data-ui-click="reading-theme" data-value="light" id="ltLight" class="lectura-theme-btn" title="Claro" style="background:#f7f7f5;border:1px solid var(--border);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
+      <button data-ui-click="reading-theme" data-value="sepia" id="ltSepia" class="lectura-theme-btn" title="Sepia" style="background:#f4ecd8;border:1px solid var(--border);border-radius:8px;width:36px;height:28px;cursor:pointer"></button>
     </div>
   </div>
 
@@ -481,13 +481,13 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
         Sube un PDF o EPUB en alemán, o abre un enlace web.<br>
         Toca cualquier palabra para traducirla y guardarla en tu lista.
       </div>
-      <button class="lectura-upload-btn" onclick="document.getElementById('lecturaFileIn').click()">
+      <button class="lectura-upload-btn" data-ui-click="reading-file-open">
         📂 Subir PDF o EPUB
       </button>
-      <input type="file" id="lecturaFileIn" accept=".pdf,.epub" style="display:none" onchange="handleLecturaFile(event)">
+      <input type="file" id="lecturaFileIn" accept=".pdf,.epub" style="display:none" data-ui-change="reading-file">
       <div class="lectura-url-row">
-        <input class="form-input" id="lecturaUrlIn" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="🔗 Pega un enlace web…" onkeydown="if(event.key==='Enter')openLecturaUrl(this.value)">
-        <button class="lectura-url-btn" onclick="openLecturaUrl(document.getElementById('lecturaUrlIn').value)">Abrir</button>
+        <input class="form-input" id="lecturaUrlIn" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="🔗 Pega un enlace web…" data-ui-enter="reading-url">
+        <button class="lectura-url-btn" data-ui-click="reading-url-open">Abrir</button>
       </div>
       <div id="lecturaLibrarySection" style="width:100%;max-width:560px;margin-top:32px"></div>
     </div>
@@ -496,7 +496,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <div id="lecturaReader" style="display:none;flex-direction:column;width:100%;height:100%">
       <div class="lectura-prog-bar" id="lecturaProgBar"><div class="lectura-prog-fill" id="lecturaProgFill" style="width:0%"></div></div>
       <!-- Botón exit fullscreen flotante — visible solo en fullscreen tras inactividad -->
-      <button id="lecturaExitFullBtn" class="lectura-exit-full-btn" onclick="toggleLecturaFull()" title="Salir de pantalla completa" style="display:none">
+      <button id="lecturaExitFullBtn" class="lectura-exit-full-btn" data-ui-click="reading-full" title="Salir de pantalla completa" style="display:none">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
       </button>
       <div class="lectura-scroll" id="lecturaScroll">
@@ -506,11 +506,11 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <div class="lectura-bottom-bar">
         <span id="lecturaPageInfo" style="font-size:11px;color:var(--text3);min-width:64px">p. 1</span>
         <div id="lecturaNavBtns" style="display:flex;gap:8px">
-          <button class="lectura-nav-btn" onclick="lecturaChangePage(-1)">‹</button>
-          <button class="lectura-nav-btn" onclick="lecturaChangePage(1)">›</button>
+          <button class="lectura-nav-btn" data-ui-click="reading-prev">‹</button>
+          <button class="lectura-nav-btn" data-ui-click="reading-next">›</button>
         </div>
-        <button onclick="const u=prompt('Pega el enlace de la página:');if(u)openLecturaUrl(u)" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer">🔗 Enlace</button>
-        <button onclick="document.getElementById('lecturaFileIn').click()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">📂 Otro</button>
+        <button data-ui-click="reading-url-prompt" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer">🔗 Enlace</button>
+        <button data-ui-click="reading-file-open" class="hover-border-button" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s">📂 Otro</button>
       </div>
     </div>
 
@@ -522,48 +522,48 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   <div class="lectura-popup-word" id="lpWord"></div>
   <div class="lectura-popup-trans" id="lpTrans"></div>
   <div class="lectura-popup-actions">
-    <button class="lectura-popup-save" id="lpSaveBtn" onclick="savePopupWord()" style="display:none">＋ Guardar en lista</button>
-    <button class="lectura-popup-save" id="lpLinkBtn" onclick="openPopupLink()" style="display:none;flex:none;background:var(--surface2);color:var(--text);border:1px solid var(--border)">↗ Enlace</button>
-    <button class="lectura-popup-close" onclick="closeLecturaPopup()">✕</button>
+    <button class="lectura-popup-save" id="lpSaveBtn" data-ui-click="popup-save" style="display:none">＋ Guardar en lista</button>
+    <button class="lectura-popup-save" id="lpLinkBtn" data-ui-click="popup-link" style="display:none;flex:none;background:var(--surface2);color:var(--text);border:1px solid var(--border)">↗ Enlace</button>
+    <button class="lectura-popup-close" data-ui-click="popup-close">✕</button>
   </div>
 </div>
-<div id="lecturaPopupOverlay" style="display:none;position:fixed;inset:0;z-index:800" onclick="closeLecturaPopup()"></div>
+<div id="lecturaPopupOverlay" style="display:none;position:fixed;inset:0;z-index:800" data-ui-click="popup-close"></div>
 
 <!-- ═══════════════════ MODALS ═══════════════════ -->
 <!-- Nueva carpeta -->
-<div class="modal-overlay" id="folderModal" onclick="if(event.target===this)closeModal('folderModal')">
+<div class="modal-overlay" id="folderModal" data-ui-overlay="folderModal">
   <div class="modal-box">
-    <button class="modal-close-x" onclick="closeModal('folderModal')">✕</button>
+    <button class="modal-close-x" data-ui-modal-close="folderModal">✕</button>
     <h3 id="folderModalTitle">Nueva carpeta</h3>
     <div class="form-row">
       <div class="form-label">Nombre</div>
       <input class="form-input" id="folderNameInput" type="text" placeholder="ej. Verbos irregulares" maxlength="40"
-             onkeydown="if(event.key==='Enter')saveFolderModal()">
+             data-ui-enter="save-folder">
     </div>
     <div class="form-row">
       <div class="form-label">Color</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap" id="folderColorPicker"></div>
     </div>
     <div class="form-err" id="folderModalErr"></div>
-    <button class="btn-primary" onclick="saveFolderModal()">Guardar</button>
-    <button class="btn-secondary" onclick="closeModal('folderModal')">Cancelar</button>
+    <button class="btn-primary" data-ui-click="save-folder">Guardar</button>
+    <button class="btn-secondary" data-ui-modal-close="folderModal">Cancelar</button>
   </div>
 </div>
 
 <!-- Mover palabras -->
-<div class="modal-overlay" id="moveModal" onclick="if(event.target===this)closeModal('moveModal')">
+<div class="modal-overlay" id="moveModal" data-ui-overlay="moveModal">
   <div class="modal-box">
-    <button class="modal-close-x" onclick="closeModal('moveModal')">✕</button>
+    <button class="modal-close-x" data-ui-modal-close="moveModal">✕</button>
     <h3>Mover <span id="moveModalCount"></span></h3>
     <div id="moveModalFolders" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
-    <button class="btn-secondary" onclick="closeModal('moveModal')">Cancelar</button>
+    <button class="btn-secondary" data-ui-modal-close="moveModal">Cancelar</button>
   </div>
 </div>
 
 <!-- Add word -->
-<div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal('addModal')">
+<div class="modal-overlay" id="addModal" data-ui-overlay="addModal">
   <div class="modal-box">
-    <button class="modal-close-x" onclick="closeModal('addModal')">✕</button>
+    <button class="modal-close-x" data-ui-modal-close="addModal">✕</button>
     <h3>Añadir palabra</h3>
     <div class="form-row-2">
       <div class="form-row">
@@ -596,46 +596,43 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <input class="form-input" id="addES" type="text" placeholder="ej. Escuela">
     </div>
     <div class="form-err" id="addError"></div>
-    <button class="btn-primary" onclick="saveWord()">Guardar palabra</button>
-    <button class="btn-secondary" onclick="closeModal('addModal')">Cancelar</button>
+    <button class="btn-primary" data-ui-click="save-word">Guardar palabra</button>
+    <button class="btn-secondary" data-ui-modal-close="addModal">Cancelar</button>
   </div>
 </div>
 
 <!-- Import -->
-<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeModal('importModal')">
+<div class="modal-overlay" id="importModal" data-ui-overlay="importModal">
   <div class="modal-box">
-    <button class="modal-close-x" onclick="closeModal('importModal')">✕</button>
+    <button class="modal-close-x" data-ui-modal-close="importModal">✕</button>
     <h3>Importar vocabulario</h3>
     <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">Formato CSV: <b style="color:var(--blue)">Tipo, Artículo, Alemán, Español</b></p>
-    <div class="import-zone" id="importZone" onclick="document.getElementById('importFileInput').click()"
-         ondragover="event.preventDefault();this.classList.add('drag')"
-         ondragleave="this.classList.remove('drag')"
-         ondrop="handleImportDrop(event)">
+    <div class="import-zone" id="importZone" data-ui-click="import-file-open" data-ui-dropzone>
       <div class="import-zone-icon">📂</div>
       <div class="import-zone-text">Toca para elegir tu archivo CSV</div>
     </div>
-    <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(event)">
+    <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none" data-ui-change="import-file">
     <div class="import-preview" id="importPreview"></div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="add" checked style="accent-color:var(--green)"> Añadir</label>
       <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="replace" style="accent-color:var(--green)"> Reemplazar</label>
     </div>
-    <button class="btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled style="opacity:.5">Importar</button>
-    <button class="btn-secondary" onclick="closeModal('importModal')">Cancelar</button>
+    <button class="btn-primary" id="importConfirmBtn" data-ui-click="import-confirm" disabled style="opacity:.5">Importar</button>
+    <button class="btn-secondary" data-ui-modal-close="importModal">Cancelar</button>
   </div>
 </div>
 
 <!-- Install -->
-<div class="modal-overlay" id="installModal" onclick="if(event.target===this)closeModal('installModal')">
+<div class="modal-overlay" id="installModal" data-ui-overlay="installModal">
   <div class="modal-box">
-    <button class="modal-close-x" onclick="closeModal('installModal')">✕</button>
+    <button class="modal-close-x" data-ui-modal-close="installModal">✕</button>
     <h3>Añadir a pantalla de inicio</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5">Instala la app para usarla offline en iPhone / iPad:</p>
     <div class="install-step"><div class="step-num">1</div><div class="step-text">Abre esta página en <b style="color:var(--green)">Safari</b> (no Chrome)</div></div>
     <div class="install-step"><div class="step-num">2</div><div class="step-text">Toca el botón <b style="color:var(--green)">Compartir ⬆️</b> en la barra</div></div>
     <div class="install-step"><div class="step-num">3</div><div class="step-text">Pulsa <b style="color:var(--green)">"Añadir a pantalla de inicio"</b></div></div>
     <div class="install-step"><div class="step-num">4</div><div class="step-text">Confirma con <b style="color:var(--green)">"Añadir"</b> — ¡listo!</div></div>
-    <button class="btn-primary" onclick="closeModal('installModal')">Entendido</button>
+    <button class="btn-primary" data-ui-modal-close="installModal">Entendido</button>
   </div>
 </div>
 

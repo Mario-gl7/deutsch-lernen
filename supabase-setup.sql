@@ -14,7 +14,7 @@ create table if not exists public.user_folders (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references auth.users(id) on delete cascade,
   name       text not null check (char_length(name) between 1 and 100),
-  color      text default '#4ade80' check (char_length(color) <= 20),
+  color      text not null default '#4ade80' check (color in ('#4ade80','#60a5fa','#f87171','#fb923c','#a78bfa','#f472b6','#34d399','#fbbf24')),
   created_at timestamptz default now()
 );
 

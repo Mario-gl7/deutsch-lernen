@@ -1,4 +1,4 @@
-import { isSafeUrl } from './_net.js';
+import { fetchSafe } from './_net.js';
 import { requireUser } from './_auth.js';
 
 // Vercel serverless: descarga una página web y devuelve su texto legible
@@ -42,22 +42,20 @@ export default async function handler(req, res) {
 
   const { url } = req.query;
   if (!url || typeof url !== 'string') return res.status(400).json({ error: 'Falta el enlace' });
+  if (url.length > 2048) return res.status(400).json({ error: 'Enlace demasiado largo' });
 
   try {
     let cur = url, r = null;
     for (let i = 0; i < 5; i++) {
       let u;
       try { u = new URL(cur); } catch { return res.status(400).json({ error: 'Enlace no válido' }); }
-      if (!(await isSafeUrl(u))) return res.status(400).json({ error: 'Enlace no permitido' });
-      r = await fetch(cur, {
-        redirect: 'manual',
+      r = await fetchSafe(u, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; DeutschLernen/1.0)',
           'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.8',
           'Accept-Language': 'de,es;q=0.8,en;q=0.5',
         },
-        signal: AbortSignal.timeout(10000),
-      });
+      }, 3 * 1024 * 1024);
       const loc = r.headers.get('location');
       if (r.status >= 300 && r.status < 400 && loc) { cur = new URL(loc, cur).href; continue; }
       break;
@@ -69,7 +67,6 @@ export default async function handler(req, res) {
     if (!/html|text\/plain/i.test(ct)) return res.status(415).json({ error: 'Solo páginas web o texto' });
 
     const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.length > 3 * 1024 * 1024) return res.status(413).json({ error: 'Página demasiado grande' });
 
     let cs = (ct.match(/charset=([\w-]+)/i) || [])[1]
       || (buf.subarray(0, 2048).toString('latin1').match(/<meta[^>]+charset=["']?([\w-]+)/i) || [])[1]
@@ -83,6 +80,8 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'private, no-store');
     res.json({ title, text, url: cur });
   } catch (e) {
+    if (e.name === 'UnsafeUrlError') return res.status(400).json({ error: 'Enlace no permitido' });
+    if (e.name === 'TooLargeError') return res.status(413).json({ error: 'Página demasiado grande' });
     res.status(500).json({ error: e.name === 'TimeoutError' ? 'La web tarda demasiado' : 'No se pudo descargar la página' });
   }
 }

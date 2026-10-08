@@ -2936,11 +2936,35 @@ function _applyLecturaView() {
 function _loadLecturaFrame(url) {
   const f = document.getElementById('lecturaFrame');
   if (!f) return;
+  const loadId = (_lecturaFrameLoadId || 0) + 1;
+  _lecturaFrameLoadId = loadId;
   _showLecturaLoader('Cargando página…');
-  f.onload = _hideLecturaLoader;
-  f.src = '/api/proxy-page?url=' + encodeURIComponent(url);
-  setTimeout(_hideLecturaLoader, 15000);
+  (async () => {
+    const r = await fetch('/api/proxy-page?url=' + encodeURIComponent(url), {
+      headers: await _apiAuthHeaders(),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) throw new Error(r.status === 401 ? 'Inicia sesión de nuevo para abrir páginas.' : 'No se pudo descargar la página.');
+    const html = await r.text();
+    if (loadId !== _lecturaFrameLoadId) return;
+    const nextUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    const previousUrl = _lecturaFrameObjectUrl;
+    f.onload = () => {
+      if (loadId !== _lecturaFrameLoadId) return;
+      _hideLecturaLoader();
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+    };
+    f.src = nextUrl;
+    _lecturaFrameObjectUrl = nextUrl;
+  })().catch(error => {
+    if (loadId !== _lecturaFrameLoadId) return;
+    _hideLecturaLoader();
+    showToast(error.name === 'TimeoutError' ? 'La web tarda demasiado.' : error.message || 'No se pudo abrir la página.');
+  });
 }
+
+let _lecturaFrameLoadId = 0;
+let _lecturaFrameObjectUrl = null;
 
 function _lecturaFrameNavigate(href) {
   if (!/^https?:\/\//i.test(href || '')) return;
@@ -3120,11 +3144,12 @@ let _selSet  = new Set();    // IDs seleccionados (índice global en getWords())
 let _editingFolderId = null; // Para el modal de editar carpeta
 const FOLDER_COLORS = ['#4ade80','#60a5fa','#f87171','#fb923c','#a78bfa','#f472b6','#34d399','#fbbf24'];
 const FOLDER_DEFAULT_COLOR = '#4ade80';
+function _safeFolderColor(color) { return FOLDER_COLORS.includes(color) ? color : FOLDER_DEFAULT_COLOR; }
 
 // ── Caché de carpetas en localStorage ───────────────────────────
 function _lsFoldersKey() { return 'folders_' + (currentUser?.id || 'anon'); }
-function _cacheFolders(f) { try { localStorage.setItem(_lsFoldersKey(), JSON.stringify(f)); } catch(e) {} }
-function _cachedFolders() { try { const s = localStorage.getItem(_lsFoldersKey()); return s ? JSON.parse(s) : []; } catch(e) { return []; } }
+function _cacheFolders(f) { try { localStorage.setItem(_lsFoldersKey(), JSON.stringify((f || []).map(x => ({ ...x, color: _safeFolderColor(x.color) })))); } catch(e) {} }
+function _cachedFolders() { try { const s = localStorage.getItem(_lsFoldersKey()); return s ? JSON.parse(s).map(x => ({ ...x, color: _safeFolderColor(x.color) })) : []; } catch(e) { return []; } }
 
 // ── Cargar carpetas de Supabase ──────────────────────────────────
 async function loadFolders() {
@@ -3138,7 +3163,7 @@ async function loadFolders() {
       .eq('user_id', currentUser.id)
       .order('created_at');
     if (error) { if (error.code === '42P01') return; throw error; }
-    _folders = data || [];
+    _folders = (data || []).map(x => ({ ...x, color: _safeFolderColor(x.color) }));
     _cacheFolders(_folders);
   } catch(e) { console.warn('[folders] load:', e.message); }
 }
@@ -3147,7 +3172,8 @@ async function loadFolders() {
 async function createFolder(name, color) {
   if (!currentUser) return null;
   const tempId = 'tmp_' + Date.now();
-  const newF = { id: tempId, name, color: color || FOLDER_DEFAULT_COLOR };
+  color = _safeFolderColor(color);
+  const newF = { id: tempId, name, color };
   _folders.push(newF);
   _cacheFolders(_folders);
   if (!_dbReady) return tempId;
@@ -3174,6 +3200,7 @@ async function createFolder(name, color) {
 }
 
 async function updateFolder(id, name, color) {
+  color = _safeFolderColor(color);
   const f = _folders.find(x => x.id === id);
   if (f) { f.name = name; f.color = color; }
   _cacheFolders(_folders);
@@ -3275,7 +3302,7 @@ function _renderFolderView() {
   // Carpetas del usuario
   for (const f of _folders) {
     const count = countByFolder[f.id] || 0;
-    const col = f.color || FOLDER_DEFAULT_COLOR;
+    const col = _safeFolderColor(f.color);
     const colLight = col + '30';
     html += `<div class="folder-card" onclick="openFolder('${f.id}')">
       <div class="folder-card-cover" style="background:linear-gradient(135deg,${colLight},${col}18)">
@@ -3553,7 +3580,7 @@ function showMoveModal() {
   for (const f of _folders) {
     if (f.id === currentFid) continue;
     html += `<button class="folder-move-opt" onclick="confirmMoveWords('${f.id}')">
-      <span style="width:14px;height:14px;border-radius:50%;background:${f.color||FOLDER_DEFAULT_COLOR};display:inline-block;flex-shrink:0"></span>
+      <span style="width:14px;height:14px;border-radius:50%;background:${_safeFolderColor(f.color)};display:inline-block;flex-shrink:0"></span>
       <span style="font-size:13px;font-weight:500;color:var(--text)">${_esc(f.name)}</span>
     </button>`;
   }
@@ -3605,7 +3632,7 @@ function showFolderModal(folderId, moveAfter) {
   if (errEl) errEl.textContent = '';
   // Color picker
   const pickerEl = document.getElementById('folderColorPicker');
-  const currentColor = isEdit ? (f?.color || FOLDER_DEFAULT_COLOR) : FOLDER_DEFAULT_COLOR;
+  const currentColor = isEdit ? _safeFolderColor(f?.color) : FOLDER_DEFAULT_COLOR;
   if (pickerEl) {
     pickerEl.innerHTML = FOLDER_COLORS.map(c =>
       `<div class="folder-color-swatch ${c===currentColor?'active':''}" style="background:${c}" data-color="${c}" onclick="selectFolderColor(this)"></div>`
@@ -3625,7 +3652,7 @@ async function saveFolderModal() {
   const errEl = document.getElementById('folderModalErr');
   if (!name) { if(errEl) errEl.textContent = 'El nombre es obligatorio'; return; }
   const colorEl = document.querySelector('.folder-color-swatch.active');
-  const color = colorEl?.dataset.color || FOLDER_DEFAULT_COLOR;
+  const color = _safeFolderColor(colorEl?.dataset.color);
   closeModal('folderModal');
   if (_editingFolderId) {
     await updateFolder(_editingFolderId, name, color);

@@ -22,6 +22,15 @@ alter table public.user_books
   drop constraint if exists user_books_user_id_fkey,
   add  constraint user_books_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade;
 
+-- 1b) Los colores de carpeta solo pueden usar la paleta de la aplicación.
+update public.user_folders set color = '#4ade80'
+where color is null or color not in ('#4ade80','#60a5fa','#f87171','#fb923c','#a78bfa','#f472b6','#34d399','#fbbf24');
+alter table public.user_folders alter column color set not null;
+alter table public.user_folders drop constraint if exists user_folders_color_check;
+alter table public.user_folders drop constraint if exists user_folders_color_palette_chk;
+alter table public.user_folders add constraint user_folders_color_palette_chk
+  check (color in ('#4ade80','#60a5fa','#f87171','#fb923c','#a78bfa','#f472b6','#34d399','#fbbf24'));
+
 -- 2) Índices
 create index if not exists user_words_user_id_idx   on public.user_words(user_id);
 create index if not exists user_words_folder_id_idx on public.user_words(folder_id);

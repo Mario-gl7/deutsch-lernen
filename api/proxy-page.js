@@ -1,7 +1,8 @@
 // Vercel serverless: devuelve la página web original (sin scripts propios) con un script
 // mínimo inyectado que detecta la palabra tocada y la envía al lector por postMessage.
 import { randomBytes } from 'crypto';
-import { isSafeUrl } from './_net.js';
+import { fetchSafe } from './_net.js';
+import { requireUser } from './_auth.js';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -13,17 +14,22 @@ function errorPage(msg) {
 
 function send(res, status, html, nonce) {
   const csp = [
-    'default-src * data: blob:',
+    "default-src 'none'",
     nonce ? `script-src 'nonce-${nonce}'` : "script-src 'none'",
-    "style-src * 'unsafe-inline'",
+    "style-src https: 'unsafe-inline'", "img-src https: data: blob:", "font-src https: data:", "media-src https:",
     "connect-src 'none'", "frame-src 'none'", "object-src 'none'", "form-action 'none'",
+    'base-uri https:',
     'upgrade-insecure-requests',
     'sandbox allow-scripts',
   ].join('; ');
+  if (status === 200) {
+    const meta = `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
+    html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, match => match + meta) : '<head>' + meta + '</head>' + html;
+  }
   res.setHeader('Content-Security-Policy', csp);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  if (status === 200) res.setHeader('Cache-Control', 's-maxage=300');
+  res.setHeader('Cache-Control', 'private, no-store');
   res.status(status).send(html);
 }
 
@@ -101,24 +107,24 @@ function clientScript() {
 }
 
 export default async function handler(req, res) {
+  if (req.method !== 'GET') return send(res, 405, errorPage('Método no permitido'));
+  if (!(await requireUser(req, res))) return;
   const { url } = req.query;
   if (!url || typeof url !== 'string') return send(res, 400, errorPage('Falta el enlace'));
+  if (url.length > 2048) return send(res, 400, errorPage('Enlace demasiado largo'));
 
   try {
     let cur = url, r = null;
     for (let i = 0; i < 5; i++) {
       let u;
       try { u = new URL(cur); } catch { return send(res, 400, errorPage('Enlace no válido')); }
-      if (!(await isSafeUrl(u))) return send(res, 400, errorPage('Enlace no permitido'));
-      r = await fetch(cur, {
-        redirect: 'manual',
+      r = await fetchSafe(u, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; DeutschLernen/1.0)',
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'de,es;q=0.8,en;q=0.5',
         },
-        signal: AbortSignal.timeout(10000),
-      });
+      }, 3.5 * 1024 * 1024);
       const loc = r.headers.get('location');
       if (r.status >= 300 && r.status < 400 && loc) { cur = new URL(loc, cur).href; continue; }
       break;
@@ -129,7 +135,6 @@ export default async function handler(req, res) {
     if (!/html/i.test(ct)) return send(res, 415, errorPage('Solo se pueden abrir páginas web'));
 
     const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.length > 3.5 * 1024 * 1024) return send(res, 413, errorPage('Página demasiado grande'));
     const cs = (ct.match(/charset=([\w-]+)/i) || [])[1]
       || (buf.subarray(0, 2048).toString('latin1').match(/<meta[^>]+charset=["']?([\w-]+)/i) || [])[1]
       || 'utf-8';
@@ -160,6 +165,8 @@ export default async function handler(req, res) {
     if (Buffer.byteLength(html) > 4.2 * 1024 * 1024) return send(res, 413, errorPage('Página demasiado grande'));
     send(res, 200, html, nonce);
   } catch (e) {
+    if (e.name === 'UnsafeUrlError') return send(res, 400, errorPage('Enlace no permitido'));
+    if (e.name === 'TooLargeError') return send(res, 413, errorPage('Página demasiado grande'));
     send(res, 500, errorPage(e.name === 'TimeoutError' ? 'La web tarda demasiado' : 'No se pudo descargar la página'));
   }
 }

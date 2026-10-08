@@ -653,6 +653,7 @@ async function _fetchWordsFromDB() {
       throw error;
     }
     _dbReady = true;
+    _setSynced(data);
     if (data.length === 0) {
       const baseWords = await _fetchBaseWords();
       if (baseWords && baseWords.length > 0) { await _seedWords(baseWords); return baseWords; }
@@ -678,6 +679,7 @@ async function _seedWords(words) {
     if (data) {
       const withIds = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
       _cacheWords(withIds);
+      _setSynced(data);
     }
   } catch(e) { console.warn('[sync] seed:', e.message); }
 }
@@ -687,28 +689,110 @@ function saveWords(words) {
   _cacheWords(words);
   updateStats();
   if (!_dbReady) return;
+  _wordsPending = true;
   clearTimeout(_wordsDebounceTimer);
-  _wordsDebounceTimer = setTimeout(() => _flushWords(words), 900);
+  _wordsDebounceTimer = setTimeout(() => { _wordsPending = false; _flushWords(words); }, 900);
 }
 
-async function _flushWords(words) {
+// Si la app pasa a segundo plano con un guardado pendiente, se envía ya (iOS puede cerrarla)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && _wordsPending) {
+    clearTimeout(_wordsDebounceTimer);
+    _wordsPending = false;
+    _flushWords(getWords());
+  }
+});
+
+// ── Sincronización incremental de palabras ──────────────────────
+// Antes: borrar todo + reinsertar (un fallo a mitad podía perder datos).
+// Ahora: solo se insertan las nuevas, se actualizan las modificadas y se borran las eliminadas,
+// y el borrado va siempre el último. Un fallo nunca deja la BD con menos palabras de las debidas.
+let _wordsPending = false;
+let _synced = null;          // Map id -> huella de lo que sabemos que hay en la BD
+let _syncedUser = null;
+let _flushChain = Promise.resolve();
+let _flushRetries = 0;
+
+function _wordFp(w) { return [w.tipo || '', w.articulo || '', w.de || '', w.es || '', w.folder_id || ''].join('\u0001'); }
+function _setSynced(rows) {
+  _synced = new Map((rows || []).map(r => [r.id, _wordFp(r)]));
+  _syncedUser = currentUser ? currentUser.id : null;
+}
+
+// Asigna a la caché local los ids que acaba de dar la BD a las palabras nuevas
+function _assignIds(rows) {
+  const cached = _cachedWords();
+  if (!cached) return;
+  const pool = rows.slice();
+  let changed = false;
+  cached.forEach(w => {
+    if (w._id && _synced.has(w._id)) return;
+    const k = pool.findIndex(r => _wordFp(r) === _wordFp(w));
+    if (k >= 0) { w._id = pool[k].id; pool.splice(k, 1); changed = true; }
+  });
+  if (changed) _cacheWords(cached);
+}
+
+function _flushWords(words) {
+  _flushChain = _flushChain.then(() => _flushWordsNow(words)).catch(() => {});
+  return _flushChain;
+}
+
+async function _flushWordsNow(words) {
   if (!currentUser || !_dbReady) return;
   setSyncState('syncing', 'Guardando…');
   try {
-    const sb = await getSupabase();
-    // Strategy: delete-all + re-insert keeps things simple and consistent
-    const { error: delErr } = await sb.from('user_words').delete().eq('user_id', currentUser.id);
-    if (delErr) throw delErr;
-    if (words.length > 0) {
-      const rows = words.map(w => ({ user_id:currentUser.id, tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es, folder_id:w.folder_id||null }));
+    const sb  = await getSupabase();
+    const uid = currentUser.id;
+    // Si no sabemos qué hay en la BD (p. ej. tras cambiar de usuario), lo consultamos antes de tocar nada
+    if (!_synced || _syncedUser !== uid) {
+      const { data, error } = await sb.from('user_words').select('id,tipo,articulo,de,es,folder_id').eq('user_id', uid);
+      if (error) throw error;
+      _setSynced(data);
+    }
+    const toInsert = words.filter(w => !w._id || !_synced.has(w._id));
+    const toUpdate = words.filter(w => w._id && _synced.has(w._id) && _synced.get(w._id) !== _wordFp(w));
+    const keep     = new Set(words.filter(w => w._id).map(w => w._id));
+    const toDelete = [..._synced.keys()].filter(id => !keep.has(id));
+
+    // Freno de seguridad: si de golpe faltaran más de la mitad de las palabras (p. ej. caché local vacía por error), no se borra nada
+    if (toDelete.length > 20 && toDelete.length > _synced.size * 0.5) {
+      console.warn('[sync] borrado masivo bloqueado:', toDelete.length, 'de', _synced.size);
+      setSyncState('error', 'Cambio sospechoso: recarga la app');
+      return;
+    }
+
+    // 1) Insertar nuevas
+    for (let i = 0; i < toInsert.length; i += 200) {
+      const rows = toInsert.slice(i, i + 200).map(w => ({ user_id:uid, tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es, folder_id:w.folder_id||null }));
       const { data, error } = await sb.from('user_words').insert(rows).select('id,tipo,articulo,de,es,folder_id');
       if (error) throw error;
-      if (data) _cacheWords(data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null })));
+      (data || []).forEach(r => _synced.set(r.id, _wordFp(r)));
+      _assignIds(data || []);
     }
+    // 2) Actualizar modificadas
+    for (let i = 0; i < toUpdate.length; i += 10) {
+      await Promise.all(toUpdate.slice(i, i + 10).map(async w => {
+        const { error } = await sb.from('user_words')
+          .update({ tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es, folder_id:w.folder_id||null })
+          .eq('id', w._id).eq('user_id', uid);
+        if (error) throw error;
+        _synced.set(w._id, _wordFp(w));
+      }));
+    }
+    // 3) Borrar eliminadas (siempre lo último)
+    for (let i = 0; i < toDelete.length; i += 100) {
+      const ids = toDelete.slice(i, i + 100);
+      const { error } = await sb.from('user_words').delete().in('id', ids).eq('user_id', uid);
+      if (error) throw error;
+      ids.forEach(id => _synced.delete(id));
+    }
+    _flushRetries = 0;
     setSyncState('ok', 'Guardado ✓');
   } catch(e) {
     console.warn('[sync] flushWords:', e.message);
     setSyncState('error', 'Error al guardar');
+    if (_flushRetries < 3) { _flushRetries++; setTimeout(() => _flushWords(getWords()), 8000 * _flushRetries); }
   }
 }
 

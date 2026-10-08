@@ -1,3 +1,6 @@
+import { isSafeUrl } from './_net.js';
+import { requireUser } from './_auth.js';
+
 // Vercel serverless: descarga una página web y devuelve su texto legible
 const ENT = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'", nbsp:' ', auml:'ä', ouml:'ö', uuml:'ü', Auml:'Ä', Ouml:'Ö', Uuml:'Ü', szlig:'ß',
   ndash:'–', mdash:'—', hellip:'…', laquo:'«', raquo:'»', bdquo:'„', ldquo:'“', rdquo:'”', lsquo:'‘', rsquo:'’', euro:'€', copy:'©',
@@ -10,18 +13,6 @@ function decode(s) {
     }
     return ENT[e] ?? m;
   });
-}
-
-function isPrivateHost(h) {
-  h = h.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true;
-  if (h.includes(':')) return true; // IPv6 literal
-  const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-  if (m) {
-    const a = +m[1], b = +m[2];
-    if (a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) return true;
-  }
-  return false;
 }
 
 function extract(html) {
@@ -46,19 +37,18 @@ function extract(html) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método no permitido' });
+  if (!(await requireUser(req, res))) return;
 
   const { url } = req.query;
-  if (!url) return res.status(400).json({ error: 'Falta el enlace' });
+  if (!url || typeof url !== 'string') return res.status(400).json({ error: 'Falta el enlace' });
 
   try {
     let cur = url, r = null;
     for (let i = 0; i < 5; i++) {
       let u;
       try { u = new URL(cur); } catch { return res.status(400).json({ error: 'Enlace no válido' }); }
-      if (!/^https?:$/.test(u.protocol) || isPrivateHost(u.hostname)) return res.status(400).json({ error: 'Enlace no permitido' });
+      if (!(await isSafeUrl(u))) return res.status(400).json({ error: 'Enlace no permitido' });
       r = await fetch(cur, {
         redirect: 'manual',
         headers: {
@@ -90,9 +80,9 @@ export default async function handler(req, res) {
     const { title, text } = /html/i.test(ct) ? extract(html) : { title: '', text: html };
     if (text.length < 200) return res.status(422).json({ error: 'No se encontró texto legible (¿web que carga con JavaScript?)' });
 
-    res.setHeader('Cache-Control', 's-maxage=300');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.json({ title, text, url: cur });
   } catch (e) {
-    res.status(500).json({ error: e.name === 'TimeoutError' ? 'La web tarda demasiado' : e.message });
+    res.status(500).json({ error: e.name === 'TimeoutError' ? 'La web tarda demasiado' : 'No se pudo descargar la página' });
   }
 }

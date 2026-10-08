@@ -1,10 +1,13 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+import { requireUser } from './_auth.js';
 
-  const { word } = req.query;
+export default async function handler(req, res) {
+  // Sin CORS: la app llama desde el mismo origen
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method not allowed' });
+  if (!(await requireUser(req, res))) return;
+
+  const word = typeof req.query.word === 'string' ? req.query.word.trim() : '';
   if (!word) return res.status(400).json({ error: 'missing word' });
+  if (word.length > 100) return res.status(400).json({ error: 'word too long' });
 
   const apiKey = process.env.DEEPL_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
@@ -25,14 +28,13 @@ export default async function handler(req, res) {
     });
 
     if (!r.ok) {
-      const err = await r.text();
-      return res.status(r.status).json({ error: err });
+      return res.status(502).json({ error: 'translation failed' });
     }
 
     const j = await r.json();
     const translation = j?.translations?.[0]?.text || null;
     res.json({ translation });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'translation failed' });
   }
 }

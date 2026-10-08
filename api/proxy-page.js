@@ -1,18 +1,7 @@
 // Vercel serverless: devuelve la página web original (sin scripts propios) con un script
 // mínimo inyectado que detecta la palabra tocada y la envía al lector por postMessage.
 import { randomBytes } from 'crypto';
-
-function isPrivateHost(h) {
-  h = h.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true;
-  if (h.includes(':')) return true;
-  const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-  if (m) {
-    const a = +m[1], b = +m[2];
-    if (a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) return true;
-  }
-  return false;
-}
+import { isSafeUrl } from './_net.js';
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -113,14 +102,14 @@ function clientScript() {
 
 export default async function handler(req, res) {
   const { url } = req.query;
-  if (!url) return send(res, 400, errorPage('Falta el enlace'));
+  if (!url || typeof url !== 'string') return send(res, 400, errorPage('Falta el enlace'));
 
   try {
     let cur = url, r = null;
     for (let i = 0; i < 5; i++) {
       let u;
       try { u = new URL(cur); } catch { return send(res, 400, errorPage('Enlace no válido')); }
-      if (!/^https?:$/.test(u.protocol) || isPrivateHost(u.hostname)) return send(res, 400, errorPage('Enlace no permitido'));
+      if (!(await isSafeUrl(u))) return send(res, 400, errorPage('Enlace no permitido'));
       r = await fetch(cur, {
         redirect: 'manual',
         headers: {
@@ -171,6 +160,6 @@ export default async function handler(req, res) {
     if (Buffer.byteLength(html) > 4.2 * 1024 * 1024) return send(res, 413, errorPage('Página demasiado grande'));
     send(res, 200, html, nonce);
   } catch (e) {
-    send(res, 500, errorPage(e.name === 'TimeoutError' ? 'La web tarda demasiado' : e.message));
+    send(res, 500, errorPage(e.name === 'TimeoutError' ? 'La web tarda demasiado' : 'No se pudo descargar la página'));
   }
 }

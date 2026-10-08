@@ -1,10 +1,11 @@
 // Service worker — Deutsch Lernen
 // Estrategia: network-first para la app (HTML/JS/CSS) con fallback a caché, así nunca se queda con código viejo.
 // No intercepta Supabase, /api ni peticiones que no sean GET.
-const SHELL = 'deutsch-shell-v3';
+const SHELL = 'deutsch-shell-v4';
 const FONTS = 'deutsch-fonts-v1';
 const ASSETS = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+  'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
+  'icons/favicon-32.png', 'favicon.ico'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

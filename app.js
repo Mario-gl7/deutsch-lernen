@@ -315,11 +315,33 @@ function loadScript(src, integrity) {
   return new Promise((res, rej) => {
     if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
     const s = document.createElement('script');
-    s.src = src; s.onload = res; s.onerror = rej;
+    s.src = src; s.onload = res; s.onerror = () => { s.remove(); rej(new Error(`No se pudo cargar ${src}`)); };
     if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
     document.head.appendChild(s);
   });
 }
+
+// ═══════════════════ CLOUDFLARE TURNSTILE ═══════════════════
+const _turnstileSiteKey = '0x4AAAAAAFRgbJ5pNmOfxPbX';
+let _turnstileWidgetId = null;
+let _turnstileToken = '';
+let _turnstileReady = null;
+function initLoginTurnstile() {
+  if (_turnstileReady) return _turnstileReady;
+  _turnstileReady = loadScript('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit')
+    .then(() => {
+      _turnstileWidgetId = window.turnstile.render('#loginTurnstile', {
+        sitekey: _turnstileSiteKey,
+        theme: document.body.classList.contains('light') ? 'light' : 'dark',
+        callback: token => { _turnstileToken = token; },
+        'expired-callback': () => { _turnstileToken = ''; },
+        'error-callback': () => { _turnstileToken = ''; }
+      });
+    })
+    .catch(error => { _turnstileReady = null; throw error; });
+  return _turnstileReady;
+}
+initLoginTurnstile().catch(error => console.error('[Turnstile] No se pudo cargar:', error));
 
 // ═══════════════════ SESSION ═══════════════════
 let currentUser = null, currentEmail = '';
@@ -412,16 +434,30 @@ async function doLogin() {
   if (!rl.ok) { err.textContent = rl.msg; return; }
   err.textContent = ''; btn.textContent = '…'; btn.disabled = true;
   try {
+    if (!_turnstileReady) await initLoginTurnstile();
+    else await _turnstileReady;
+    if (!_turnstileToken) {
+      err.textContent = 'Completa la verificación de seguridad.';
+      return;
+    }
     const sb = await getSupabase();
-    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    const { data, error } = await sb.auth.signInWithPassword({
+      email, password: pass, options: { captchaToken: _turnstileToken }
+    });
+    _turnstileToken = '';
     if (error) {
       _rl.record();
       err.textContent = error.message === 'Invalid login credentials' ? t('errBadLogin') : error.message;
+      if (_turnstileWidgetId !== null) window.turnstile.reset(_turnstileWidgetId);
       return;
     }
     _rl.reset();
     onLoginSuccess(data.user);
-  } catch(e) { err.textContent = t('errConnection'); }
+  } catch(e) {
+    _turnstileToken = '';
+    err.textContent = t('errConnection');
+    if (_turnstileWidgetId !== null && window.turnstile) window.turnstile.reset(_turnstileWidgetId);
+  }
   finally { btn.textContent = t('loginBtn'); btn.disabled = false; }
 }
 

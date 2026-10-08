@@ -302,6 +302,14 @@ async function getSupabase() {
   _supabase = window.supabase.createClient(_cfg.url, _cfg.key);
   return _supabase;
 }
+// Cabecera con el token de sesión para las funciones /api (verificado en el servidor)
+async function _apiAuthHeaders() {
+  try {
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    return session?.access_token ? { Authorization: 'Bearer ' + session.access_token } : {};
+  } catch(e) { return {}; }
+}
 function loadScript(src) {
   return new Promise((res, rej) => {
     if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
@@ -1159,7 +1167,7 @@ function processImportFile(file) {
     importParsed = parsed;
     const prev = document.getElementById('importPreview');
     prev.style.display = 'block';
-    prev.innerHTML = `✓ <b>${parsed.length} palabras</b> encontradas · Ej: ${displayDE(parsed[0])} → ${parsed[0].es}`;
+    prev.innerHTML = `✓ <b>${parsed.length} palabras</b> encontradas · Ej: ${_esc(displayDE(parsed[0]))} → ${_esc(parsed[0].es)}`;
     document.getElementById('importConfirmBtn').disabled = false;
     document.getElementById('importConfirmBtn').style.opacity = '1';
   };
@@ -2464,7 +2472,7 @@ async function openLecturaUrl(raw, textView) {
   if (_lectura.current) _saveLecturaProgress();
   _showLecturaLoader('Cargando página…');
   try {
-    const r = await fetch('/api/fetch-page?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
+    const r = await fetch('/api/fetch-page?url=' + encodeURIComponent(url), { headers: await _apiAuthHeaders(), signal: AbortSignal.timeout(20000) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'No se pudo cargar la página');
     const pages = _splitTextToPages(j.text || '');
@@ -2538,9 +2546,10 @@ async function _extractEpubPages(file) {
     if (!f) continue;
     try {
       const raw = await f.async('string');
-      const tmp = document.createElement('div');
-      tmp.innerHTML = raw.replace(/<style[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<script[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<head[^>]*>[\s\S]*?<\/head>/gi,'');
-      const text = (tmp.textContent||'').replace(/\n{3,}/g,'\n\n').trim();
+      // DOMParser crea un documento inerte (no ejecuta onerror/onload ni carga recursos)
+      const doc = new DOMParser().parseFromString(raw, 'text/html');
+      doc.querySelectorAll('style,script,head').forEach(n => n.remove());
+      const text = (doc.body?.textContent||'').replace(/\n{3,}/g,'\n\n').trim();
       if (!text) continue;
       let chunk = '';
       for (const para of text.split(/\n\n+/)) {
@@ -2847,7 +2856,7 @@ function savePopupWord() {
 // ── Translation API (DeepL via proxy /api/translate) ────────────
 async function _translateWord(word) {
   try {
-    const r = await fetch('/api/translate?word=' + encodeURIComponent(word), { signal: AbortSignal.timeout(6000) });
+    const r = await fetch('/api/translate?word=' + encodeURIComponent(word), { headers: await _apiAuthHeaders(), signal: AbortSignal.timeout(6000) });
     if (!r.ok) return null;
     const j = await r.json();
     return j?.translation || null;

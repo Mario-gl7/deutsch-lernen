@@ -1637,3 +1637,14 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .cell-opt-none{color:var(--text3)}
 .cell-opt-check{color:var(--blue);font-weight:700}
 .cell-opt.danger{color:var(--red)}
+
+
+/* ═══════════════════════════════════════════════
+   LECTURA: botón eliminar más visible y táctil  (v1.07.38)
+═══════════════════════════════════════════════ */
+.lectura-lib-del{
+  width:44px;height:44px;font-size:20px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--red);background:var(--red-bg);border:1px solid rgba(248,113,113,.25);border-radius:10px;
+}
+.lectura-lib-del:active{background:rgba(248,113,113,.28)}

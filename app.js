@@ -2379,13 +2379,43 @@ function onLecturaEnter() {
     document.getElementById('lecturaUpload').style.display = '';
     document.getElementById('lecturaReader').style.display = 'none';
   }
+  _updateLecturaTopBar();
 }
 
+// Atrás: desde un archivo abierto → biblioteca; desde la biblioteca → inicio
 function exitLectura() {
-  _saveLecturaProgress();
+  if (_lectura.current) { closeLecturaBook(); return; }
   closeLecturaPopup();
   if (_lectura.fullscreen) toggleLecturaFull();
   navigate('home', 'back');
+}
+
+function closeLecturaBook() {
+  _saveLecturaProgress();
+  closeLecturaPopup();
+  if (_lectura.fullscreen) toggleLecturaFull();
+  _hideLecturaLoader();
+  _lectura.current = null;
+  _lectura.webView = false;
+  _lectura.frameBook = null;
+  _lectura.frameUrl = null;
+  const f = document.getElementById('lecturaFrame');
+  if (f) { f.onload = null; f.src = 'about:blank'; f.style.display = 'none'; }
+  document.getElementById('lecturaReader').style.display = 'none';
+  document.getElementById('lecturaUpload').style.display = '';
+  _updateLecturaTopBar();
+  _renderLecturaLibrary();
+}
+
+// Barra superior: en la biblioteca "Inicio / Lectura"; con un archivo abierto "Biblioteca" y su título
+function _updateLecturaTopBar() {
+  const inReader = !!_lectura.current;
+  const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  set('lecturaBackLabel', inReader ? 'Biblioteca' : 'Inicio');
+  set('lecturaCrumbDim',  inReader ? 'Lectura'    : 'Inicio');
+  set('lecturaBookTitle', inReader ? _lectura.current.title : 'Lectura');
+  const vb = document.getElementById('lecturaViewBtn');
+  if (vb && !inReader) vb.style.display = 'none';
 }
 
 // ── File upload ─────────────────────────────────────────────────
@@ -2426,7 +2456,8 @@ function _splitTextToPages(text, chunk = 3000) {
   return pages;
 }
 
-async function openLecturaUrl(raw) {
+// textView=true abre directamente la vista de texto; por defecto se abre la página original
+async function openLecturaUrl(raw, textView) {
   let url = (raw || '').trim();
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -2441,7 +2472,7 @@ async function openLecturaUrl(raw) {
     let host = ''; try { host = new URL(j.url || url).hostname; } catch(e) {}
     const bookData = { id: 'web_' + Date.now(), title: j.title || host || url, ext: 'web', url: j.url || url, pages, pageIdx: 0, ts: Date.now() };
     _saveBooksLS(bookData);
-    _lectura.webView = false;
+    _lectura.webView = !textView;
     _lectura.current = bookData;
     _hideLecturaLoader();
     const inp = document.getElementById('lecturaUrlIn'); if (inp) inp.value = '';
@@ -2610,7 +2641,7 @@ async function openBookFromLibrary(bookId) {
   const cached = _getAllBooksLS();
   const book = cached.find(b => b.id === bookId);
   if (book && book.pages && book.pages.length > 0) {
-    _lectura.webView = false;
+    _lectura.webView = (book.ext === 'web');   // enlaces: página original por defecto
     _lectura.current = book;
     document.getElementById('lecturaUpload').style.display = 'none';
     _showReader();
@@ -2629,6 +2660,7 @@ async function openBookFromLibrary(bookId) {
     const pages = ext === 'pdf' ? await _extractPdfPages(file) : await _extractEpubPages(file);
     const bookData = { id: bookId, title: meta.title, ext, pages, pageIdx: meta.page_idx||0, ts: Date.now() };
     _saveBooksLS(bookData);
+    _lectura.webView = false;
     _lectura.current = bookData;
     _hideLecturaLoader();
     document.getElementById('lecturaUpload').style.display = 'none';
@@ -2640,7 +2672,10 @@ async function openBookFromLibrary(bookId) {
 }
 
 async function deleteBook(bookId) {
-  if (!confirm('¿Eliminar este libro de la biblioteca?')) return;
+  const _bk = _getAllBooksLS().find(x => x.id === bookId);
+  const _isWeb = String(bookId).startsWith('web_') || _bk?.ext === 'web';
+  const _what = _isWeb ? 'este enlace' : (_bk?.ext === 'epub' ? 'este EPUB' : 'este PDF');
+  if (!confirm('¿Eliminar ' + _what + ' de la biblioteca?' + (_isWeb ? '' : ' También se borrará de la nube.'))) return;
   try { const all = _getAllBooksLS().filter(b => b.id !== bookId); localStorage.setItem(_LBOOKS(), JSON.stringify(all)); } catch(e) {}
   if (_dbReady) {
     try {
@@ -2654,9 +2689,10 @@ async function deleteBook(bookId) {
     _lectura.current = null;
     document.getElementById('lecturaUpload').style.display = '';
     document.getElementById('lecturaReader').style.display = 'none';
+    _updateLecturaTopBar();
   }
   _renderLecturaLibrary();
-  showToast('🗑 Libro eliminado');
+  showToast('🗑 Eliminado');
 }
 
 // ── Reader render ───────────────────────────────────────────────
@@ -2665,7 +2701,7 @@ function _showReader() {
   reader.style.display = 'flex';
   reader.style.flexDirection = 'column';
   reader.style.height = '100%';
-  document.getElementById('lecturaBookTitle').textContent = _lectura.current.title;
+  _updateLecturaTopBar();
   // Tap en zona vacía del scroll → mostrar botón exit en fullscreen
   const scroll = document.getElementById('lecturaScroll');
   if (scroll && !scroll._lecturaListenerSet) {
@@ -2863,7 +2899,7 @@ function toggleLecturaView() {
   closeLecturaPopup();
   // Si en la vista original navegó a otro enlace, al volver a "Texto" se abre el texto de esa página
   if (_lectura.webView && _lectura.frameBook === book.id && _lectura.frameUrl && _lectura.frameUrl !== book.url) {
-    openLecturaUrl(_lectura.frameUrl);
+    openLecturaUrl(_lectura.frameUrl, true);
     return;
   }
   _lectura.webView = !_lectura.webView;

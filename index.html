@@ -429,10 +429,10 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   <div class="top-bar" id="lecturaTopBar">
     <button class="top-bar-back" onclick="exitLectura()">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
-      Inicio
+      <span id="lecturaBackLabel">Inicio</span>
     </button>
     <div class="top-bar-title">
-      <span class="breadcrumb-dim">Inicio</span>
+      <span class="breadcrumb-dim" id="lecturaCrumbDim">Inicio</span>
       <span class="breadcrumb-sep"> / </span>
       <span id="lecturaBookTitle">Lectura</span>
     </div>
@@ -640,7 +640,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.37</div>
+<div id="buildBadge" class="build-badge">1.07.38</div>
 
 <script src="app.js"></script>
 </body>

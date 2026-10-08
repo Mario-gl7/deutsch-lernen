@@ -165,8 +165,10 @@ export default async function handler(req, res) {
     if (Buffer.byteLength(html) > 4.2 * 1024 * 1024) return send(res, 413, errorPage('Página demasiado grande'));
     send(res, 200, html, nonce);
   } catch (e) {
+    console.error('[proxy-page] Error al descargar o preparar la página:', e?.name || 'Error', e?.message || e);
     if (e.name === 'UnsafeUrlError') return send(res, 400, errorPage('Enlace no permitido'));
     if (e.name === 'TooLargeError') return send(res, 413, errorPage('Página demasiado grande'));
-    send(res, 500, errorPage(e.name === 'TimeoutError' ? 'La web tarda demasiado' : 'No se pudo descargar la página'));
+    if (e.name === 'TimeoutError') return send(res, 504, errorPage('La web tarda demasiado'));
+    send(res, 502, errorPage('No se pudo descargar la página (' + (e.name || 'error de red') + ')'));
   }
 }

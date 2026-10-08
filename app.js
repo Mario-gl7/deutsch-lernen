@@ -2944,7 +2944,12 @@ function _loadLecturaFrame(url) {
       headers: await _apiAuthHeaders(),
       signal: AbortSignal.timeout(20000),
     });
-    if (!r.ok) throw new Error(r.status === 401 ? 'Inicia sesión de nuevo para abrir páginas.' : 'No se pudo descargar la página.');
+    if (!r.ok) {
+      const responseText = await r.text().catch(() => '');
+      let detail = '';
+      try { detail = new DOMParser().parseFromString(responseText, 'text/html').body?.textContent?.replace(/\s+/g, ' ').trim() || ''; } catch(e) {}
+      throw new Error(r.status === 401 ? 'Inicia sesión de nuevo para abrir páginas.' : (detail || `No se pudo descargar la página (HTTP ${r.status}).`));
+    }
     const html = await r.text();
     if (loadId !== _lecturaFrameLoadId) return;
     const nextUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));

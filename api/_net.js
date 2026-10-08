@@ -65,7 +65,12 @@ export async function fetchSafe(rawUrl, options = {}, maxBytes = 4 * 1024 * 1024
       path: url.pathname + url.search,
       method: options.method || 'GET',
       headers: options.headers || {},
-      lookup: (_hostname, _opts, callback) => callback(null, address.address, address.family),
+      lookup: (_hostname, opts, callback) => {
+        // Node requests all records when auto-selecting IPv4/IPv6. Return the
+        // matching shape while still pinning the socket to the validated IP.
+        if (opts?.all) callback(null, [address]);
+        else callback(null, address.address, address.family);
+      },
       servername: isIP(host) ? undefined : host,
     }, res => {
       res.on('error', reject);

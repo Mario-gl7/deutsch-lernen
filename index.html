@@ -391,6 +391,22 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <div id="perfilNombreMsg" style="font-size:12px;color:var(--green-t);margin-top:8px;min-height:18px"></div>
     </div>
 
+    <!-- Preferencias -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Preferencias</div>
+      <div class="dd-row" style="padding-top:0">
+        <span data-i18n="darkMode">Modo oscuro</span>
+        <button class="lang-pill" data-ui-click="theme" type="button">🌓</button>
+      </div>
+      <div class="dd-row" style="border-bottom:none;padding-bottom:0">
+        <span data-i18n="language">Idioma</span>
+        <div style="display:flex;gap:4px">
+          <button class="lang-pill" data-ui-click="lang-es" type="button">🇪🇸</button>
+          <button class="lang-pill" data-ui-click="lang-de" type="button">🇩🇪</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Stats card -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Estadísticas</div>
@@ -401,6 +417,36 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <div style="background:var(--surface);border:1px solid rgba(248,113,113,.2);border-radius:var(--r-lg);padding:20px">
       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--red);margin-bottom:14px">Zona peligrosa</div>
       <button data-ui-click="logout-confirm" class="hover-danger-button" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s">🚪 Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PROGRESO PAGE ═══════════════════ -->
+<div class="page" id="page-progreso">
+  <div class="top-bar">
+    <button class="top-bar-back" data-ui-click="nav-home-back">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+      Inicio
+    </button>
+    <div class="top-bar-title">
+      <span class="breadcrumb-dim">Inicio</span>
+      <span class="breadcrumb-sep"> / </span>
+      Progreso
+    </div>
+  </div>
+  <div class="inner-content">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin:20px 0 12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Estadísticas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="progresoStats"></div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2)">Palabras dominadas</div>
+        <div id="progresoPct" style="font-size:13px;font-weight:700;color:var(--green-t)">0%</div>
+      </div>
+      <div style="height:10px;border-radius:99px;background:var(--surface2);overflow:hidden">
+        <div id="progresoBar" style="height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .6s cubic-bezier(.34,1.2,.64,1)"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -636,9 +682,21 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   </div>
 </div>
 
+<nav id="appNav" class="app-nav" aria-label="Navegación" hidden>
+  <div class="app-nav-head">
+    <div class="app-nav-logo"><img src="icons/apple-touch-icon.png" alt="" width="52" height="52"></div>
+    <button class="app-nav-collapse" id="appNavCollapse" type="button" data-ui-click="nav-collapse" aria-label="Contraer menú">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
+    </button>
+  </div>
+  <div class="app-nav-track" id="appNavTrack">
+    <span class="app-nav-pill" id="appNavPill"></span>
+  </div>
+</nav>
+
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.40</div>
+<div id="buildBadge" class="build-badge">1.07.41</div>
 
 <script src="app.js"></script>
 </body>

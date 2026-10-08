@@ -98,6 +98,10 @@ const TRANSLATIONS = {
     toastAdded: '✓ Palabra añadida: ',
     toastImported: ' palabras importadas',
     toastImportFail: '❌ No se pudo leer el archivo',
+    navHome: 'Inicio',
+    navProgress: 'Progreso',
+    navSettings: 'Ajustes',
+    navReading: 'Lectura',
   },
   de: {
     loginTitle: 'Anmelden',
@@ -185,6 +189,10 @@ const TRANSLATIONS = {
     toastAdded: '✓ Wort hinzugefügt: ',
     toastImported: ' Wörter importiert',
     toastImportFail: '❌ Datei konnte nicht gelesen werden',
+    navHome: 'Start',
+    navProgress: 'Fortschritt',
+    navSettings: 'Einstellungen',
+    navReading: 'Lesen',
   }
 };
 
@@ -195,9 +203,10 @@ function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('lang', lang);
   // Update pill states
-  document.getElementById('langBtnEs')?.classList.toggle('active', lang === 'es');
-  document.getElementById('langBtnDe')?.classList.toggle('active', lang === 'de');
+  document.querySelectorAll('[data-ui-click="lang-es"]').forEach(b => b.classList.toggle('active', lang === 'es'));
+  document.querySelectorAll('[data-ui-click="lang-de"]').forEach(b => b.classList.toggle('active', lang === 'de'));
   applyTranslations();
+  if (typeof updateAppNav === 'function' && currentUser) updateAppNav();
 }
 
 function applyTranslations() {
@@ -359,7 +368,7 @@ function toggleTheme() { applyTheme(document.body.classList.contains('light')); 
 applyTheme(localStorage.getItem('theme') !== 'light');
 
 // ═══════════════════ AUTH GUARD ═══════════════════
-const PROTECTED_PAGES = new Set(['home','vocab-hub','lista','parejas','crucigrama','velocidad','perfil','grammar','lectura']);
+const PROTECTED_PAGES = new Set(['home','vocab-hub','lista','parejas','crucigrama','velocidad','perfil','progreso','grammar','lectura']);
 
 // ═══════════════════ RATE LIMITER ═══════════════════
 const _rl = (() => {
@@ -392,6 +401,7 @@ function showPage(id) {
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active','anim-in','anim-back'); });
   document.getElementById('page-' + id).classList.add('active');
   currentPage = id;
+  updateAppNav();
 }
 function navigate(to, dir = 'forward') {
   // AUTH GUARD — block unauthenticated access to protected pages
@@ -413,8 +423,203 @@ function navigate(to, dir = 'forward') {
   if (to === 'crucigrama') { updateBagCount(); buildCrossword(); }
   if (to === 'velocidad') { stopSpeedGame(); renderSpeedSetup(); }
   if (to === 'perfil') { renderPerfil(); }
+  if (to === 'progreso') { renderProgreso(); }
   if (to === 'lectura') { onLecturaEnter(); }
+  updateAppNav();
 }
+
+// ═══════════════════ NAV BAR · Liquid Glass (móvil) / rail lateral (PC) ═══════════════════
+// Pestañas por contexto: en Inicio → Inicio · Progreso · Ajustes; dentro de Vocabulario → Inicio · Progreso · Lectura.
+const NAV_ICONS = {
+  home:     '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/>',
+  progress: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
+  settings: '<path d="M4 7h9"/><path d="M19 7h1"/><circle cx="16" cy="7" r="2.2"/><path d="M4 17h1"/><path d="M11 17h9"/><circle cx="8" cy="17" r="2.2"/>',
+  reading:  '<path d="M12 6.5C10.5 5.3 8.3 4.7 5 4.7v13c3.3 0 5.5.6 7 1.8 1.5-1.2 3.7-1.8 7-1.8v-13c-3.3 0-5.5.6-7 1.8z"/><path d="M12 6.5v13"/>'
+};
+const NAV_TABS = {
+  home:  [{ page: 'home', key: 'navHome', icon: 'home' }, { page: 'progreso', key: 'navProgress', icon: 'progress' }, { page: 'perfil', key: 'navSettings', icon: 'settings' }],
+  vocab: [{ page: 'home', key: 'navHome', icon: 'home' }, { page: 'progreso', key: 'navProgress', icon: 'progress' }, { page: 'lectura', key: 'navReading', icon: 'reading' }]
+};
+const NAV_VOCAB_PAGES = new Set(['vocab-hub', 'lista', 'parejas', 'crucigrama', 'velocidad']);
+const NAV_HOME_PAGES  = new Set(['home', 'perfil', 'grammar']);
+const NAV_SHOW_PAGES  = new Set(['home', 'perfil', 'grammar', 'progreso', 'vocab-hub', 'lista', 'parejas', 'crucigrama', 'velocidad']); // en Lectura y login no se muestra
+const _navMQ = window.matchMedia('(min-width:700px)');                 // PC: rail vertical
+const _navReduce = window.matchMedia('(prefers-reduced-motion:reduce)');
+let _navCtx = 'home', _navBuiltKey = '';
+let _navRaf = 0, _navLast = 0, _navPress = null, _navSuppress = false;
+// Muelles (física del "cristal líquido"): p = posición, v = velocidad, t = destino
+const _navAx = {
+  x: { p: 0, v: 0, t: 0, k: 300, d: 21, e: .4 },
+  y: { p: 0, v: 0, t: 0, k: 300, d: 21, e: .4 },
+  w: { p: 0, v: 0, t: 0, k: 360, d: 26, e: .4 },
+  h: { p: 0, v: 0, t: 0, k: 360, d: 26, e: .4 },
+  s: { p: 1, v: 0, t: 1, k: 520, d: 28, e: .002 }   // escala al pulsar
+};
+
+function _navPaint() {
+  const pill = document.getElementById('appNavPill');
+  if (!pill) return;
+  const vert = _navMQ.matches;
+  const vel = vert ? _navAx.y.v : _navAx.x.v;
+  const st = Math.min(Math.abs(vel) / 2200, .3);          // estiramiento según velocidad
+  const sx = vert ? 1 - st * .4 : 1 + st, sy = vert ? 1 + st : 1 - st * .4;
+  const pr = _navAx.s.p;
+  pill.style.width = _navAx.w.p + 'px';
+  pill.style.height = _navAx.h.p + 'px';
+  pill.style.transform = `translate3d(${_navAx.x.p}px,${_navAx.y.p}px,0) scale(${sx * pr},${sy * pr})`;
+}
+function _navStep(ts) {
+  const dt = Math.min(.032, (ts - (_navLast || ts)) / 1000);
+  _navLast = ts;
+  let moving = false;
+  for (const a of Object.values(_navAx)) {
+    a.v += (-a.k * (a.p - a.t) - a.d * a.v) * dt;
+    a.p += a.v * dt;
+    if (Math.abs(a.v) > a.e * 8 || Math.abs(a.p - a.t) > a.e) moving = true; else { a.p = a.t; a.v = 0; }
+  }
+  _navPaint();
+  if (moving) _navRaf = requestAnimationFrame(_navStep); else { _navRaf = 0; _navLast = 0; }
+}
+function _navKick() {
+  if (_navReduce.matches) { for (const a of Object.values(_navAx)) { a.p = a.t; a.v = 0; } _navPaint(); return; }
+  if (!_navRaf) _navRaf = requestAnimationFrame(_navStep);
+}
+function _navTarget(tab, snap) {
+  const pill = document.getElementById('appNavPill');
+  if (!pill) return;
+  if (!tab) { pill.classList.remove('on'); return; }
+  const first = !pill.classList.contains('on');
+  pill.classList.add('on');
+  _navAx.x.t = tab.offsetLeft; _navAx.y.t = tab.offsetTop;
+  _navAx.w.t = tab.offsetWidth; _navAx.h.t = tab.offsetHeight;
+  if (snap || first) {
+    for (const k of ['x', 'y', 'w', 'h']) { _navAx[k].p = _navAx[k].t; _navAx[k].v = 0; }
+    _navPaint();
+  } else _navKick();
+}
+function _navSyncActive(snap) {
+  const nav = document.getElementById('appNav');
+  if (!nav || nav.hidden) return;
+  _navTarget(nav.querySelector('.app-nav-tab.active'), snap);
+}
+function updateAppNav() {
+  const nav = document.getElementById('appNav');
+  if (!nav) return;
+  const show = !!currentUser && NAV_SHOW_PAGES.has(currentPage);
+  document.body.classList.toggle('has-nav', show);
+  if (!show) { nav.hidden = true; return; }
+  if (NAV_VOCAB_PAGES.has(currentPage)) _navCtx = 'vocab';
+  else if (NAV_HOME_PAGES.has(currentPage)) _navCtx = 'home';     // 'progreso' conserva el contexto anterior
+  const wasHidden = nav.hidden;
+  nav.hidden = false;
+  const track = document.getElementById('appNavTrack');
+  const key = _navCtx + '|' + currentLang;
+  if (key !== _navBuiltKey) {
+    _navBuiltKey = key;
+    track.querySelectorAll('.app-nav-tab').forEach(b => b.remove());
+    NAV_TABS[_navCtx].forEach(tab => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'app-nav-tab';
+      b.dataset.uiClick = 'nav-tab';
+      b.dataset.page = tab.page;
+      b.title = t(tab.key);
+      b.setAttribute('aria-label', t(tab.key));
+      b.innerHTML = `<svg class="app-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICONS[tab.icon]}</svg><span class="app-nav-lbl">${t(tab.key)}</span>`;
+      track.appendChild(b);
+    });
+  }
+  track.querySelectorAll('.app-nav-tab').forEach(b => {
+    const on = b.dataset.page === currentPage;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  _navSyncActive(wasHidden);
+}
+function _navNavigate(page) {
+  if (page === currentPage) { _navSyncActive(false); return; }
+  navigate(page, page === 'home' ? 'back' : 'forward');
+}
+function _navClick(page) { if (!_navSuppress) _navNavigate(page); }
+function toggleNavCollapsed() {
+  const c = document.body.classList.toggle('nav-collapsed');
+  try { localStorage.setItem('navCollapsed', c ? '1' : '0'); } catch (_) {}
+  const btn = document.getElementById('appNavCollapse');
+  if (btn) btn.setAttribute('aria-label', c ? 'Expandir menú' : 'Contraer menú');
+}
+function _navRipple(tab, e) {
+  const r = tab.getBoundingClientRect();
+  const s = document.createElement('span');
+  s.className = 'app-nav-ripple';
+  s.style.left = (e.clientX - r.left) + 'px';
+  s.style.top = (e.clientY - r.top) + 'px';
+  tab.appendChild(s);
+  s.addEventListener('animationend', () => s.remove());
+}
+(function initAppNav() {
+  const track = document.getElementById('appNavTrack');
+  if (!track) return;
+  try { if (localStorage.getItem('navCollapsed') === '1') document.body.classList.add('nav-collapsed'); } catch (_) {}
+  const cbtn = document.getElementById('appNavCollapse');
+  if (cbtn) cbtn.setAttribute('aria-label', document.body.classList.contains('nav-collapsed') ? 'Expandir menú' : 'Contraer menú');
+  // Pulsar: el cristal se comprime, la onda sale del dedo y el selector se desliza bajo la pestaña pulsada
+  track.addEventListener('pointerdown', e => {
+    const tab = e.target.closest('.app-nav-tab');
+    if (!tab) return;
+    _navPress = { id: e.pointerId, x: e.clientX, y: e.clientY, tab, drag: false };
+    _navAx.s.t = .93;
+    _navRipple(tab, e);
+    _navTarget(tab, false);
+    _navKick();
+  });
+  // Arrastrar: el selector sigue al dedo con inercia y al soltar se queda en la pestaña más cercana
+  track.addEventListener('pointermove', e => {
+    const pr = _navPress;
+    if (!pr || e.pointerId !== pr.id) return;
+    if (!pr.drag) {
+      if (Math.hypot(e.clientX - pr.x, e.clientY - pr.y) < 7) return;
+      pr.drag = true;
+      try { track.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    const tabs = track.querySelectorAll('.app-nav-tab');
+    const first = tabs[0], last = tabs[tabs.length - 1], r = track.getBoundingClientRect();
+    if (_navMQ.matches) {
+      const c = e.clientY - r.top - _navAx.h.t / 2;
+      _navAx.y.t = Math.max(first.offsetTop, Math.min(c, last.offsetTop + last.offsetHeight - _navAx.h.t));
+    } else {
+      const c = e.clientX - r.left - _navAx.w.t / 2;
+      _navAx.x.t = Math.max(first.offsetLeft, Math.min(c, last.offsetLeft + last.offsetWidth - _navAx.w.t));
+    }
+    _navKick();
+  });
+  const release = e => {
+    const pr = _navPress;
+    if (!pr || e.pointerId !== pr.id) return;
+    _navPress = null;
+    _navAx.s.t = 1;
+    if (pr.drag) {
+      _navSuppress = true;
+      setTimeout(() => { _navSuppress = false; }, 80);
+      if (e.type === 'pointerup') {
+        const vert = _navMQ.matches;
+        const cx = _navAx.x.t + _navAx.w.t / 2, cy = _navAx.y.t + _navAx.h.t / 2;
+        let best = null, bd = Infinity;
+        track.querySelectorAll('.app-nav-tab').forEach(tb => {
+          const d = vert ? Math.abs(tb.offsetTop + tb.offsetHeight / 2 - cy) : Math.abs(tb.offsetLeft + tb.offsetWidth / 2 - cx);
+          if (d < bd) { bd = d; best = tb; }
+        });
+        if (best) _navNavigate(best.dataset.page);
+      }
+    }
+    setTimeout(() => _navSyncActive(false), 120);   // si no hubo cambio de página, vuelve a la pestaña activa
+    _navKick();
+  };
+  track.addEventListener('pointerup', release);
+  track.addEventListener('pointercancel', release);
+  // Cambios de tamaño (contraer/expandir el rail, girar el móvil, PC ↔ móvil)
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (!_navPress) _navSyncActive(false); }).observe(track);
+  _navMQ.addEventListener?.('change', () => _navSyncActive(true));
+})();
 
 // Apply initial language (currentPage is now defined)
 applyTranslations();
@@ -2283,7 +2488,11 @@ function renderPerfil() {
   if (el('perfilNombreMsg')) el('perfilNombreMsg').textContent = '';
 
   // Stats
-  const words = getWords(), p = getProgress(), now = Date.now();
+  if (el('perfilStats')) el('perfilStats').innerHTML = _statsCardsHtml().html;
+}
+
+function _statsCardsHtml() {
+  const words = getWords(), p = getProgress();
   const total = words.length;
   const seen  = Object.values(p).filter(e => e.seen > 0).length;
   const hard  = Object.values(p).filter(e => e.difficulty === 1).length;
@@ -2294,12 +2503,24 @@ function renderPerfil() {
     { label: 'Dominadas', val: mastered, color: 'var(--green)' },
     { label: 'Difíciles', val: hard, color: 'var(--red)' },
   ];
-  if (el('perfilStats')) el('perfilStats').innerHTML = statsData.map(s =>
+  const html = statsData.map(s =>
     `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px;text-align:center">
       <div style="font-size:22px;font-weight:700;color:${s.color}">${s.val}</div>
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-top:3px">${s.label}</div>
     </div>`
   ).join('');
+  return { html, total, mastered };
+}
+
+function renderProgreso() {
+  const s = _statsCardsHtml();
+  const stats = document.getElementById('progresoStats');
+  if (stats) stats.innerHTML = s.html;
+  const pct = s.total ? Math.round(s.mastered / s.total * 100) : 0;
+  const lbl = document.getElementById('progresoPct');
+  if (lbl) lbl.textContent = pct + '%';
+  const bar = document.getElementById('progresoBar');
+  if (bar) { bar.style.width = '0'; requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = pct + '%'; })); }
 }
 
 function saveNombre() {
@@ -3901,6 +4122,8 @@ function _handleUiClick(event) {
     case 'nav-vocab': navigate('vocab-hub', 'forward'); break;
     case 'nav-reading': navigate('lectura', 'forward'); break;
     case 'nav-home-back': navigate('home', 'back'); break;
+    case 'nav-tab': _navClick(el.dataset.page); break;
+    case 'nav-collapse': toggleNavCollapsed(); break;
     case 'nav-hub-back': navigate('vocab-hub', 'back'); break;
     case 'nav-lista': navigate('lista', 'forward'); break;
     case 'nav-parejas': navigate('parejas', 'forward'); break;

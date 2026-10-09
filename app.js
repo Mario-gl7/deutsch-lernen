@@ -739,7 +739,7 @@ function _navRipple(tab, e) {
   track.addEventListener('pointerup', release);
   track.addEventListener('pointercancel', release);
   // Cambios de tamaño (contraer/expandir el rail, girar el móvil, PC ↔ móvil)
-  if ('ResizeObserver' in window) new ResizeObserver(() => { if (!_navPress) { _navMeasure(); _navSyncActive(false); } }).observe(track);
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (!_navPress) { _navMeasure(); _navSyncActive(true); } }).observe(track);   // snap: el rail ya se anima por CSS; el selector debe seguirlo pegado, sin muelle
   _navMQ.addEventListener?.('change', () => { _navMeasure(); _navSyncActive(true); });
 })();
 

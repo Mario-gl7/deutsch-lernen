@@ -1887,3 +1887,23 @@ html{scrollbar-gutter:stable}
   .app-nav-ripple{background:radial-gradient(circle,rgba(255,255,255,.3),rgba(255,255,255,0) 70%)}
 }
 
+/* Móvil: mismos colores que el rail de PC (verde oscuro #193228), con casi nada de brillo de cristal */
+@media (max-width:699px){
+  body .app-nav,body.light .app-nav{
+    --nav-fg:rgba(226,240,234,.72);
+    --nav-fg-on:var(--text);
+    --nav-pill:var(--bg);
+    --nav-pill-edge:transparent;
+    --nav-glow:transparent;
+    --nav-hi:rgba(255,255,255,.1);
+    --nav-shadow:0 8px 24px rgba(0,0,0,.4);
+    background:linear-gradient(180deg,#1f4234 0%,#173026 55%,#101f1a 100%);
+    -webkit-backdrop-filter:none;backdrop-filter:none;
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:inset 0 1px 0 var(--nav-hi),var(--nav-shadow);
+  }
+  .app-nav-pill{border:0;box-shadow:none}
+  .app-nav-pill::after{display:none}
+  .app-nav-ripple{background:radial-gradient(circle,rgba(255,255,255,.22),rgba(255,255,255,0) 70%)}
+}
+

@@ -1806,3 +1806,35 @@ body.has-nav .build-badge{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
 
 /* La animación de entrada de página (translateX) ensanchaba el viewport en móvil y desplazaba la barra fija */
 html{overflow-x:clip}
+
+/* ── PC: nombre junto al logo y selector fundido con el fondo de la página ── */
+.app-nav-user{display:none}
+@media (min-width:700px){
+  body .app-nav,body.light .app-nav{
+    --nav-pill:var(--bg);
+    --nav-fg-on:var(--text);
+    --nav-shadow:0 0 0 0 transparent;
+    border:0;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),inset 0 1px 0 var(--nav-hi);
+  }
+  .app-nav-head{padding:12px 14px 6px}
+  .app-nav-track{padding:10px 14px;gap:22px}
+  .app-nav-user{
+    display:block;flex:1;min-width:0;margin-left:12px;
+    font-size:16px;font-weight:700;color:#fff;letter-spacing:-.1px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .app-nav-collapse{margin-left:8px}
+  body.nav-collapsed .app-nav-user{display:none}
+  /* Selector: mismo color que el fondo, pegado al borde derecho y con curvas cóncavas arriba y abajo */
+  .app-nav-pill{
+    border:0;border-radius:999px 0 0 999px;box-shadow:none;
+  }
+  .app-nav-pill::before,.app-nav-pill::after{
+    content:'';position:absolute;right:0;left:auto;bottom:auto;
+    width:20px;height:20px;border-radius:0;opacity:1;
+  }
+  .app-nav-pill::before{top:-20px;background:radial-gradient(circle at 0 0,transparent 19.5px,var(--bg) 20px)}
+  .app-nav-pill::after{top:100%;background:radial-gradient(circle at 0 100%,transparent 19.5px,var(--bg) 20px)}
+}
+

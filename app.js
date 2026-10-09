@@ -491,7 +491,13 @@ function _navTarget(tab, snap) {
   const first = !pill.classList.contains('on');
   pill.classList.add('on');
   _navAx.x.t = tab.offsetLeft; _navAx.y.t = tab.offsetTop;
-  _navAx.w.t = tab.offsetWidth; _navAx.h.t = tab.offsetHeight;
+  // PC: el selector se prolonga hasta el borde del rail para fundirse con el fondo de la página
+  let extra = 0;
+  if (_navMQ.matches) {
+    const tr = document.getElementById('appNavTrack');
+    extra = Math.max(0, tr.clientWidth - (tab.offsetLeft + tab.offsetWidth)) + 1;
+  }
+  _navAx.w.t = tab.offsetWidth + extra; _navAx.h.t = tab.offsetHeight;
   if (snap || first) {
     for (const k of ['x', 'y', 'w', 'h']) { _navAx[k].p = _navAx[k].t; _navAx[k].v = 0; }
     _navPaint();
@@ -512,6 +518,11 @@ function updateAppNav() {
   else if (NAV_HOME_PAGES.has(currentPage)) _navCtx = 'home';     // 'progreso' conserva el contexto anterior
   const wasHidden = nav.hidden;
   nav.hidden = false;
+  const navName = (document.getElementById('ddName')?.textContent || '').trim();
+  const userEl = document.getElementById('appNavUser');
+  if (userEl) userEl.textContent = navName;
+  const logoEl = nav.querySelector('.app-nav-logo');
+  if (logoEl) logoEl.title = navName;
   const track = document.getElementById('appNavTrack');
   const key = _navCtx + '|' + currentLang;
   if (key !== _navBuiltKey) {
@@ -2536,6 +2547,7 @@ function saveNombre() {
   const msg = document.getElementById('perfilNombreMsg');
   if (msg) { msg.textContent = '✓ Nombre guardado'; setTimeout(() => msg.textContent = '', 2000); }
   showToast('✓ ¡Hola, ' + displayName + '!');
+  updateAppNav();
 }
 
 

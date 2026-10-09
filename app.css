@@ -1856,3 +1856,34 @@ html{scrollbar-gutter:stable}
   .app-nav-pill::before,.app-nav-pill::after{display:none}
 }
 
+/* 5 pestañas en la barra móvil: texto algo menor para que quepa "Vocabulario" */
+.app-nav-tab{font-size:10px;letter-spacing:0}
+.app-nav-lbl{max-width:100%;text-overflow:ellipsis}
+
+/* PC: rail verde oscuro, el mismo tono que el resplandor del fondo del tema (#193228), más discreto */
+@media (min-width:700px){
+  body .app-nav,body.light .app-nav{
+    --nav-fg:rgba(226,240,234,.78);
+    --nav-hi:rgba(255,255,255,.14);
+    background:
+      radial-gradient(120% 34% at 50% 0%,rgba(255,255,255,.07),rgba(255,255,255,0) 70%),
+      linear-gradient(180deg,#1f4234 0%,#173026 38%,#101f1a 72%,#0b1612 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),inset 0 1px 0 var(--nav-hi);
+  }
+  .app-nav-tab{font-size:15px;letter-spacing:-.1px}
+  .app-nav-logo{
+    background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.22),rgba(255,255,255,.04) 60%),#1b3a2e;
+    border:1px solid rgba(255,255,255,.18);
+    box-shadow:inset 0 2px 5px rgba(255,255,255,.14),0 4px 12px rgba(0,0,0,.35);
+  }
+  .app-nav-collapse{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+  .app-nav-collapse:hover{background:rgba(255,255,255,.18)}
+  .app-nav-tab{
+    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.025));
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .app-nav-tab:hover:not(.active){background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.05))}
+  .app-nav-ripple{background:radial-gradient(circle,rgba(255,255,255,.3),rgba(255,255,255,0) 70%)}
+}
+

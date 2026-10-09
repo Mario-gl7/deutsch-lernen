@@ -99,7 +99,8 @@ const TRANSLATIONS = {
     toastImported: ' palabras importadas',
     toastImportFail: '❌ No se pudo leer el archivo',
     navHome: 'Inicio',
-    navProgress: 'Progreso',
+    navProgress: 'Progresión',
+    navVocab: 'Vocabulario',
     navSettings: 'Ajustes',
     navReading: 'Lectura',
   },
@@ -191,6 +192,7 @@ const TRANSLATIONS = {
     toastImportFail: '❌ Datei konnte nicht gelesen werden',
     navHome: 'Start',
     navProgress: 'Fortschritt',
+    navVocab: 'Vokabeln',
     navSettings: 'Einstellungen',
     navReading: 'Lesen',
   }
@@ -497,23 +499,27 @@ function navigate(to, dir = 'forward', opts = {}) {
 }
 
 // ═══════════════════ NAV BAR · Liquid Glass (móvil) / rail lateral (PC) ═══════════════════
-// Pestañas por contexto: en Inicio → Inicio · Progreso · Ajustes; dentro de Vocabulario → Inicio · Progreso · Lectura.
+// Pestañas fijas: Inicio · Vocabulario · Lectura · Progresión · Ajustes. Las páginas de vocabulario (lista, parejas…) marcan "Vocabulario".
 const NAV_ICONS = {
   home:     '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/>',
+  vocab:    '<path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="M3 12.5l9 5 9-5"/><path d="M3 17l9 5 9-5"/>',
+  reading:  '<path d="M12 6.5C10.5 5.3 8.3 4.7 5 4.7v13c3.3 0 5.5.6 7 1.8 1.5-1.2 3.7-1.8 7-1.8v-13c-3.3 0-5.5.6-7 1.8z"/><path d="M12 6.5v13"/>',
   progress: '<path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>',
-  settings: '<path d="M4 7h9"/><path d="M19 7h1"/><circle cx="16" cy="7" r="2.2"/><path d="M4 17h1"/><path d="M11 17h9"/><circle cx="8" cy="17" r="2.2"/>',
-  reading:  '<path d="M12 6.5C10.5 5.3 8.3 4.7 5 4.7v13c3.3 0 5.5.6 7 1.8 1.5-1.2 3.7-1.8 7-1.8v-13c-3.3 0-5.5.6-7 1.8z"/><path d="M12 6.5v13"/>'
+  settings: '<path d="M4 7h9"/><path d="M19 7h1"/><circle cx="16" cy="7" r="2.2"/><path d="M4 17h1"/><path d="M11 17h9"/><circle cx="8" cy="17" r="2.2"/>'
 };
-const NAV_TABS = {
-  home:  [{ page: 'home', key: 'navHome', icon: 'home' }, { page: 'progreso', key: 'navProgress', icon: 'progress' }, { page: 'perfil', key: 'navSettings', icon: 'settings' }],
-  vocab: [{ page: 'home', key: 'navHome', icon: 'home' }, { page: 'progreso', key: 'navProgress', icon: 'progress' }, { page: 'lectura', key: 'navReading', icon: 'reading' }]
-};
+const NAV_TABS = [
+  { page: 'home',      key: 'navHome',     icon: 'home' },
+  { page: 'vocab-hub', key: 'navVocab',    icon: 'vocab' },
+  { page: 'lectura',   key: 'navReading',  icon: 'reading' },
+  { page: 'progreso',  key: 'navProgress', icon: 'progress' },
+  { page: 'perfil',    key: 'navSettings', icon: 'settings' }
+];
 const NAV_VOCAB_PAGES = new Set(['vocab-hub', 'lista', 'parejas', 'crucigrama', 'velocidad']);
-const NAV_HOME_PAGES  = new Set(['home', 'perfil', 'grammar']);
-const NAV_SHOW_PAGES  = new Set(['home', 'perfil', 'grammar', 'progreso', 'vocab-hub', 'lista', 'parejas', 'crucigrama', 'velocidad']); // en Lectura y login no se muestra
+const NAV_SHOW_PAGES  = new Set(['home', 'perfil', 'grammar', 'progreso', 'lectura', 'vocab-hub', 'lista', 'parejas', 'crucigrama', 'velocidad']); // en el login no se muestra
+function _navTabFor(page) { return NAV_VOCAB_PAGES.has(page) ? 'vocab-hub' : (page === 'grammar' ? 'home' : page); }
 const _navMQ = window.matchMedia('(min-width:700px)');                 // PC: rail vertical
 const _navReduce = window.matchMedia('(prefers-reduced-motion:reduce)');
-let _navCtx = 'home', _navBuiltKey = '';
+let _navBuiltKey = '';
 let _navRaf = 0, _navLast = 0, _navPress = null, _navSuppress = false;
 // Selector "líquido": cada borde (inicio y fin en cada eje) es un muelle propio.
 // El borde delantero corre y el trasero se rezaga, así el selector se estira hacia la otra pestaña y luego se recoge como una gota.
@@ -616,8 +622,6 @@ function updateAppNav() {
   const show = !!currentUser && NAV_SHOW_PAGES.has(currentPage);
   document.body.classList.toggle('has-nav', show);
   if (!show) { nav.hidden = true; return; }
-  if (NAV_VOCAB_PAGES.has(currentPage)) _navCtx = 'vocab';
-  else if (NAV_HOME_PAGES.has(currentPage)) _navCtx = 'home';     // 'progreso' conserva el contexto anterior
   const wasHidden = nav.hidden;
   nav.hidden = false;
   const navName = (document.getElementById('ddName')?.textContent || '').trim();
@@ -626,13 +630,13 @@ function updateAppNav() {
   const logoEl = nav.querySelector('.app-nav-logo');
   if (logoEl) logoEl.title = navName;
   const track = document.getElementById('appNavTrack');
-  const key = _navCtx + '|' + currentLang;
+  const key = currentLang;
   let rebuilt = false;
   if (key !== _navBuiltKey) {
     rebuilt = true;
     _navBuiltKey = key;
     track.querySelectorAll('.app-nav-tab').forEach(b => b.remove());
-    NAV_TABS[_navCtx].forEach(tab => {
+    NAV_TABS.forEach(tab => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'app-nav-tab';
@@ -645,7 +649,7 @@ function updateAppNav() {
     });
   }
   track.querySelectorAll('.app-nav-tab').forEach(b => {
-    const on = b.dataset.page === currentPage;
+    const on = b.dataset.page === _navTabFor(currentPage);
     b.classList.toggle('active', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
@@ -654,10 +658,10 @@ function updateAppNav() {
 }
 function _navNavigate(page) {
   if (page === currentPage) { _navSyncActive(false); return; }
-  const tabs = NAV_TABS[_navCtx].map(t => t.page);
-  const cur = tabs.indexOf(currentPage), nxt = tabs.indexOf(page);
-  const sign = (cur >= 0 && nxt >= 0) ? (nxt > cur ? 1 : -1) : (page === 'home' ? -1 : 1);
-  navigate(page, page === 'home' ? 'back' : 'forward', { spring: true, sign });
+  const tabs = NAV_TABS.map(t => t.page);
+  const cur = tabs.indexOf(_navTabFor(currentPage)), nxt = tabs.indexOf(page);
+  const sign = (cur >= 0 && nxt >= 0 && nxt > cur) ? 1 : -1;     // hacia una pestaña posterior entra desde abajo/derecha
+  navigate(page, sign < 0 ? 'back' : 'forward', { spring: true, sign });
 }
 function _navClick(page) { if (!_navSuppress) _navNavigate(page); }
 function toggleNavCollapsed() {

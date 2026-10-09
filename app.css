@@ -1804,8 +1804,8 @@ body.has-nav .build-badge{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
   body.has-nav .build-badge{bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 }
 
-/* La animación de entrada de página (translateX) ensanchaba el viewport en móvil y desplazaba la barra fija */
-html{overflow-x:clip}
+/* Reserva el hueco de la barra de desplazamiento: al cambiar de alto el documento no se mueve el contenido */
+html{scrollbar-gutter:stable}
 
 /* ── PC: nombre junto al logo y selector fundido con el fondo de la página ── */
 .app-nav-user{display:none}
@@ -1838,10 +1838,9 @@ html{overflow-x:clip}
   .app-nav-pill::after{top:100%;background:radial-gradient(circle at 0 100%,transparent 19.5px,var(--bg) 20px)}
 }
 
-/* Transición de página con muelles (la lógica está en _pageSpring) */
-.page.springing{animation:none;will-change:transform,opacity}
-.page.leaving{
-  display:flex;position:fixed;left:0;right:0;width:100%;max-height:100vh;overflow:hidden;
-  z-index:1;pointer-events:none;will-change:transform,opacity;
+/* Transición de página con muelles (la lógica está en _pageSpring): ambas páginas fijas = sin scrollbar ni ensanchar el viewport */
+.page.springing,.page.leaving{
+  position:fixed;left:0;right:0;bottom:0;width:100%;overflow:hidden;will-change:transform,opacity;
 }
-
+.page.springing{top:0;z-index:2;animation:none}
+.page.leaving{display:flex;z-index:1;pointer-events:none}

@@ -398,8 +398,10 @@ const _rl = (() => {
 // ═══════════════════ ROUTER ═══════════════════
 let currentPage = 'login';   // must be declared before applyTranslations()
 // ── Transición de página con física de muelle (al cambiar de pestaña en la barra) ──
-// La página que entra llega con un muelle sub-amortiguado (se pasa un poco y rebota); la que sale se aparta con un muelle más rígido.
-// Eje: horizontal en móvil, vertical en PC (igual que el movimiento del selector); sentido según el orden de las pestañas.
+// La página que entra llega con un muelle sub-amortiguado (se pasa un poco y rebota); la que sale se aparta con uno más rígido.
+// Durante la animación las dos páginas van en position:fixed: no añaden alto/ancho al documento, así que no aparece la barra de
+// desplazamiento ni se ensancha el viewport, y solo se anima transform+opacity (compositor, sin repintar).
+// Eje: horizontal en móvil, vertical en PC (igual que el selector); sentido según el orden de las pestañas.
 let _pgT = null;
 function _pageSpringEnd() {
   if (!_pgT) return;
@@ -412,23 +414,22 @@ function _pageSpringEnd() {
     e.classList.remove('leaving', 'springing');
   });
 }
-function _pageSpring(inEl, outEl, sign) {
+function _pageSpring(inEl, outEl, sign, sy) {
   if (_navReduce.matches || !outEl || outEl === inEl) return;
   const vert = _navMQ.matches, dist = vert ? 44 : 56;
   outEl.classList.add('leaving');
-  outEl.style.top = (-window.scrollY) + 'px';      // la página que sale se queda donde estaba
-  window.scrollTo(0, 0);
+  outEl.style.top = (-(sy || 0)) + 'px';           // la página que sale se queda donde estaba
   inEl.classList.add('springing');
   const A = { p: 0, v: 0, k: 210, d: 17 }, B = { p: 0, v: 0, k: 300, d: 30 };
   const T = { inEl, outEl, raf: 0 };
   _pgT = T;
   let last = 0, outGone = false;
-  const tf = (o, sc) => vert ? `translate3d(0,${o}px,0) scale(${sc})` : `translate3d(${o}px,0,0) scale(${sc})`;
+  const tf = o => vert ? `translate3d(0,${o}px,0)` : `translate3d(${o}px,0,0)`;
   const apply = () => {
-    inEl.style.transform = tf((1 - A.p) * dist * sign, .965 + .035 * A.p);
+    inEl.style.transform = tf((1 - A.p) * dist * sign);
     inEl.style.opacity = Math.max(0, Math.min(1, A.p * 1.6));
     if (!outGone) {
-      outEl.style.transform = tf(-B.p * dist * .8 * sign, 1 - .03 * B.p);
+      outEl.style.transform = tf(-B.p * dist * .8 * sign);
       outEl.style.opacity = Math.max(0, 1 - B.p * 1.4);
     }
   };
@@ -468,6 +469,7 @@ function navigate(to, dir = 'forward', opts = {}) {
     return;
   }
   _pageSpringEnd();
+  const sy = opts.spring ? window.scrollY : 0;   // leer antes de tocar el DOM (no fuerza layout)
   const outEl = document.getElementById('page-' + currentPage);
   const inEl  = document.getElementById('page-' + to);
   if (!inEl) return;
@@ -475,19 +477,22 @@ function navigate(to, dir = 'forward', opts = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active','anim-in','anim-back'));
   if (opts.spring) {
     inEl.classList.add('active');
-    _pageSpring(inEl, outEl, opts.sign || 1);   // transición con muelles (barra de navegación)
+    _pageSpring(inEl, outEl, opts.sign || 1, sy);   // transición con muelles (barra de navegación)
   } else {
     inEl.classList.add('active', dir === 'forward' ? 'anim-in' : 'anim-back');
   }
   currentPage = to;
-  // Page-specific setup
-  if (to === 'lista') renderLista();
-  if (to === 'parejas') { renderMatchFilters(); }
-  if (to === 'crucigrama') { updateBagCount(); buildCrossword(); }
-  if (to === 'velocidad') { stopSpeedGame(); renderSpeedSetup(); }
-  if (to === 'perfil') { renderPerfil(); }
-  if (to === 'progreso') { renderProgreso(); }
-  if (to === 'lectura') { onLecturaEnter(); }
+  // Page-specific setup (con muelles se hace tras pintar el primer frame, cuando la página aún es invisible, para no bloquear el clic)
+  const setup = () => {
+    if (to === 'lista') renderLista();
+    if (to === 'parejas') { renderMatchFilters(); }
+    if (to === 'crucigrama') { updateBagCount(); buildCrossword(); }
+    if (to === 'velocidad') { stopSpeedGame(); renderSpeedSetup(); }
+    if (to === 'perfil') { renderPerfil(); }
+    if (to === 'progreso') { renderProgreso(); }
+    if (to === 'lectura') { onLecturaEnter(); }
+  };
+  if (opts.spring) requestAnimationFrame(() => setTimeout(() => { if (currentPage === to) setup(); }, 0)); else setup();
   updateAppNav();
 }
 
@@ -510,26 +515,28 @@ const _navMQ = window.matchMedia('(min-width:700px)');                 // PC: ra
 const _navReduce = window.matchMedia('(prefers-reduced-motion:reduce)');
 let _navCtx = 'home', _navBuiltKey = '';
 let _navRaf = 0, _navLast = 0, _navPress = null, _navSuppress = false;
-// Muelles (física del "cristal líquido"): p = posición, v = velocidad, t = destino
+// Selector "líquido": cada borde (inicio y fin en cada eje) es un muelle propio.
+// El borde delantero corre y el trasero se rezaga, así el selector se estira hacia la otra pestaña y luego se recoge como una gota.
+const _navLEAD = { k: 280, d: 22 }, _navLAG = { k: 110, d: 15 }, _navEVEN = { k: 240, d: 21 };
 const _navAx = {
-  x: { p: 0, v: 0, t: 0, k: 300, d: 21, e: .4 },
-  y: { p: 0, v: 0, t: 0, k: 300, d: 21, e: .4 },
-  w: { p: 0, v: 0, t: 0, k: 360, d: 26, e: .4 },
-  h: { p: 0, v: 0, t: 0, k: 360, d: 26, e: .4 },
-  s: { p: 1, v: 0, t: 1, k: 520, d: 28, e: .002 }   // escala al pulsar
+  x0: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 }, x1: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 },
+  y0: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 }, y1: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 },
+  s:  { p: 1, v: 0, t: 1, k: 520, d: 28, e: .002 }   // escala al pulsar
 };
+const _navSz = { w: 0, h: 0 };   // tamaño de reposo del selector
+let _navRects = {};              // posición de cada pestaña, en caché para no forzar layout al pulsar
 
 function _navPaint() {
   const pill = document.getElementById('appNavPill');
   if (!pill) return;
-  const vert = _navMQ.matches;
-  const vel = vert ? _navAx.y.v : _navAx.x.v;
-  const st = Math.min(Math.abs(vel) / 2200, .3);          // estiramiento según velocidad
-  const sx = vert ? 1 - st * .4 : 1 + st, sy = vert ? 1 + st : 1 - st * .4;
-  const pr = _navAx.s.p;
-  pill.style.width = _navAx.w.p + 'px';
-  pill.style.height = _navAx.h.p + 'px';
-  pill.style.transform = `translate3d(${_navAx.x.p}px,${_navAx.y.p}px,0) scale(${sx * pr},${sy * pr})`;
+  const A = _navAx, vert = _navMQ.matches;
+  const w = Math.max(4, A.x1.p - A.x0.p), h = Math.max(4, A.y1.p - A.y0.p);
+  const len = vert ? h : w, base = (vert ? _navSz.h : _navSz.w) || len;
+  const cross = Math.max(.8, Math.min(1.05, Math.sqrt(base / Math.max(len, 1))));   // volumen constante: al estirarse se afina
+  const pr = A.s.p;
+  pill.style.width = w + 'px';
+  pill.style.height = h + 'px';
+  pill.style.transform = `translate3d(${A.x0.p}px,${A.y0.p}px,0) scale(${(vert ? cross : 1) * pr},${(vert ? 1 : cross) * pr})`;
 }
 function _navStep(ts) {
   const dt = Math.min(.032, (ts - (_navLast || ts)) / 1000);
@@ -547,22 +554,40 @@ function _navKick() {
   if (_navReduce.matches) { for (const a of Object.values(_navAx)) { a.p = a.t; a.v = 0; } _navPaint(); return; }
   if (!_navRaf) _navRaf = requestAnimationFrame(_navStep);
 }
+function _navMeasure() {
+  const nav = document.getElementById('appNav'), track = document.getElementById('appNavTrack');
+  if (!nav || !track || nav.hidden) return;
+  const vert = _navMQ.matches;
+  _navRects = {};
+  track.querySelectorAll('.app-nav-tab').forEach(tb => {
+    const l = tb.offsetLeft, t = tb.offsetTop, w = tb.offsetWidth, h = tb.offsetHeight;
+    // PC: el selector se prolonga hasta el borde del rail para fundirse con el fondo de la página
+    const extra = vert ? Math.max(0, track.clientWidth - (l + w)) + 1 : 0;
+    _navRects[tb.dataset.page] = { l, t, w: w + extra, h };
+  });
+}
 function _navTarget(tab, snap) {
   const pill = document.getElementById('appNavPill');
   if (!pill) return;
   if (!tab) { pill.classList.remove('on'); return; }
+  let r = _navRects[tab.dataset.page];
+  if (!r) { _navMeasure(); r = _navRects[tab.dataset.page]; }
+  if (!r) return;
   const first = !pill.classList.contains('on');
   pill.classList.add('on');
-  _navAx.x.t = tab.offsetLeft; _navAx.y.t = tab.offsetTop;
-  // PC: el selector se prolonga hasta el borde del rail para fundirse con el fondo de la página
-  let extra = 0;
-  if (_navMQ.matches) {
-    const tr = document.getElementById('appNavTrack');
-    extra = Math.max(0, tr.clientWidth - (tab.offsetLeft + tab.offsetWidth)) + 1;
+  const A = _navAx, vert = _navMQ.matches;
+  const t0x = r.l, t1x = r.l + r.w, t0y = r.t, t1y = r.t + r.h;
+  _navSz.w = r.w; _navSz.h = r.h;
+  if (!first && !snap && (vert ? t0y !== A.y0.t : t0x !== A.x0.t)) {
+    const fwd = vert ? t0y > A.y0.t : t0x > A.x0.t;
+    const [s0, s1] = vert ? [A.y0, A.y1] : [A.x0, A.x1], [c0, c1] = vert ? [A.x0, A.x1] : [A.y0, A.y1];
+    Object.assign(fwd ? s1 : s0, _navLEAD);     // el borde que va por delante corre
+    Object.assign(fwd ? s0 : s1, _navLAG);      // el de atrás se queda estirando
+    Object.assign(c0, _navEVEN); Object.assign(c1, _navEVEN);
   }
-  _navAx.w.t = tab.offsetWidth + extra; _navAx.h.t = tab.offsetHeight;
+  A.x0.t = t0x; A.x1.t = t1x; A.y0.t = t0y; A.y1.t = t1y;
   if (snap || first) {
-    for (const k of ['x', 'y', 'w', 'h']) { _navAx[k].p = _navAx[k].t; _navAx[k].v = 0; }
+    for (const k of ['x0', 'x1', 'y0', 'y1']) { A[k].p = A[k].t; A[k].v = 0; }
     _navPaint();
   } else _navKick();
 }
@@ -588,7 +613,9 @@ function updateAppNav() {
   if (logoEl) logoEl.title = navName;
   const track = document.getElementById('appNavTrack');
   const key = _navCtx + '|' + currentLang;
+  let rebuilt = false;
   if (key !== _navBuiltKey) {
+    rebuilt = true;
     _navBuiltKey = key;
     track.querySelectorAll('.app-nav-tab').forEach(b => b.remove());
     NAV_TABS[_navCtx].forEach(tab => {
@@ -608,6 +635,7 @@ function updateAppNav() {
     b.classList.toggle('active', on);
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
+  if (rebuilt || wasHidden || !Object.keys(_navRects).length) _navMeasure();
   _navSyncActive(wasHidden);
 }
 function _navNavigate(page) {
@@ -661,12 +689,15 @@ function _navRipple(tab, e) {
     const tabs = track.querySelectorAll('.app-nav-tab');
     const first = tabs[0], last = tabs[tabs.length - 1], r = track.getBoundingClientRect();
     if (_navMQ.matches) {
-      const c = e.clientY - r.top - _navAx.h.t / 2;
-      _navAx.y.t = Math.max(first.offsetTop, Math.min(c, last.offsetTop + last.offsetHeight - _navAx.h.t));
+      const c = e.clientY - r.top - _navSz.h / 2;
+      const y = Math.max(first.offsetTop, Math.min(c, last.offsetTop + last.offsetHeight - _navSz.h));
+      _navAx.y0.t = y; _navAx.y1.t = y + _navSz.h;
     } else {
-      const c = e.clientX - r.left - _navAx.w.t / 2;
-      _navAx.x.t = Math.max(first.offsetLeft, Math.min(c, last.offsetLeft + last.offsetWidth - _navAx.w.t));
+      const c = e.clientX - r.left - _navSz.w / 2;
+      const x = Math.max(first.offsetLeft, Math.min(c, last.offsetLeft + last.offsetWidth - _navSz.w));
+      _navAx.x0.t = x; _navAx.x1.t = x + _navSz.w;
     }
+    for (const k of ['x0', 'x1', 'y0', 'y1']) Object.assign(_navAx[k], _navEVEN);
     _navKick();
   });
   const release = e => {
@@ -679,7 +710,7 @@ function _navRipple(tab, e) {
       setTimeout(() => { _navSuppress = false; }, 80);
       if (e.type === 'pointerup') {
         const vert = _navMQ.matches;
-        const cx = _navAx.x.t + _navAx.w.t / 2, cy = _navAx.y.t + _navAx.h.t / 2;
+        const cx = (_navAx.x0.t + _navAx.x1.t) / 2, cy = (_navAx.y0.t + _navAx.y1.t) / 2;
         let best = null, bd = Infinity;
         track.querySelectorAll('.app-nav-tab').forEach(tb => {
           const d = vert ? Math.abs(tb.offsetTop + tb.offsetHeight / 2 - cy) : Math.abs(tb.offsetLeft + tb.offsetWidth / 2 - cx);
@@ -694,8 +725,8 @@ function _navRipple(tab, e) {
   track.addEventListener('pointerup', release);
   track.addEventListener('pointercancel', release);
   // Cambios de tamaño (contraer/expandir el rail, girar el móvil, PC ↔ móvil)
-  if ('ResizeObserver' in window) new ResizeObserver(() => { if (!_navPress) _navSyncActive(false); }).observe(track);
-  _navMQ.addEventListener?.('change', () => _navSyncActive(true));
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (!_navPress) { _navMeasure(); _navSyncActive(false); } }).observe(track);
+  _navMQ.addEventListener?.('change', () => { _navMeasure(); _navSyncActive(true); });
 })();
 
 // Apply initial language (currentPage is now defined)
@@ -2668,7 +2699,8 @@ function _restoreAppState() {
 const _origNavigate = navigate;
 navigate = function(to, dir, opts) {
   _origNavigate(to, dir, opts);
-  _saveAppState();
+  if (opts && opts.spring) requestAnimationFrame(() => setTimeout(_saveAppState, 0));
+  else _saveAppState();
 };
 
 // Save on tab hide / app background (works on desktop + Android)

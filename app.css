@@ -1838,3 +1838,10 @@ html{overflow-x:clip}
   .app-nav-pill::after{top:100%;background:radial-gradient(circle at 0 100%,transparent 19.5px,var(--bg) 20px)}
 }
 
+/* Transición de página con muelles (la lógica está en _pageSpring) */
+.page.springing{animation:none;will-change:transform,opacity}
+.page.leaving{
+  display:flex;position:fixed;left:0;right:0;width:100%;max-height:100vh;overflow:hidden;
+  z-index:1;pointer-events:none;will-change:transform,opacity;
+}
+

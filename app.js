@@ -397,25 +397,88 @@ const _rl = (() => {
 
 // ═══════════════════ ROUTER ═══════════════════
 let currentPage = 'login';   // must be declared before applyTranslations()
+// ── Transición de página con física de muelle (al cambiar de pestaña en la barra) ──
+// La página que entra llega con un muelle sub-amortiguado (se pasa un poco y rebota); la que sale se aparta con un muelle más rígido.
+// Eje: horizontal en móvil, vertical en PC (igual que el movimiento del selector); sentido según el orden de las pestañas.
+let _pgT = null;
+function _pageSpringEnd() {
+  if (!_pgT) return;
+  cancelAnimationFrame(_pgT.raf);
+  const { inEl, outEl } = _pgT;
+  _pgT = null;
+  [inEl, outEl].forEach(e => {
+    if (!e) return;
+    e.style.transform = e.style.opacity = e.style.top = '';
+    e.classList.remove('leaving', 'springing');
+  });
+}
+function _pageSpring(inEl, outEl, sign) {
+  if (_navReduce.matches || !outEl || outEl === inEl) return;
+  const vert = _navMQ.matches, dist = vert ? 44 : 56;
+  outEl.classList.add('leaving');
+  outEl.style.top = (-window.scrollY) + 'px';      // la página que sale se queda donde estaba
+  window.scrollTo(0, 0);
+  inEl.classList.add('springing');
+  const A = { p: 0, v: 0, k: 210, d: 17 }, B = { p: 0, v: 0, k: 300, d: 30 };
+  const T = { inEl, outEl, raf: 0 };
+  _pgT = T;
+  let last = 0, outGone = false;
+  const tf = (o, sc) => vert ? `translate3d(0,${o}px,0) scale(${sc})` : `translate3d(${o}px,0,0) scale(${sc})`;
+  const apply = () => {
+    inEl.style.transform = tf((1 - A.p) * dist * sign, .965 + .035 * A.p);
+    inEl.style.opacity = Math.max(0, Math.min(1, A.p * 1.6));
+    if (!outGone) {
+      outEl.style.transform = tf(-B.p * dist * .8 * sign, 1 - .03 * B.p);
+      outEl.style.opacity = Math.max(0, 1 - B.p * 1.4);
+    }
+  };
+  apply();
+  const step = ts => {
+    if (_pgT !== T) return;
+    const dt = Math.min(.032, (ts - (last || ts)) / 1000);
+    last = ts;
+    let moving = false;
+    for (const s of [A, B]) {
+      s.v += (-s.k * (s.p - 1) - s.d * s.v) * dt;
+      s.p += s.v * dt;
+      if (Math.abs(s.v) > .002 || Math.abs(s.p - 1) > .002) moving = true; else { s.p = 1; s.v = 0; }
+    }
+    if (!outGone && B.p > .72) {
+      outGone = true;
+      outEl.style.transform = outEl.style.opacity = outEl.style.top = '';
+      outEl.classList.remove('leaving');
+    }
+    apply();
+    if (moving) T.raf = requestAnimationFrame(step); else _pageSpringEnd();
+  };
+  T.raf = requestAnimationFrame(step);
+}
 function showPage(id) {
+  _pageSpringEnd();
   document.querySelectorAll('.page').forEach(p => { p.classList.remove('active','anim-in','anim-back'); });
   document.getElementById('page-' + id).classList.add('active');
   currentPage = id;
   updateAppNav();
 }
-function navigate(to, dir = 'forward') {
+function navigate(to, dir = 'forward', opts = {}) {
   // AUTH GUARD — block unauthenticated access to protected pages
   if (PROTECTED_PAGES.has(to) && !currentUser) {
     console.warn('[Auth] Blocked navigation to', to, '— not authenticated');
     showPage('login');
     return;
   }
+  _pageSpringEnd();
   const outEl = document.getElementById('page-' + currentPage);
   const inEl  = document.getElementById('page-' + to);
   if (!inEl) return;
   // Instantly hide old
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active','anim-in','anim-back'));
-  inEl.classList.add('active', dir === 'forward' ? 'anim-in' : 'anim-back');
+  if (opts.spring) {
+    inEl.classList.add('active');
+    _pageSpring(inEl, outEl, opts.sign || 1);   // transición con muelles (barra de navegación)
+  } else {
+    inEl.classList.add('active', dir === 'forward' ? 'anim-in' : 'anim-back');
+  }
   currentPage = to;
   // Page-specific setup
   if (to === 'lista') renderLista();
@@ -549,7 +612,10 @@ function updateAppNav() {
 }
 function _navNavigate(page) {
   if (page === currentPage) { _navSyncActive(false); return; }
-  navigate(page, page === 'home' ? 'back' : 'forward');
+  const tabs = NAV_TABS[_navCtx].map(t => t.page);
+  const cur = tabs.indexOf(currentPage), nxt = tabs.indexOf(page);
+  const sign = (cur >= 0 && nxt >= 0) ? (nxt > cur ? 1 : -1) : (page === 'home' ? -1 : 1);
+  navigate(page, page === 'home' ? 'back' : 'forward', { spring: true, sign });
 }
 function _navClick(page) { if (!_navSuppress) _navNavigate(page); }
 function toggleNavCollapsed() {
@@ -2600,8 +2666,8 @@ function _restoreAppState() {
 
 // Wrap navigate to always persist state (must be defined before first use)
 const _origNavigate = navigate;
-navigate = function(to, dir) {
-  _origNavigate(to, dir);
+navigate = function(to, dir, opts) {
+  _origNavigate(to, dir, opts);
   _saveAppState();
 };
 

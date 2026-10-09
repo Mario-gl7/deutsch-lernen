@@ -517,7 +517,7 @@ let _navCtx = 'home', _navBuiltKey = '';
 let _navRaf = 0, _navLast = 0, _navPress = null, _navSuppress = false;
 // Selector "líquido": cada borde (inicio y fin en cada eje) es un muelle propio.
 // El borde delantero corre y el trasero se rezaga, así el selector se estira hacia la otra pestaña y luego se recoge como una gota.
-const _navLEAD = { k: 280, d: 22 }, _navLAG = { k: 110, d: 15 }, _navEVEN = { k: 240, d: 21 };
+const _navLEAD = { k: 300, d: 20 }, _navLAG = { k: 85, d: 13 }, _navEVEN = { k: 240, d: 21 };
 const _navAx = {
   x0: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 }, x1: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 },
   y0: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 }, y1: { p: 0, v: 0, t: 0, k: 240, d: 21, e: .4 },
@@ -530,13 +530,27 @@ function _navPaint() {
   const pill = document.getElementById('appNavPill');
   if (!pill) return;
   const A = _navAx, vert = _navMQ.matches;
+  if (vert) {
+    // PC: el selector es UNA sola forma de gelatina (cápsula + cuello cóncavo hasta el borde, del color del fondo) dibujada con clip-path.
+    // Sus extremos son los muelles y=y0/y1: al moverse se estira y se afina, y las curvas de unión viajan pegadas a los extremos.
+    const F = 20, body = Math.max(8, A.y1.p - A.y0.p), base = _navSz.h || body;
+    const thin = Math.max(-6, Math.min(16, (body / base - 1) * 14));   // volumen constante: más largo = más fino
+    const L = A.x0.p + thin, W = Math.max(F + 8, A.x1.p - L), H = body + 2 * F;
+    const r = Math.min(26, body / 2);
+    pill.style.width = W + 'px';
+    pill.style.height = H + 'px';
+    pill.style.transform = `translate3d(${L}px,${A.y0.p - F}px,0)`;
+    pill.style.clipPath = `path('M ${r} ${F} H ${W - F} A ${F} ${F} 0 0 0 ${W} 0 V ${H} A ${F} ${F} 0 0 0 ${W - F} ${H - F} H ${r} A ${r} ${r} 0 0 1 0 ${H - F - r} V ${F + r} A ${r} ${r} 0 0 1 ${r} ${F} Z')`;
+    return;
+  }
+  pill.style.clipPath = '';
   const w = Math.max(4, A.x1.p - A.x0.p), h = Math.max(4, A.y1.p - A.y0.p);
-  const len = vert ? h : w, base = (vert ? _navSz.h : _navSz.w) || len;
-  const cross = Math.max(.8, Math.min(1.05, Math.sqrt(base / Math.max(len, 1))));   // volumen constante: al estirarse se afina
+  const base = _navSz.w || w;
+  const cross = Math.max(.8, Math.min(1.05, Math.sqrt(base / Math.max(w, 1))));   // volumen constante: al estirarse se afina
   const pr = A.s.p;
   pill.style.width = w + 'px';
   pill.style.height = h + 'px';
-  pill.style.transform = `translate3d(${A.x0.p}px,${A.y0.p}px,0) scale(${(vert ? cross : 1) * pr},${(vert ? 1 : cross) * pr})`;
+  pill.style.transform = `translate3d(${A.x0.p}px,${A.y0.p}px,0) scale(${pr},${cross * pr})`;
 }
 function _navStep(ts) {
   const dt = Math.min(.032, (ts - (_navLast || ts)) / 1000);

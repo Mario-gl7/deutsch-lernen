@@ -1844,3 +1844,15 @@ html{scrollbar-gutter:stable}
 }
 .page.springing{top:0;z-index:2;animation:none}
 .page.leaving{display:flex;z-index:1;pointer-events:none}
+
+/* Selector por encima del fondo de cada pestaña (cubre el cristal) y por debajo de icono y texto */
+.app-nav-tab{z-index:auto}
+.app-nav-pill{z-index:1}
+.app-nav-ico,.app-nav-lbl,.app-nav-ripple{position:relative;z-index:2}
+.app-nav-ripple{position:absolute}
+@media (min-width:700px){
+  /* PC: la forma la dibuja _navPaint con clip-path (una sola pieza, sin pseudo-elementos) */
+  .app-nav-pill{border-radius:0}
+  .app-nav-pill::before,.app-nav-pill::after{display:none}
+}
+

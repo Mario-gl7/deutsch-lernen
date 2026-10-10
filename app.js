@@ -2902,6 +2902,7 @@ function _restoreAppState() {
 const _origNavigate = navigate;
 navigate = function(to, dir, opts) {
   _origNavigate(to, dir, opts);
+  try { document.body.classList.toggle('lectura-reading', to === 'lectura' && !!_lectura.current); } catch(e) {}
   if (opts && opts.spring) requestAnimationFrame(() => setTimeout(_saveAppState, 0));
   else _saveAppState();
 };
@@ -3000,6 +3001,7 @@ function closeLecturaBook() {
 // Barra superior: en la biblioteca "Inicio / Lectura"; con un archivo abierto "Biblioteca" y su título
 function _updateLecturaTopBar() {
   const inReader = !!_lectura.current;
+  document.body.classList.toggle('lectura-reading', inReader && currentPage === 'lectura');   // oculta la barra de navegación mientras se lee
   const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
   set('lecturaBackLabel', inReader ? 'Biblioteca' : 'Inicio');
   set('lecturaCrumbDim',  inReader ? 'Lectura'    : 'Inicio');

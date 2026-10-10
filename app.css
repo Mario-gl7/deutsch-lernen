@@ -2037,7 +2037,9 @@ body:not([data-page="perfil"]) .build-badge{display:none}
 #page-lectura.bk-mode .lectura-shell{background:var(--bk-bg)}
 
 #lecturaBook{display:none;flex:1;min-height:0;position:relative;background:var(--bk-bg);color:var(--bk-fg)}
-#lecturaReader.bk-on{flex:1 1 0;min-height:0;height:auto!important}
+/* El lector ocupa siempre todo el alto del shell (height:100% no se resolvía y el iframe de las webs quedaba cortado) */
+#lecturaReader{flex:1 1 0;min-height:0;height:auto!important}
+.lectura-frame{min-height:0}
 #lecturaReader.bk-on #lecturaBook{display:block}
 #lecturaReader.bk-on #lecturaScroll,#lecturaReader.bk-on #lecturaFrame,#lecturaReader.bk-on .lectura-bottom-bar,
 #lecturaReader.bk-on #lecturaProgBar,#lecturaReader.bk-on #lecturaExitFullBtn{display:none!important}
@@ -2115,3 +2117,7 @@ body.lectura-fs #lecturaPopupOverlay{z-index:7050!important}
 
 /* Biblioteca: sin botones de pantalla completa / tipografía (no aplican hasta abrir algo) */
 #lecturaTopBar:not(.in-reader) .lectura-toolbar-btn{display:none!important}
+
+/* Leyendo (libro o web): sin barra de navegación inferior */
+body.lectura-reading #appNav{display:none!important}
+body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe-area-inset-top,0px))}

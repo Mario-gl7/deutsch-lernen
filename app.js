@@ -227,15 +227,16 @@ function applyTranslations() {
   setFieldLabel(0, t('loginEmailLabel'));
   setFieldLabel(1, t('loginPassLabel'));
   // Home hero
-  setText2('.home-hero-eyebrow', t('workspace'));
   const heroTitle = document.querySelector('.home-hero-title');
-  if (heroTitle) heroTitle.innerHTML = t('greeting') + '<br><em id="greetName">' + (document.getElementById('greetName')?.textContent || '…') + '</em>';
+  if (heroTitle) heroTitle.innerHTML = t('greeting') + ' <em id="greetName">' + (document.getElementById('greetName')?.textContent || '…') + '</em>';
   setText2('.home-hero-sub', t('homeSub'));
   // Workspace cards
   const wsCards = document.querySelectorAll('.ws-card:not(.coming) .ws-card-title');
   if (wsCards[0]) wsCards[0].textContent = t('vocabTitle');
   const wsDescs = document.querySelectorAll('.ws-card:not(.coming) .ws-card-desc');
   if (wsDescs[0]) wsDescs[0].textContent = t('vocabDesc');
+  if (wsCards[2]) wsCards[2].textContent = t('grammarTitle');
+  if (wsDescs[2]) wsDescs[2].textContent = t('grammarDesc');
   const comingTitle = document.querySelector('.ws-card.coming .ws-card-title');
   if (comingTitle) comingTitle.textContent = t('grammarTitle');
   const comingDesc = document.querySelector('.ws-card.coming .ws-card-desc');
@@ -4434,6 +4435,7 @@ function _handleUiClick(event) {
     case 'logout-confirm': if (confirm('¿Cerrar sesión?')) doLogout(); break;
     case 'nav-vocab': navigate('vocab-hub', 'forward'); break;
     case 'nav-reading': navigate('lectura', 'forward'); break;
+    case 'nav-grammar': navigate('grammar', 'forward'); break;
     case 'nav-home-back': navigate('home', 'back'); break;
     case 'nav-tab': _navClick(el.dataset.page); break;
     case 'prog-range': progSetRange(el.dataset.range); break;

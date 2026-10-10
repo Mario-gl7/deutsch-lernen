@@ -120,8 +120,7 @@
   <div class="home-inner">
     <!-- Hero -->
     <div class="home-hero">
-      <div class="home-hero-eyebrow">🇩🇪 Workspace</div>
-      <div class="home-hero-title">Hola,<br><em id="greetName">…</em></div>
+      <div class="home-hero-title">Hola, <em id="greetName">…</em></div>
       <div class="home-hero-sub">¿Qué quieres practicar hoy?</div>
     </div>
 
@@ -141,12 +140,23 @@
 
       <!-- Lectura -->
       <button class="ws-card" data-ui-click="nav-reading">
-        <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(167,139,250,.22) 0%,rgba(96,165,250,.10) 100%)">
+        <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18) 0%,rgba(96,165,250,.12) 100%)">
           <span class="ws-card-cover-emoji">📖</span>
         </div>
         <div class="ws-card-label">
           <div class="ws-card-title">Lectura</div>
           <div class="ws-card-desc">e-book · tap to translate</div>
+        </div>
+      </button>
+
+      <!-- Gramática -->
+      <button class="ws-card" data-ui-click="nav-grammar">
+        <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18) 0%,rgba(96,165,250,.12) 100%)">
+          <span class="ws-card-cover-emoji">✍️</span>
+        </div>
+        <div class="ws-card-label">
+          <div class="ws-card-title">Gramática</div>
+          <div class="ws-card-desc">Casos, conjugaciones y más</div>
         </div>
       </button>
 
@@ -729,7 +739,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.49</div>
+<div id="buildBadge" class="build-badge">1.07.50</div>
 
 <script src="app.js"></script>
 </body>

@@ -2979,6 +2979,7 @@ function exitLectura() {
 }
 
 function closeLecturaBook() {
+  _bkFlushSave();
   _saveLecturaProgress();
   closeLecturaPopup();
   if (_lectura.fullscreen) toggleLecturaFull();
@@ -2987,6 +2988,7 @@ function closeLecturaBook() {
   _lectura.webView = false;
   _lectura.frameBook = null;
   _lectura.frameUrl = null;
+  _bkClose();
   const f = document.getElementById('lecturaFrame');
   if (f) { f.onload = null; f.src = 'about:blank'; f.style.display = 'none'; }
   document.getElementById('lecturaReader').style.display = 'none';
@@ -3158,11 +3160,11 @@ function _saveBooksLS(bookData) {
   } catch(e) {}
 }
 function _getAllBooksLS() { try { return JSON.parse(localStorage.getItem(_LBOOKS())||'[]'); } catch(e) { return []; } }
-function _saveProgressLS(bookId, pageIdx) {
+function _saveProgressLS(bookId, pageIdx, frac) {
   try {
     const all = _getAllBooksLS();
     const b = all.find(x => x.id === bookId);
-    if (b) { b.pageIdx = pageIdx; localStorage.setItem(_LBOOKS(), JSON.stringify(all)); }
+    if (b) { b.pageIdx = pageIdx; if (frac !== undefined) b.frac = frac; localStorage.setItem(_LBOOKS(), JSON.stringify(all)); }
   } catch(e) {}
 }
 
@@ -3277,6 +3279,7 @@ async function deleteBook(bookId) {
   }
   if (_lectura.current?.id === bookId) {
     _lectura.current = null;
+    _bkClose();
     document.getElementById('lecturaUpload').style.display = '';
     document.getElementById('lecturaReader').style.display = 'none';
     _updateLecturaTopBar();
@@ -3338,7 +3341,7 @@ function _buildLecturaHTML(text) {
 
 function _highlightSavedWords() {
   const saved = new Set(getWords().map(w => w.de.toLowerCase()));
-  document.querySelectorAll('#lecturaContent .lw').forEach(span => {
+  document.querySelectorAll('#lecturaContent .lw, #bkFlow .lw').forEach(span => {
     span.classList.toggle('lw-saved', saved.has((span.dataset.w||'').toLowerCase()));
   });
 }
@@ -3347,6 +3350,7 @@ function _highlightSavedWords() {
 function lecturaChangePage(delta) {
   const book = _lectura.current;
   if (!book) return;
+  if (book.ext !== 'web') { bookTurn(delta); return; }
   if (book.ext === 'web' && _lectura.webView) return;
   book.pageIdx = Math.max(0, Math.min(book.pages.length - 1, (book.pageIdx||0) + delta));
   _saveProgressLS(book.id, book.pageIdx);
@@ -3357,7 +3361,7 @@ function lecturaChangePage(delta) {
 // ── Word tap + translate popup ──────────────────────────────────
 async function lecturaWordTap(el) {
   const word = el.dataset.w || el.textContent;
-  document.querySelectorAll('#lecturaContent .lw-selected').forEach(e => e.classList.remove('lw-selected'));
+  document.querySelectorAll('#lecturaContent .lw-selected, #bkFlow .lw-selected').forEach(e => e.classList.remove('lw-selected'));
   el.classList.add('lw-selected');
   return _openWordPopup(word, el.getBoundingClientRect(), null);
 }
@@ -3413,7 +3417,7 @@ async function _openWordPopup(word, rect, href) {
 function closeLecturaPopup() {
   document.getElementById('lecturaPopup').style.display = 'none';
   document.getElementById('lecturaPopupOverlay').style.display = 'none';
-  document.querySelectorAll('#lecturaContent .lw-selected').forEach(e => e.classList.remove('lw-selected'));
+  document.querySelectorAll('#lecturaContent .lw-selected, #bkFlow .lw-selected').forEach(e => e.classList.remove('lw-selected'));
   _lectura.popup.word = null;
   _lectura.popup.href = null;
   const lpLink = document.getElementById('lpLinkBtn'); if (lpLink) lpLink.style.display = 'none';
@@ -3447,6 +3451,15 @@ async function _translateWord(word) {
 // ── Vista de página original (iframe vía /api/proxy-page) ───────
 function _applyLecturaView() {
   const book = _lectura.current;
+  const _bookMode = !!book && book.ext !== 'web';
+  _bkEl('lecturaReader')?.classList.toggle('bk-on', _bookMode);
+  _bkEl('page-lectura')?.classList.toggle('bk-mode', _bookMode);
+  if (_bookMode) {                       // PDF / EPUB → lector estilo Apple Books
+    const vb0 = _bkEl('lecturaViewBtn'); if (vb0) vb0.style.display = 'none';
+    _bkOpen();
+    return;
+  }
+  _bkClose();
   const isWeb = book?.ext === 'web';
   const orig = isWeb && !!_lectura.webView;
   const $ = id => document.getElementById(id);
@@ -3592,6 +3605,7 @@ function _applyLecturaSettings() {
 }
 
 function toggleLecturaFontPanel() {
+  if (_isBookMode()) { _bkTogglePanel(); return; }
   const panel = document.getElementById('lecturaFontPanel');
   if (!panel) return;
   const open = panel.style.display !== 'none';
@@ -3612,6 +3626,7 @@ document.addEventListener('click', e => {
 let _lecturaHideExitTimer = null;
 
 function _showExitFullBtn() {
+  if (_isBookMode()) { _bkShowChrome(false); return; }
   const btn = document.getElementById('lecturaExitFullBtn');
   if (!btn || !_lectura.fullscreen) return;
   btn.style.display = 'flex';
@@ -3634,6 +3649,8 @@ function toggleLecturaFull() {
       ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>'
       : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
   }
+  document.body.classList.toggle('lectura-fs', _lectura.fullscreen);
+  if (!_lectura.fullscreen) _bkHideChrome(true);
   const exitBtn = document.getElementById('lecturaExitFullBtn');
   if (exitBtn) exitBtn.style.display = 'none';
   clearTimeout(_lecturaHideExitTimer);
@@ -3648,9 +3665,21 @@ function toggleLecturaFull() {
 
 document.addEventListener('keydown', e => {
   if (currentPage !== 'lectura') return;
-  if (e.key === 'Escape' && _lectura.fullscreen) toggleLecturaFull();
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  lecturaChangePage(1);
-  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    lecturaChangePage(-1);
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
+  if (e.key === 'Escape') {
+    if (_isBookMode() && _bkEl('bkPanel')?.classList.contains('open')) { _bkTogglePanel(false); return; }
+    if (_lectura.fullscreen) toggleLecturaFull();
+    return;
+  }
+  const book = _isBookMode();
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || (book && (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)))) {
+    if (book) e.preventDefault();
+    lecturaChangePage(1);
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || (book && (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)))) {
+    if (book) e.preventDefault();
+    lecturaChangePage(-1);
+  }
 });
 
 // ── Loader overlay ──────────────────────────────────────────────
@@ -3669,6 +3698,362 @@ function _hideLecturaLoader() {
   const l = document.getElementById('lecturaLoader');
   if (l) l.style.display = 'none';
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// LECTURA · MODO LIBRO (PDF / EPUB) — estilo Apple Books
+// Paginación con columnas CSS, animaciones al pasar página, tipografía y temas.
+// Las páginas web (ext === 'web') NO usan este modo: siguen con el lector de siempre.
+// ═══════════════════════════════════════════════════════════════════
+const _BK_THEMES  = ['light', 'sepia', 'gray', 'night'];
+const _BK_FONTS   = ['georgia', 'palatino', 'sans', 'times'];
+const _BK_LINES   = { compact: 1.55, normal: 1.8, loose: 2.1 };
+const _BK_MARGINS = { narrow: 16, normal: 28, wide: 52 };
+const _BK_TURNS   = ['slide', 'flip', 'fade', 'scroll'];
+const _bk = { theme: 'night', font: 'georgia', size: 19, line: 'normal', margin: 'normal', turn: 'slide',
+  sec: -1, col: 0, cols: 1, n: 1, W: 0, H: 0, M: 28, busy: false,
+  chromeTimer: null, hoverTop: false, saveT: null, rt: null, wheelLast: 0, touch: null, wired: false };
+const _bkEl = id => document.getElementById(id);
+function _isBookMode() { const b = _lectura.current; return !!b && b.ext !== 'web'; }
+
+const _BKCFG = () => 'lectura_bk_cfg_' + (currentUser?.id || 'anon');
+function _loadBkCfg() {
+  try {
+    const c = JSON.parse(localStorage.getItem(_BKCFG()) || '{}');
+    if (_BK_THEMES.includes(c.theme)) _bk.theme = c.theme;
+    if (_BK_FONTS.includes(c.font)) _bk.font = c.font;
+    if (Object.hasOwn(_BK_LINES, c.line)) _bk.line = c.line;
+    if (Object.hasOwn(_BK_MARGINS, c.margin)) _bk.margin = c.margin;
+    if (_BK_TURNS.includes(c.turn)) _bk.turn = c.turn;
+    if (Number.isFinite(c.size)) _bk.size = Math.max(13, Math.min(36, Math.round(c.size)));
+  } catch(e) {}
+}
+function _saveBkCfg() {
+  try { localStorage.setItem(_BKCFG(), JSON.stringify({ theme: _bk.theme, font: _bk.font, size: _bk.size, line: _bk.line, margin: _bk.margin, turn: _bk.turn })); } catch(e) {}
+}
+
+// ── Eventos (una sola vez) ──────────────────────────────────────
+function _bkWire() {
+  if (_bk.wired) return;
+  const vp = _bkEl('bkViewport'), page = _bkEl('page-lectura');
+  if (!vp || !page) return;
+  _bk.wired = true;
+
+  // Clic fuera de las letras (pantalla completa) → muestra/oculta la barra con el botón de salir
+  vp.addEventListener('click', e => {
+    if (!_isBookMode() || !_lectura.fullscreen || e.target.closest('.lw')) return;
+    if (_bkEl('bkPanel')?.classList.contains('open')) return;   // ese clic solo cierra el panel
+    _bkToggleChrome();
+  });
+  // Ratón por la parte de arriba → barra visible mientras esté ahí
+  page.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || !_lectura.fullscreen || !_isBookMode()) return;
+    const top = e.clientY < 90;
+    if (top && !_bk.hoverTop) { _bk.hoverTop = true; _bkShowChrome(true); }
+    else if (!top && _bk.hoverTop) { _bk.hoverTop = false; _bkShowChrome(false, 1200); }
+  });
+  // Deslizar con el dedo
+  vp.addEventListener('touchstart', e => {
+    _bk.touch = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  vp.addEventListener('touchend', e => {
+    const t0 = _bk.touch; _bk.touch = null;
+    const t = e.changedTouches && e.changedTouches[0];
+    if (!t0 || !t || !_isBookMode() || _bk.turn === 'scroll') return;
+    const dx = t.clientX - t0.x, dy = t.clientY - t0.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (String(window.getSelection ? window.getSelection() : '')) return;
+    bookTurn(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  // Rueda / trackpad: un gesto = una página (la inercia no cuenta)
+  vp.addEventListener('wheel', e => {
+    if (_bk.turn === 'scroll' || !_isBookMode()) return;
+    const now = Date.now(), gap = now - _bk.wheelLast;
+    _bk.wheelLast = now;
+    if (gap < 200 || _bk.busy) return;
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(d) < 8) return;
+    bookTurn(d > 0 ? 1 : -1);
+  }, { passive: true });
+  vp.addEventListener('scroll', () => { if (_bk.turn === 'scroll' && _bk.sec >= 0) _bkSaveProgress(); }, { passive: true });
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => { clearTimeout(_bk.rt); _bk.rt = setTimeout(() => _bkRelayout(), 120); }).observe(vp);
+  }
+}
+
+// ── Apertura / cierre ───────────────────────────────────────────
+function _bkOpen() {
+  _bkWire();
+  _loadBkCfg();
+  _bkApplyAttrs();
+  _bk.sec = -1; _bk.busy = false;
+  _bkEl('bkViewport')?.querySelectorAll('.bk-ghost').forEach(g => g.remove());
+  _bkRelayout();
+  requestAnimationFrame(() => _bkRelayout());   // 2.º pase por si el layout aún no estaba medido
+}
+function _bkClose() {
+  clearTimeout(_bk.chromeTimer); clearTimeout(_bk.rt);
+  _bk.sec = -1; _bk.busy = false; _bk.hoverTop = false;
+  const flow = _bkEl('bkFlow'); if (flow) flow.innerHTML = '';
+  _bkEl('bkViewport')?.querySelectorAll('.bk-ghost').forEach(g => g.remove());
+  _bkEl('bkChrome')?.classList.remove('show');
+  _bkEl('bkPanel')?.classList.remove('open');
+  _bkEl('lecturaReader')?.classList.remove('bk-on');
+  _bkEl('page-lectura')?.classList.remove('bk-mode');
+}
+function _bkApplyAttrs() {
+  const page = _bkEl('page-lectura'); if (page) page.dataset.bkTheme = _bk.theme;
+  const bk = _bkEl('lecturaBook'); if (bk) bk.dataset.turn = _bk.turn;
+  _bkEl('bkViewport')?.classList.toggle('bk-vscroll', _bk.turn === 'scroll');
+  const t = _bkEl('bkChromeTitle'); if (t) t.textContent = _lectura.current?.title || '';
+  _bkSyncPanel();
+}
+
+// ── Maquetación ─────────────────────────────────────────────────
+function _bkMeasure(vp) {
+  const W = vp.clientWidth, H = vp.clientHeight;
+  const n = (_bk.turn !== 'scroll' && W >= 820) ? 2 : 1;      // pantallas anchas: dos páginas como un libro abierto
+  let M = _BK_MARGINS[_bk.margin];
+  if (W / n - 2 * M > 680) M = (W / n - 680) / 2;             // líneas nunca más largas de ~680px
+  if (_bk.turn !== 'scroll' && window.matchMedia && window.matchMedia('(hover:hover)').matches) M = Math.max(M, 56);   // con ratón: hueco para las flechas laterales
+  _bk.W = W; _bk.H = H; _bk.n = n; _bk.M = Math.round(M);
+}
+function _bkStyle(el) {
+  const s = el.style, scroll = _bk.turn === 'scroll';
+  el.className = 'bk-flow bk-ff-' + _bk.font + (scroll ? ' bk-flow-scroll' : '');
+  el.lang = 'de';
+  s.fontSize = _bk.size + 'px';
+  s.lineHeight = String(_BK_LINES[_bk.line]);
+  s.paddingLeft = s.paddingRight = _bk.M + 'px';
+  if (scroll) { s.columnCount = ''; s.columnGap = ''; s.transform = ''; }
+  else { s.columnCount = String(_bk.n); s.columnGap = (2 * _bk.M) + 'px'; }
+}
+function _lwWrap(line) {
+  return line.replace(/([a-zA-Z\u00c0-\u024f\u1e00-\u1eff]+(?:[-'][a-zA-Z\u00c0-\u024f]+)*)|([^a-zA-Z\u00c0-\u024f\u1e00-\u1eff]+)/g, (m, word, nonword) => {
+    if (word) { const s = _esc(word); return '<span class="lw" data-w="' + s + '" data-ui-click="reading-word">' + s + '</span>'; }
+    return _esc(nonword || '');
+  });
+}
+// Párrafos: EPUB → cada línea es un párrafo; PDF → se unen las líneas cortadas por el ancho original
+function _bkParas(text, ext) {
+  const lines = String(text).split('\n').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  if (ext !== 'pdf' || lines.length < 2) return lines;
+  const lens = lines.map(l => l.length).sort((a, b) => a - b);
+  const ref = lens[Math.floor(lens.length * 0.9)] || 1;
+  const out = []; let cur = lines[0];
+  for (let i = 1; i < lines.length; i++) {
+    const prev = lines[i - 1], next = lines[i];
+    if (prev.length < ref * 0.6 || (/[.!?:;»"”)]$/.test(prev) && prev.length < ref * 0.92)) { out.push(cur); cur = next; }
+    else if (/[A-Za-zÀ-ÿ]-$/.test(prev) && /^[a-zà-ÿ]/.test(next)) cur = cur.slice(0, -1) + next;
+    else cur += ' ' + next;
+  }
+  out.push(cur);
+  return out;
+}
+function _bkHTML(book, sec) {
+  return _bkParas(book.pages[sec] || '', book.ext).map(p => '<p>' + _lwWrap(p) + '</p>').join('');
+}
+// Nº de columnas/páginas de la sección: posición de la última palabra (robusto en Safari)
+function _bkCountCols(flow) {
+  const words = flow.querySelectorAll('.lw');
+  const last = words[words.length - 1];
+  if (!last) return 1;
+  const rects = last.getClientRects();
+  const r = rects.length ? rects[rects.length - 1] : last.getBoundingClientRect();
+  const rel = r.left - flow.getBoundingClientRect().left;
+  return Math.max(1, Math.floor(rel / _bk.W) + 1);
+}
+// where: 'start' | 'end' | { frac }
+function _bkRenderSection(sec, where) {
+  const book = _lectura.current, flow = _bkEl('bkFlow'), vp = _bkEl('bkViewport');
+  if (!book || !flow || !vp || !vp.clientWidth || !vp.clientHeight) return;
+  sec = Math.max(0, Math.min(book.pages.length - 1, sec));
+  _bkMeasure(vp);
+  _bkStyle(flow);
+  if (_bk.sec !== sec) { flow.innerHTML = _bkHTML(book, sec); _bk.sec = sec; _highlightSavedWords(); }
+  const frac = where && typeof where === 'object' ? where.frac : 0;
+  if (_bk.turn === 'scroll') {
+    _bk.cols = 1; _bk.col = 0;
+    const max = Math.max(0, vp.scrollHeight - vp.clientHeight);
+    vp.scrollTop = where === 'end' ? max : frac * max;
+    _bkUpdateFoot(); _bkSaveProgress();
+  } else {
+    vp.scrollTop = 0;
+    _bk.cols = _bkCountCols(flow);
+    _bkSetCol(where === 'end' ? _bk.cols - 1 : Math.floor(frac * _bk.cols + 1e-6));
+  }
+}
+function _bkSetCol(c) {
+  _bk.col = Math.max(0, Math.min(_bk.cols - 1, c));
+  const flow = _bkEl('bkFlow');
+  if (flow) flow.style.transform = 'translate3d(' + (-_bk.col * _bk.W) + 'px,0,0)';
+  _bkUpdateFoot(); _bkSaveProgress();
+}
+function _bkFrac() {
+  if (_bk.turn === 'scroll') {
+    const vp = _bkEl('bkViewport'), max = vp.scrollHeight - vp.clientHeight;
+    return max > 0 ? vp.scrollTop / max : 0;
+  }
+  return _bk.cols > 1 ? _bk.col / _bk.cols : 0;
+}
+function _bkRelayout(fracOverride) {
+  if (!_isBookMode()) return;
+  const vp = _bkEl('bkViewport');
+  if (!vp || !vp.clientWidth || !vp.clientHeight) return;
+  if (_bk.busy) { clearTimeout(_bk.rt); _bk.rt = setTimeout(() => _bkRelayout(fracOverride), 200); return; }
+  const book = _lectura.current;
+  if (_bk.sec < 0) { _bkRenderSection(Math.max(0, Math.min(book.pages.length - 1, book.pageIdx || 0)), { frac: book.frac || 0 }); return; }
+  _bkRenderSection(_bk.sec, { frac: fracOverride !== undefined ? fracOverride : _bkFrac() });
+}
+function _bkUpdateFoot() {
+  const book = _lectura.current, el = _bkEl('bkFootTxt');
+  if (!book || !el) return;
+  el.textContent = (_bk.sec + 1) + ' / ' + book.pages.length + (_bk.turn !== 'scroll' && _bk.cols > 1 ? ' · ' + (_bk.col + 1) + '/' + _bk.cols : '');
+}
+
+// ── Progreso (se guarda con retardo para no escribir en cada página) ──
+function _bkSaveProgress() {
+  const book = _lectura.current;
+  if (!book || book.ext === 'web' || _bk.sec < 0) return;
+  book.pageIdx = _bk.sec; book.frac = _bkFrac();
+  clearTimeout(_bk.saveT);
+  _bk.saveT = setTimeout(() => { _bkFlushSave(); _saveLecturaProgress(); }, 900);
+}
+function _bkFlushSave() {
+  clearTimeout(_bk.saveT); _bk.saveT = null;
+  const book = _lectura.current;
+  if (book && book.ext !== 'web' && _bk.sec >= 0) _saveProgressLS(book.id, book.pageIdx || 0, book.frac || 0);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _bkFlushSave(); });
+
+// ── Pasar página ────────────────────────────────────────────────
+function bookTurn(dir) {
+  const book = _lectura.current;
+  if (!book || book.ext === 'web' || _bk.sec < 0 || _bk.busy) return;
+  const last = book.pages.length - 1, vp = _bkEl('bkViewport');
+  closeLecturaPopup();
+  _bkHideChrome();
+  if (_bk.turn === 'scroll') {
+    const max = vp.scrollHeight - vp.clientHeight;
+    if (dir > 0 && vp.scrollTop < max - 4) { vp.scrollBy({ top: vp.clientHeight * 0.9, behavior: 'smooth' }); return; }
+    if (dir < 0 && vp.scrollTop > 4) { vp.scrollBy({ top: -vp.clientHeight * 0.9, behavior: 'smooth' }); return; }
+    if (dir > 0 && _bk.sec < last) _bkRenderSection(_bk.sec + 1, 'start');
+    else if (dir < 0 && _bk.sec > 0) _bkRenderSection(_bk.sec - 1, 'end');
+    else if (dir > 0) showToast('Has llegado al final');
+    return;
+  }
+  let nextSec = _bk.sec, nextCol = _bk.col, where;
+  if (dir > 0) {
+    if (_bk.col < _bk.cols - 1) nextCol++;
+    else if (_bk.sec < last) { nextSec++; where = 'start'; }
+    else { showToast('Has llegado al final'); return; }
+  } else {
+    if (_bk.col > 0) nextCol--;
+    else if (_bk.sec > 0) { nextSec--; where = 'end'; }
+    else return;
+  }
+  _bkAnimate(dir, () => { if (nextSec !== _bk.sec) _bkRenderSection(nextSec, where); else _bkSetCol(nextCol); });
+}
+// La página saliente se clona en una "capa fantasma" que se anima mientras la nueva ya está debajo
+function _bkAnimate(dir, update) {
+  const flow = _bkEl('bkFlow'), vp = _bkEl('bkViewport');
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !flow.animate) { update(); return; }
+  const W = _bk.W;
+  const wrap = document.createElement('div');
+  wrap.className = 'bk-ghost bk-ghost-' + _bk.turn;
+  const ghost = flow.cloneNode(true);
+  ghost.removeAttribute('id');
+  ghost.querySelectorAll('[data-ui-click]').forEach(n => n.removeAttribute('data-ui-click'));
+  wrap.appendChild(ghost);
+  vp.appendChild(wrap);
+  _bk.busy = true;
+  update();
+  const anims = [];
+  const opt = (ms, easing) => ({ duration: ms, easing, fill: 'forwards' });
+  try {
+    if (_bk.turn === 'fade') {
+      anims.push(wrap.animate([{ opacity: 1 }, { opacity: 0 }], opt(280, 'ease')));
+    } else if (_bk.turn === 'flip') {
+      wrap.style.transformOrigin = dir > 0 ? 'left center' : 'right center';
+      anims.push(wrap.animate([
+        { transform: 'rotateY(0deg)', filter: 'brightness(1)' },
+        { transform: 'rotateY(' + (dir > 0 ? -100 : 100) + 'deg)', filter: 'brightness(.55)' },
+      ], opt(560, 'cubic-bezier(.45,.05,.35,1)')));
+    } else {
+      const ease = 'cubic-bezier(.22,.8,.3,1)';
+      anims.push(wrap.animate([{ transform: 'translate3d(0,0,0)' }, { transform: 'translate3d(' + (-dir * W) + 'px,0,0)' }], opt(340, ease)));
+      anims.push(flow.animate([
+        { transform: 'translate3d(' + (-_bk.col * W + dir * W) + 'px,0,0)' },
+        { transform: 'translate3d(' + (-_bk.col * W) + 'px,0,0)' },
+      ], { duration: 340, easing: ease }));
+    }
+  } catch(e) {}
+  let finished = false;
+  const done = () => { if (finished) return; finished = true; wrap.remove(); _bk.busy = false; };
+  Promise.all(anims.map(a => a.finished)).then(done, done);
+  setTimeout(done, 900);
+}
+
+// ── Barra de pantalla completa (botón de salir) ─────────────────
+function _bkShowChrome(sticky, delay) {
+  const c = _bkEl('bkChrome');
+  if (!c || !_lectura.fullscreen || !_isBookMode()) return;
+  c.classList.add('show');
+  clearTimeout(_bk.chromeTimer);
+  if (!sticky) _bk.chromeTimer = setTimeout(() => _bkHideChrome(), delay || 4000);
+}
+function _bkHideChrome(force) {
+  const c = _bkEl('bkChrome'); if (!c) return;
+  clearTimeout(_bk.chromeTimer);
+  if (!force && (_bk.hoverTop || _bkEl('bkPanel')?.classList.contains('open'))) return;   // se mantiene con el ratón arriba o el panel abierto
+  c.classList.remove('show');
+}
+function _bkToggleChrome() {
+  if (_bkEl('bkChrome')?.classList.contains('show')) _bkHideChrome(true);
+  else _bkShowChrome(false);
+}
+
+// ── Panel de ajustes ────────────────────────────────────────────
+function _bkSyncPanel() {
+  document.querySelectorAll('#bkPanel [data-key]').forEach(b => b.classList.toggle('active', String(_bk[b.dataset.key]) === b.dataset.value));
+  const l = _bkEl('bkSizeLabel'); if (l) l.textContent = _bk.size;
+}
+function _bkTogglePanel(force) {
+  const p = _bkEl('bkPanel'); if (!p) return;
+  const open = force === undefined ? !p.classList.contains('open') : !!force;
+  p.classList.toggle('open', open);
+  _bkEl('lecturaFontBtn')?.classList.toggle('active', open);
+  if (open) { _bkSyncPanel(); _bkShowChrome(true); }
+  else if (_lectura.fullscreen) _bkShowChrome(false);
+}
+function bkSetOpt(key, value) {
+  const valid = {
+    theme: _BK_THEMES.includes(value), font: _BK_FONTS.includes(value),
+    line: Object.hasOwn(_BK_LINES, value), margin: Object.hasOwn(_BK_MARGINS, value), turn: _BK_TURNS.includes(value),
+  };
+  if (!Object.hasOwn(valid, key) || !valid[key]) return;
+  const frac = _bk.sec >= 0 ? _bkFrac() : 0;   // se calcula con el modo anterior
+  _bk[key] = value;
+  _saveBkCfg();
+  _bkApplyAttrs();
+  if (key !== 'theme') _bkRelayout(frac);
+}
+function bkAdjSize(delta) {
+  const frac = _bk.sec >= 0 ? _bkFrac() : 0;
+  _bk.size = Math.max(13, Math.min(36, _bk.size + (Number(delta) || 0)));
+  _saveBkCfg(); _bkSyncPanel(); _bkRelayout(frac);
+}
+document.addEventListener('click', e => {
+  const p = _bkEl('bkPanel');
+  if (!p || !p.classList.contains('open')) return;
+  if (p.contains(e.target) || e.target.closest('[data-ui-click="reading-font-panel"]')) return;
+  _bkTogglePanel(false);
+});
+// Si el navegador sale de pantalla completa por su cuenta (Esc), se sincroniza el estado
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && _lectura.fullscreen && currentPage === 'lectura') toggleLecturaFull();
+});
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4463,6 +4848,10 @@ function _handleUiClick(event) {
     case 'reading-file-open': document.getElementById('lecturaFileIn').click(); break;
     case 'reading-url-open': openLecturaUrl(document.getElementById('lecturaUrlIn').value); break;
     case 'reading-url-prompt': { const url = prompt('Pega el enlace de la página:'); if (url) openLecturaUrl(url); break; }
+    case 'bk-prev': bookTurn(-1); break;
+    case 'bk-next': bookTurn(1); break;
+    case 'bk-opt': bkSetOpt(el.dataset.key, el.dataset.value); break;
+    case 'bk-size': bkAdjSize(Number(el.dataset.delta)); break;
     case 'reading-prev': lecturaChangePage(-1); break;
     case 'reading-next': lecturaChangePage(1); break;
     case 'popup-save': savePopupWord(); break;

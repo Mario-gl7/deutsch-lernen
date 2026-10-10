@@ -2112,3 +2112,6 @@ body:not([data-page="perfil"]) .build-badge{display:none}
 body.lectura-fs .lectura-popup{z-index:7100}
 body.lectura-fs #lecturaPopupOverlay{z-index:7050!important}
 @media (max-width:520px){.bk-flow{text-align:left}}
+
+/* Biblioteca: sin botones de pantalla completa / tipografía (no aplican hasta abrir algo) */
+#lecturaTopBar:not(.in-reader) .lectura-toolbar-btn{display:none!important}

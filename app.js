@@ -3457,6 +3457,7 @@ function _applyLecturaView() {
   if (_bookMode) {                       // PDF / EPUB → lector estilo Apple Books
     const vb0 = _bkEl('lecturaViewBtn'); if (vb0) vb0.style.display = 'none';
     _bkOpen();
+    if (!_lectura.fullscreen) toggleLecturaFull();   // los libros siempre se leen en pantalla completa
     return;
   }
   _bkClose();
@@ -3668,6 +3669,7 @@ document.addEventListener('keydown', e => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
   if (e.key === 'Escape') {
     if (_isBookMode() && _bkEl('bkPanel')?.classList.contains('open')) { _bkTogglePanel(false); return; }
+    if (_isBookMode()) { closeLecturaBook(); return; }   // en libros, Esc = salir del libro
     if (_lectura.fullscreen) toggleLecturaFull();
     return;
   }
@@ -4052,7 +4054,8 @@ document.addEventListener('click', e => {
 });
 // Si el navegador sale de pantalla completa por su cuenta (Esc), se sincroniza el estado
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement && _lectura.fullscreen && currentPage === 'lectura') toggleLecturaFull();
+  if (document.fullscreenElement || !_lectura.fullscreen || currentPage !== 'lectura') return;
+  if (_isBookMode()) closeLecturaBook(); else toggleLecturaFull();
 });
 
 

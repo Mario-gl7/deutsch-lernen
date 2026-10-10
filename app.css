@@ -2022,3 +2022,8 @@ body:not([data-page="perfil"]) .build-badge{display:none}
 }
 @media (min-width:1100px){.workspace-cards{max-width:780px}}
 
+/* Inicio más arriba: el margen superior sumaba la zona segura dos veces y un hueco de 48px bajo la píldora */
+#page-home{padding-top:calc(env(safe-area-inset-top,0px) + 52px)}
+#page-home .home-inner{padding-top:0}
+#page-home .home-hero{padding-top:18px}
+

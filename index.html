@@ -64,16 +64,21 @@
     <div class="home-orb home-orb-3"></div>
   </div>
 
+  <!-- UI flotante semitransparente (sustituye a la cabecera) -->
+  <div class="home-float">
+    <span class="home-float-flag">🇩🇪</span><span class="home-float-name">Deutsch Lernen</span>
+    <div class="sync-dot" id="syncDot">
+      <div class="sync-spinner" id="syncSpinner"></div>
+      <span class="sync-tick" id="syncTick" style="display:none">✓</span>
+      <span id="syncDotText">Sync…</span>
+    </div>
+  </div>
+
   <!-- Top bar -->
   <div class="top-bar">
     <div style="display:flex;align-items:center;gap:7px;flex:1">
       <span style="font-size:17px">🇩🇪</span>
       <span style="font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.2px">Deutsch</span>
-    </div>
-    <div class="sync-dot" id="syncDot">
-      <div class="sync-spinner" id="syncSpinner"></div>
-      <span class="sync-tick" id="syncTick" style="display:none">✓</span>
-      <span id="syncDotText">Sync…</span>
     </div>
     <button class="install-btn-top" data-ui-click="install-open" title="Instalar app">📲</button>
     <div class="user-pill" id="userPill" data-ui-click="user-dropdown">
@@ -407,6 +412,12 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       </div>
     </div>
 
+    <!-- Instalar app (antes en la cabecera) -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:12px">Aplicación</div>
+      <button type="button" data-ui-click="install-open" class="lang-pill" style="width:100%;padding:11px;font-size:13px;font-weight:600">📲 Cómo instalar la app</button>
+    </div>
+
     <!-- Stats card -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Estadísticas</div>
@@ -434,20 +445,41 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       Progresión
     </div>
   </div>
-  <div class="inner-content">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin:20px 0 12px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Estadísticas</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="progresoStats"></div>
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2)">Palabras dominadas</div>
-        <div id="progresoPct" style="font-size:13px;font-weight:700;color:var(--green-t)">0%</div>
+  <div class="inner-content prog-wrap">
+    <h1 class="prog-title">Progresión</h1>
+
+    <section class="prog-card prog-hero">
+      <svg class="prog-ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="prog-ring-bg" cx="60" cy="60" r="50"/>
+        <circle class="prog-ring-fg" id="progRing" cx="60" cy="60" r="50" pathLength="100"/>
+      </svg>
+      <div class="prog-hero-txt">
+        <div class="prog-pct"><span id="progPct">0</span><small>%</small></div>
+        <div class="prog-sub"><b id="progMastered">0</b> de <b id="progTotal">0</b> palabras dominadas</div>
+        <div class="prog-chips"><span class="prog-chip"><b id="progSeen">0</b> vistas</span><span class="prog-chip hard"><b id="progHard">0</b> difíciles</span></div>
       </div>
-      <div style="height:10px;border-radius:99px;background:var(--surface2);overflow:hidden">
-        <div id="progresoBar" style="height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .6s cubic-bezier(.34,1.2,.64,1)"></div>
+    </section>
+
+    <section class="prog-card">
+      <div class="prog-streak">
+        <svg class="prog-flame" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c.6 3.2-1.3 4.6-3 6.5C7.3 10.4 6 12.2 6 14.8A6 6 0 0 0 12 21a6 6 0 0 0 6-6.2c0-2.4-1-4-2.2-5.4.1 1.6-.5 2.7-1.5 3.3.3-3.3-.9-6.8-2.3-10.7z"/></svg>
+        <div><div class="prog-streak-n"><span id="progStreak">0</span> <small>días de racha</small></div><div class="prog-streak-best">Mejor racha: <b id="progBest">0</b></div></div>
       </div>
-    </div>
+      <div class="prog-week" id="progWeek"></div>
+    </section>
+
+    <section class="prog-card">
+      <div class="prog-chart-head">
+        <div class="prog-card-title">Palabras aprendidas</div>
+        <div class="prog-seg" role="tablist">
+          <button type="button" class="prog-seg-btn active" data-ui-click="prog-range" data-range="day">Día</button>
+          <button type="button" class="prog-seg-btn" data-ui-click="prog-range" data-range="month">Mes</button>
+          <button type="button" class="prog-seg-btn" data-ui-click="prog-range" data-range="year">Año</button>
+        </div>
+      </div>
+      <div class="prog-sum"><span id="progSum">0</span> <small id="progSumLbl">en los últimos 14 días</small></div>
+      <div class="prog-chart" id="progChart"></div>
+    </section>
   </div>
 </div>
 
@@ -495,7 +527,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   </div>
 
   <!-- Font panel -->
-  <div id="lecturaFontPanel" style="display:none;position:absolute;top:52px;right:8px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;min-width:220px;box-shadow:var(--shadow-lg);animation:dropIn .15s ease both">
+  <div id="lecturaFontPanel" style="display:none;position:absolute;top:calc(env(safe-area-inset-top,0px) + 56px);right:8px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;min-width:220px;box-shadow:var(--shadow-lg);animation:dropIn .15s ease both">
     <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Tamaño</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
       <button data-ui-click="reading-font-down" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
@@ -697,7 +729,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.48</div>
+<div id="buildBadge" class="build-badge">1.07.49</div>
 
 <script src="app.js"></script>
 </body>

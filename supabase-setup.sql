@@ -106,3 +106,21 @@ create policy "books update own" on storage.objects for update to authenticated
   with check (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "books delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'books' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- ── Actividad diaria (gráfica de Progresión, 1.07.49) ───────
+create table if not exists public.user_activity (
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  day        date not null,
+  learned    integer not null default 0 check (learned >= 0),
+  practiced  integer not null default 0 check (practiced >= 0),
+  updated_at timestamptz default now(),
+  primary key (user_id, day)
+);
+alter table public.user_activity enable row level security;
+revoke all on public.user_activity from anon;
+drop policy if exists "own_rows" on public.user_activity;
+create policy "own_rows" on public.user_activity
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+

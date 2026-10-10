@@ -619,6 +619,7 @@ function _navSyncActive(snap) {
 function updateAppNav() {
   const nav = document.getElementById('appNav');
   if (!nav) return;
+  document.body.dataset.page = currentPage;   // p. ej. la versión solo se ve en Ajustes
   const show = !!currentUser && NAV_SHOW_PAGES.has(currentPage);
   document.body.classList.toggle('has-nav', show);
   if (!show) { nav.hidden = true; return; }
@@ -657,7 +658,11 @@ function updateAppNav() {
   _navSyncActive(wasHidden);
 }
 function _navNavigate(page) {
-  if (page === currentPage) { _navSyncActive(false); return; }
+  if (page === currentPage) {
+    if (page === 'lectura' && _lectura.current) closeLecturaBook();   // pulsar Lectura con un libro abierto vuelve a la biblioteca
+    _navSyncActive(false);
+    return;
+  }
   const tabs = NAV_TABS.map(t => t.page);
   const cur = tabs.indexOf(_navTabFor(currentPage)), nxt = tabs.indexOf(page);
   const sign = (cur >= 0 && nxt >= 0 && nxt > cur) ? 1 : -1;     // hacia una pestaña posterior entra desde abajo/derecha
@@ -1018,6 +1023,9 @@ async function loadUserData() {
     setSyncState('error');
   }
   updateStats();
+  _actBaseline();
+  await _fetchActivityFromDB();
+  if (currentPage === 'progreso') renderProgreso();
   if (currentPage === 'lista') renderLista();
   if (currentPage === 'vocab-hub' || currentPage === 'home') updateStats();
 }
@@ -1231,6 +1239,80 @@ async function _flushProgress() {
   }
 }
 
+// ═══════════════════ ACTIVIDAD DIARIA (gráfica de Progresión) ═══════════════════
+// Local: act_<uid> = { init, m:[palabras ya dominadas], d:{ 'AAAA-MM-DD': {l: aprendidas, p: practicadas} } }.
+// "Aprendida" = la palabra pasa a dominada (3+ intentos y 80 % de aciertos). Cada palabra cuenta una sola vez.
+// Nube: tabla user_activity (ver supabase-migration-1.07.49.sql); si no existe, todo sigue funcionando en local.
+let _actDirty = {}, _actTimer = 0, _actNoTable = false;
+const _actEmpty = () => ({ init: false, m: [], d: {} });
+function _actGet() { try { const s = localStorage.getItem(_lsKey('act')); const o = s ? JSON.parse(s) : null; return (o && o.d) ? o : _actEmpty(); } catch (e) { return _actEmpty(); } }
+function _actSave(a) { try { localStorage.setItem(_lsKey('act'), JSON.stringify(a)); } catch (e) {} }
+function _dayKey(ts) { const d = new Date(ts || Date.now()); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+const _isMastered = e => !!e && e.seen >= 3 && e.correct / e.seen >= 0.8;
+function _actMark(day) {
+  _actDirty[day] = 1;
+  if (!_dbReady || _actNoTable) return;
+  clearTimeout(_actTimer);
+  _actTimer = setTimeout(_flushActivity, 2500);
+}
+function _actRecordAnswer() {
+  const a = _actGet(), k = _dayKey();
+  const x = a.d[k] || (a.d[k] = { l: 0, p: 0 });
+  x.p++;
+  // palabras que acaban de pasar a dominadas (solo cuenta si ya se hizo la carga inicial)
+  const p = getProgress(), set = new Set(a.m);
+  let newly = 0;
+  for (const [w, e] of Object.entries(p)) if (_isMastered(e) && !set.has(w)) { set.add(w); newly++; }
+  if (newly) { a.m = [...set]; if (a.init) x.l += newly; }
+  _actSave(a);
+  _actMark(k);
+}
+// Carga inicial / otro dispositivo: marca como ya dominadas sin contarlas como aprendidas hoy
+function _actBaseline() {
+  const a = _actGet(), set = new Set(a.m);
+  for (const [w, e] of Object.entries(getProgress())) if (_isMastered(e)) set.add(w);
+  a.m = [...set]; a.init = true;
+  _actSave(a);
+}
+async function _fetchActivityFromDB() {
+  if (!currentUser || _actNoTable) return;
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb.from('user_activity').select('day,learned,practiced').eq('user_id', currentUser.id);
+    if (error) throw error;
+    const a = _actGet();
+    (data || []).forEach(r => {
+      const x = a.d[r.day] || (a.d[r.day] = { l: 0, p: 0 });
+      x.l = Math.max(x.l, r.learned || 0); x.p = Math.max(x.p, r.practiced || 0);
+    });
+    _actSave(a);
+    // lo que solo existe en local se sube
+    const remote = new Set((data || []).map(r => r.day));
+    Object.keys(a.d).forEach(k => { if (!remote.has(k)) _actDirty[k] = 1; });
+    if (Object.keys(_actDirty).length) _flushActivity();
+  } catch (e) {
+    _actNoTable = true;
+    console.warn('[sync] activity:', e.message);
+  }
+}
+async function _flushActivity() {
+  if (!currentUser || !_dbReady || _actNoTable) return;
+  const keys = Object.keys(_actDirty);
+  if (!keys.length) return;
+  const a = _actGet();
+  const rows = keys.filter(k => a.d[k]).map(k => ({ user_id: currentUser.id, day: k, learned: a.d[k].l || 0, practiced: a.d[k].p || 0, updated_at: new Date().toISOString() }));
+  _actDirty = {};
+  try {
+    const sb = await getSupabase();
+    const { error } = await sb.from('user_activity').upsert(rows, { onConflict: 'user_id,day' });
+    if (error) throw error;
+  } catch (e) {
+    console.warn('[sync] flushActivity:', e.message);
+    if (/user_activity|42P01|PGRST205/i.test((e.code || '') + ' ' + (e.message || ''))) _actNoTable = true;
+    else keys.forEach(k => { _actDirty[k] = 1; });
+  }
+}
+
 // ── Manual sync (pull latest from DB) ──
 async function manualSync() {
   setSyncState('syncing', 'Sincronizando…');
@@ -1278,6 +1360,7 @@ function updateWordProgress(wordDE, wasCorrect) {
   else h = wasCorrect ? ratio*48+6 : 2;
   e.nextReview = now + h*3600*1000;
   saveProgress(p);
+  _actRecordAnswer();
 }
 function setDifficulty(wordDE, level) {
   const p = getProgress();
@@ -2622,7 +2705,7 @@ function _statsCardsHtml() {
   const total = words.length;
   const seen  = Object.values(p).filter(e => e.seen > 0).length;
   const hard  = Object.values(p).filter(e => e.difficulty === 1).length;
-  const mastered = Object.values(p).filter(e => e.seen >= 3 && e.correct / e.seen >= 0.8).length;
+  const mastered = Object.values(p).filter(_isMastered).length;
   const statsData = [
     { label: 'Palabras', val: total, color: 'var(--green)' },
     { label: 'Vistas', val: seen, color: 'var(--blue)' },
@@ -2635,18 +2718,119 @@ function _statsCardsHtml() {
       <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-top:3px">${s.label}</div>
     </div>`
   ).join('');
-  return { html, total, mastered };
+  return { html, total, seen, hard, mastered };
+}
+
+// ═══════════════════ PROGRESIÓN: anillo, racha y gráfica viva ═══════════════════
+let _progRange = 'day', _progSel = -1;
+const _MESES = { es: ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'], de: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'] };
+const _dayIdx = k => { const [y, m, d] = k.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
+
+function _progSeries(range) {
+  const a = _actGet(), now = new Date();
+  const cols = [];
+  if (range === 'day') {
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i), k = _dayKey(d);
+      cols.push({ lbl: d.getDate(), l: a.d[k]?.l || 0, p: a.d[k]?.p || 0, tip: d.toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) });
+    }
+    return { cols, sub: 'en los últimos 14 días' };
+  }
+  if (range === 'month') {
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1), pre = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      let l = 0, p = 0;
+      for (const [k, x] of Object.entries(a.d)) if (k.startsWith(pre)) { l += x.l || 0; p += x.p || 0; }
+      cols.push({ lbl: (_MESES[currentLang] || _MESES.es)[d.getMonth()], l, p, tip: (_MESES[currentLang] || _MESES.es)[d.getMonth()] + ' ' + d.getFullYear() });
+    }
+    return { cols, sub: 'en los últimos 12 meses' };
+  }
+  const first = Math.min(now.getFullYear() - 4, ...Object.keys(a.d).map(k => +k.slice(0, 4)));
+  const from = Math.max(first, now.getFullYear() - 4);
+  for (let y = from; y <= now.getFullYear(); y++) {
+    let l = 0, p = 0;
+    for (const [k, x] of Object.entries(a.d)) if (k.startsWith(y + '-')) { l += x.l || 0; p += x.p || 0; }
+    cols.push({ lbl: y, l, p, tip: String(y) });
+  }
+  return { cols, sub: 'en los últimos ' + cols.length + ' años' };
+}
+
+function _progStreaks() {
+  const a = _actGet();
+  const on = k => { const x = a.d[k]; return !!x && (x.p > 0 || x.l > 0); };
+  const keys = Object.keys(a.d).filter(on).map(_dayIdx).sort((x, y) => x - y);
+  let best = 0, run = 0, prev = null;
+  keys.forEach(i => { run = (prev !== null && i === prev + 1) ? run + 1 : 1; best = Math.max(best, run); prev = i; });
+  const now = new Date();
+  const c = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!on(_dayKey(c))) c.setDate(c.getDate() - 1);          // la racha sigue viva hasta que acabe el día
+  let streak = 0;
+  while (on(_dayKey(c))) { streak++; c.setDate(c.getDate() - 1); }
+  return { streak, best: Math.max(best, streak), on };
+}
+
+function _countUp(el, to, ms = 700) {
+  if (!el) return;
+  if (_navReduce.matches) { el.textContent = to; return; }
+  const from = +el.textContent || 0, t0 = performance.now();
+  const step = t => {
+    const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 function renderProgreso() {
-  const s = _statsCardsHtml();
-  const stats = document.getElementById('progresoStats');
-  if (stats) stats.innerHTML = s.html;
+  const s = _statsCardsHtml(), $ = id => document.getElementById(id);
   const pct = s.total ? Math.round(s.mastered / s.total * 100) : 0;
-  const lbl = document.getElementById('progresoPct');
-  if (lbl) lbl.textContent = pct + '%';
-  const bar = document.getElementById('progresoBar');
-  if (bar) { bar.style.width = '0'; requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = pct + '%'; })); }
+  // anillo
+  const ring = $('progRing');
+  if (ring) { ring.style.strokeDashoffset = '100'; requestAnimationFrame(() => requestAnimationFrame(() => { ring.style.strokeDashoffset = String(100 - pct); })); }
+  _countUp($('progPct'), pct);
+  ['progMastered:mastered', 'progTotal:total', 'progSeen:seen', 'progHard:hard'].forEach(x => { const [id, k] = x.split(':'); if ($(id)) $(id).textContent = s[k]; });
+  // racha + semana tipo Duolingo (L→D)
+  const st = _progStreaks();
+  _countUp($('progStreak'), st.streak, 600);
+  if ($('progBest')) $('progBest').textContent = st.best;
+  const wk = $('progWeek');
+  if (wk) {
+    const now = new Date(), dow = (now.getDay() + 6) % 7, today = _dayKey(now), L = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    wk.innerHTML = L.map((l, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + i), k = _dayKey(d);
+      const cls = k === today ? 'today' : (d > now ? 'future' : '');
+      const done = st.on(k);
+      return `<div class="prog-day ${cls} ${done ? 'done' : ''}" style="--i:${i}"><div class="prog-dot">${done ? '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : ''}</div><span>${l}</span></div>`;
+    }).join('');
+  }
+  _renderProgChart(true);
+}
+
+function progSetRange(r) { _progRange = r; _progSel = -1; _renderProgChart(true); }
+function progSelectBar(i) {
+  _progSel = i;
+  document.querySelectorAll('#progChart .prog-col').forEach((c, k) => c.classList.toggle('sel', k === i));
+}
+function _renderProgChart(animate) {
+  const box = document.getElementById('progChart');
+  if (!box) return;
+  const { cols, sub } = _progSeries(_progRange);
+  const max = Math.max(5, ...cols.map(c => c.l)), total = cols.reduce((n, c) => n + c.l, 0);
+  if (_progSel < 0 || _progSel >= cols.length) _progSel = cols.length - 1;
+  document.getElementById('progSumLbl').textContent = sub;
+  _countUp(document.getElementById('progSum'), total, 500);
+  document.querySelectorAll('.prog-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.range === _progRange));
+  const grid = [1, .5, 0].map(f => `<div class="prog-gl" style="--y:${1 - f}"><span>${Math.round(max * f)}</span></div>`).join('');
+  const bars = cols.map((c, i) => `
+    <button type="button" class="prog-col ${i === _progSel ? 'sel' : ''} ${i < cols.length * .25 ? 'el' : (i > cols.length * .75 ? 'er' : '')}" data-ui-click="prog-bar" data-i="${i}" style="--i:${i}" aria-label="${c.tip}: ${c.l} palabras aprendidas">
+      <span class="prog-tip"><b>${c.l}</b> ${c.l === 1 ? 'palabra' : 'palabras'}<small>${c.tip}${c.p ? ' · ' + c.p + ' resp.' : ''}</small></span>
+      <span class="prog-bar" data-h="${c.l ? Math.max(6, c.l / max * 100) : 0}"></span>
+      <span class="prog-lbl">${c.lbl}</span>
+    </button>`).join('');
+  const empty = total === 0 ? '<div class="prog-hint">Todavía no hay palabras aprendidas registradas. Se cuenta una palabra cuando pasa a <b>dominada</b> (3 intentos o más y 80 % de aciertos).</div>' : '';
+  box.innerHTML = `<div class="prog-plot" style="--n:${cols.length}">${grid}<div class="prog-cols">${bars}</div></div>${empty}`;
+  const set = () => box.querySelectorAll('.prog-bar').forEach(b => { b.style.height = `calc((100% - 50px) * ${(+b.dataset.h) / 100})`; });
+  if (animate && !_navReduce.matches) requestAnimationFrame(() => requestAnimationFrame(set)); else { box.classList.add('no-anim'); set(); requestAnimationFrame(() => box.classList.remove('no-anim')); }
 }
 
 function saveNombre() {
@@ -2819,6 +3003,7 @@ function _updateLecturaTopBar() {
   set('lecturaBookTitle', inReader ? _lectura.current.title : 'Lectura');
   const vb = document.getElementById('lecturaViewBtn');
   if (vb && !inReader) vb.style.display = 'none';
+  document.getElementById('lecturaTopBar')?.classList.toggle('in-reader', inReader);   // con un libro abierto se ve el botón «Biblioteca»
 }
 
 // ── File upload ─────────────────────────────────────────────────
@@ -4251,6 +4436,8 @@ function _handleUiClick(event) {
     case 'nav-reading': navigate('lectura', 'forward'); break;
     case 'nav-home-back': navigate('home', 'back'); break;
     case 'nav-tab': _navClick(el.dataset.page); break;
+    case 'prog-range': progSetRange(el.dataset.range); break;
+    case 'prog-bar': progSelectBar(+el.dataset.i); break;
     case 'nav-collapse': toggleNavCollapsed(); break;
     case 'nav-hub-back': navigate('vocab-hub', 'back'); break;
     case 'nav-lista': navigate('lista', 'forward'); break;

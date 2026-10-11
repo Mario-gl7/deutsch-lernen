@@ -729,8 +729,13 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <div class="form-label">Nombre</div>
       <input class="form-input" id="lecNameInput" type="text" placeholder="ej. Novelas" maxlength="60" autocomplete="off" data-ui-enter="lec-name">
     </div>
+    <div class="form-row" id="lecColorRow">
+      <div class="form-label">Color</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="lecColorPicker"></div>
+    </div>
     <div class="form-err" id="lecNameErr"></div>
     <button class="btn-primary" data-ui-click="lec-name-save">Guardar</button>
+    <button class="btn-secondary" id="lecMoveEditBtn" data-ui-click="lec-move-edit">📂 Mover a otra carpeta…</button>
     <button class="btn-secondary" data-ui-modal-close="lecNameModal">Cancelar</button>
   </div>
 </div>
@@ -846,7 +851,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.56</div>
+<div id="buildBadge" class="build-badge">1.07.57</div>
 
 <script src="app.js"></script>
 </body>

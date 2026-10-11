@@ -4074,7 +4074,7 @@ let _lecEdit = null;          // { mode:'new-folder'|'rename' }
 function _lecSanitize(d) {
   d = (d && typeof d === 'object') ? d : {};
   const folders = (Array.isArray(d.folders) ? d.folders : []).filter(f => f && f.id && typeof f.name === 'string')
-    .map(f => ({ id: String(f.id), name: f.name.slice(0, 60), parent: f.parent || null }));
+    .map(f => ({ id: String(f.id), name: f.name.slice(0, 60), parent: f.parent || null, color: _safeFolderColor(f.color) }));
   const ids = new Set(folders.map(f => f.id));
   folders.forEach(f => { if (!ids.has(f.parent) || f.parent === f.id) f.parent = null; });
   const links = (Array.isArray(d.links) ? d.links : []).filter(l => l && typeof l.id === 'string' && typeof l.url === 'string')
@@ -4180,26 +4180,33 @@ function _lecDraw() {
   const d = _lecLoad();
   if (_lecFolder && !d.folders.some(f => f.id === _lecFolder)) _lecFolder = null;
   const cur = _lecFolder;
-  const path = cur ? _lecPath(d, cur) : [];
-  let crumbs = cur
-    ? '<button class="lec-crumb" data-ui-click="lec-open-folder" data-folder-id="">Biblioteca</button>'
-    : '<span class="lec-crumb-cur">Biblioteca</span>';
-  path.forEach((f, i) => {
-    crumbs += '<span class="lec-sep">›</span>' + (i === path.length - 1
-      ? '<span class="lec-crumb-cur">' + _esc(f.name) + '</span>'
-      : '<button class="lec-crumb" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' + _esc(f.name) + '</button>');
-  });
+  const curF = cur ? d.folders.find(f => f.id === cur) : null;
+  const parentF = curF && curF.parent ? d.folders.find(f => f.id === curF.parent) : null;
+  // Cabecera: "Biblioteca" en la raíz; dentro de una carpeta, botón atrás + nombre (como en Lista)
+  const head = curF
+    ? '<div class="lec-head">' +
+        '<button class="lista-back-btn" data-ui-click="lec-open-folder" data-folder-id="' + _esc(parentF ? parentF.id : '') + '">' +
+          '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>' + _esc(parentF ? parentF.name : 'Biblioteca') +
+        '</button>' +
+        '<span class="lec-head-title">' + _esc(curF.name) + '</span>' +
+      '</div>'
+    : '<div class="lec-head"><span class="lec-head-label">Biblioteca</span></div>';
   const subs = d.folders.filter(f => f.parent === cur).sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const items = _lecBooksCache.filter(b => _lecBookFolder(d, b.id) === cur);
   const folderCards = subs.map(f => {
-    const c = _lecCounts(d, f.id);
-    const meta = [c.folders ? c.folders + (c.folders === 1 ? ' carpeta' : ' carpetas') : '', c.books + (c.books === 1 ? ' elemento' : ' elementos')].filter(Boolean).join(' · ');
-    return '<div class="lectura-lib-card" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' +
-      '<div class="lectura-lib-card-icon">📁</div>' +
-      '<div class="lectura-lib-card-info"><div class="lectura-lib-card-title">' + _esc(f.name) + '</div><div class="lectura-lib-card-meta">' + meta + '</div></div>' +
-      '<div class="lec-actions"><button class="lec-more" data-ui-click="lec-menu" data-kind="folder" data-id="' + _esc(f.id) + '" title="Más opciones" aria-label="Más opciones">⋯</button></div>' +
+    const c = _lecCounts(d, f.id), col = _safeFolderColor(f.color);
+    const meta = (c.folders ? c.folders + (c.folders === 1 ? ' carpeta · ' : ' carpetas · ') : '') + c.books + (c.books === 1 ? ' elemento' : ' elementos');
+    return '<div class="folder-card" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' +
+      '<div class="folder-card-cover" style="background:linear-gradient(135deg,' + col + '30,' + col + '18)">' +
+        '<span class="folder-card-icon">🗂️</span>' +
+        '<button class="folder-edit-btn" data-ui-click="lec-folder-edit" data-id="' + _esc(f.id) + '" title="Editar carpeta">✏️</button>' +
+        '<button class="folder-menu-btn" data-ui-click="lec-folder-delete" data-id="' + _esc(f.id) + '" title="Eliminar carpeta">🗑</button>' +
+      '</div>' +
+      '<div class="folder-card-body"><div class="folder-card-name">' + _esc(f.name) + '</div><div class="folder-card-count">' + meta + '</div></div>' +
     '</div>';
   }).join('');
+  const newCard = '<div class="folder-card new-folder" data-ui-click="lec-new-folder">' +
+    '<div class="folder-card-new-inner"><div class="folder-card-new-plus">＋</div><div class="folder-card-new-lbl">' + (cur ? 'Nueva subcarpeta' : 'Nueva carpeta') + '</div></div></div>';
   const bookCards = items.map(b => {
     const total = b.pages?.length || b.totalPages || 1;
     const pct = Math.round(((b.pageIdx || 0) / total) * 100);
@@ -4217,12 +4224,11 @@ function _lecDraw() {
       '</div>' +
     '</div>';
   }).join('');
-  const empty = (!subs.length && !items.length)
-    ? '<div class="lec-empty">' + (cur ? 'Carpeta vacía' : 'Aún no hay nada. Sube un PDF o EPUB, abre un enlace o crea una carpeta.') + '</div>' : '';
-  section.innerHTML =
-    '<div class="lec-head"><div class="lec-crumbs">' + crumbs + '</div>' +
-    '<button class="lec-newfolder" data-ui-click="lec-new-folder">＋ Carpeta</button></div>' +
-    '<div class="lectura-library-grid">' + folderCards + bookCards + '</div>' + empty;
+  const empty = (!items.length && !subs.length)
+    ? '<div class="lec-empty">' + (cur ? 'Carpeta vacía. Los PDF, EPUB y enlaces que abras aquí se guardarán en esta carpeta.' : 'Aún no hay nada. Sube un PDF o EPUB, abre un enlace o crea una carpeta.') + '</div>' : '';
+  section.innerHTML = head +
+    '<div class="folders-grid lec-folders-grid">' + folderCards + newCard + '</div>' +
+    (bookCards ? '<div class="lectura-library-grid">' + bookCards + '</div>' : '') + empty;
 }
 
 function _lecOpenFolder(id) { _lecFolder = id || null; _lecDraw(); }
@@ -4247,6 +4253,13 @@ function _lecOpenName(mode) {
     val = _lecSel.kind === 'folder' ? (d.folders.find(f => f.id === _lecSel.id)?.name || '') : (_lecBooksCache.find(b => b.id === _lecSel.id)?.title || '');
   }
   _lecEdit = { mode };
+  const isFolder = mode === 'new-folder' || _lecSel?.kind === 'folder';
+  if (mode !== 'new-folder' && isFolder) title = 'Editar carpeta';
+  const curColor = mode !== 'new-folder' && isFolder ? _safeFolderColor(d.folders.find(f => f.id === _lecSel.id)?.color) : FOLDER_DEFAULT_COLOR;
+  document.getElementById('lecColorRow').style.display = isFolder ? '' : 'none';
+  document.getElementById('lecMoveEditBtn').style.display = (mode !== 'new-folder' && isFolder) ? '' : 'none';
+  document.getElementById('lecColorPicker').innerHTML = FOLDER_COLORS.map(c =>
+    '<div class="folder-color-swatch ' + (c === curColor ? 'active' : '') + '" style="background:' + c + '" data-color="' + c + '" data-ui-click="folder-color"></div>').join('');
   const inp = document.getElementById('lecNameInput');
   document.getElementById('lecNameTitle').textContent = title;
   document.getElementById('lecNameErr').textContent = '';
@@ -4275,11 +4288,12 @@ function _lecSaveName() {
   if (!name) { document.getElementById('lecNameErr').textContent = 'Escribe un nombre'; return; }
   if (!_lecEdit) return;
   const d = _lecLoad();
+  const color = _safeFolderColor(document.querySelector('#lecColorPicker .folder-color-swatch.active')?.dataset.color);
   if (_lecEdit.mode === 'new-folder') {
-    d.folders.push({ id: 'lf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, parent: _lecFolder });
+    d.folders.push({ id: 'lf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, parent: _lecFolder, color });
     _lecSave(d);
   } else if (_lecSel?.kind === 'folder') {
-    const f = d.folders.find(x => x.id === _lecSel.id); if (f) { f.name = name; _lecSave(d); }
+    const f = d.folders.find(x => x.id === _lecSel.id); if (f) { f.name = name; f.color = color; _lecSave(d); }
   } else if (_lecSel?.kind === 'book') {
     _lecRenameBook(_lecSel.id, name);
   }
@@ -5139,6 +5153,9 @@ function _handleUiClick(event) {
     case 'lec-open-folder': _lecOpenFolder(el.dataset.folderId); break;
     case 'lec-menu': event.stopPropagation(); _lecOpenMenu(el.dataset.kind, el.dataset.id); break;
     case 'lec-rename': closeModal('lecMenuModal'); _lecOpenName('rename'); break;
+    case 'lec-folder-edit': event.stopPropagation(); _lecSel = { kind: 'folder', id: el.dataset.id }; _lecOpenName('rename'); break;
+    case 'lec-folder-delete': event.stopPropagation(); _lecSel = { kind: 'folder', id: el.dataset.id }; _lecDeleteFolder(); break;
+    case 'lec-move-edit': closeModal('lecNameModal'); _lecOpenMove(); break;
     case 'lec-move': _lecOpenMove(); break;
     case 'lec-move-to': _lecMoveTo(el.dataset.folderId); break;
     case 'lec-delete': _lecDeleteFolder(); break;

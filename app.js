@@ -366,6 +366,7 @@ function applyTheme(isDark) {
   const loginBtn = document.getElementById('loginThemeBtn');
   if (loginBtn) loginBtn.textContent = isDark ? '☀️' : '🌙';
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#0f1117' : '#f4efe4');
 }
 function toggleTheme() { applyTheme(document.body.classList.contains('light')); }
 applyTheme(localStorage.getItem('theme') !== 'light');

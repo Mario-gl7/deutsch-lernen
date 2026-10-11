@@ -1,5 +1,6 @@
 /* ═══════════════════ TOKENS ═══════════════════ */
 :root {
+  --cov-a:19%; --cov-b:9.4%; --cov-base:transparent;
   --bg:       #0f1117;
   --bg2:      #161b25;
   --surface:  #1c2333;
@@ -32,11 +33,11 @@ body.light {
   --bg2:      #ece6d8;
   --surface:  #fbf8f1;
   --surface2: #f1ecdf;
-  --border:   #ddd5c3;
-  --border2:  #c9bfa8;
-  --text:     #2b2820;
-  --text2:    #6f6a5c;
-  --text3:    #a39d8b;
+  --border:   #d3c9b1;
+  --border2:  #b8ac90;
+  --text:     #25221a;
+  --text2:    #5a5546;
+  --text3:    #8c8671;
   --green:    #5aa57b;
   --green-dk: #458a65;
   --green-bg: rgba(90,165,123,0.10);
@@ -48,8 +49,9 @@ body.light {
   --red-bg:   rgba(201,100,93,0.10);
   --orange:   #cf8b47;
   --purple:   #8878bf;
-  --shadow:   0 2px 8px rgba(80,65,30,0.08);
-  --shadow-lg:0 12px 40px rgba(80,65,30,0.14);
+  --shadow:   0 2px 6px rgba(80,65,30,0.13);
+  --shadow-lg:0 12px 40px rgba(80,65,30,0.20);
+  --cov-a:62%; --cov-b:42%; --cov-base:#7a6a48;   /* portadas de carpetas: color mezclado con tierra → más oscuro y menos neón */
   --overlay:  rgba(43,40,32,0.45);
 }
 
@@ -2198,3 +2200,21 @@ body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe
   body.light .app-nav-tab.active{background:none;border-color:transparent;box-shadow:none}
   body.light .app-nav-ripple{background:radial-gradient(circle,rgba(80,65,30,.14),rgba(80,65,30,0) 70%)}
 }
+
+/* ═══════════════ Modo claro · más contraste y colores más oscuros ═══════════════ */
+/* Inicio: crema general más marcado, sin el resplandor verde */
+body.light[data-page="home"]{--bg:#ebe1c8}
+body.light #page-home .home-orb,body.light #page-home .home-grid-bg{display:none}
+/* Portadas de las tarjetas (colores fijos en el HTML → se reemplazan con tonos más profundos y apagados) */
+body.light .hub-card-cover[style*="74,222,128"],body.light .folder-card-cover[style*="74,222,128"]{background:linear-gradient(135deg,#a3cfb3,#7fb596)!important}
+body.light .hub-card-cover[style*="96,165,250"]{background:linear-gradient(135deg,#a2bcdb,#7e9fc6)!important}
+body.light .hub-card-cover[style*="167,139,250"]{background:linear-gradient(135deg,#bab0de,#9d90cc)!important}
+body.light .hub-card-cover[style*="251,146,60"]{background:linear-gradient(135deg,#e6bf90,#d3a068)!important}
+body.light .folder-card-cover[style*="122,139,168"]{background:linear-gradient(135deg,#c4c6c9,#a4a8ae)!important}
+body.light .ws-card:nth-child(1) .ws-card-cover{background:linear-gradient(135deg,#a3cfb3,#7fb596)!important}
+body.light .ws-card:nth-child(2) .ws-card-cover{background:linear-gradient(135deg,#a2bcdb,#7e9fc6)!important}
+body.light .ws-card:nth-child(3) .ws-card-cover{background:linear-gradient(135deg,#bab0de,#9d90cc)!important}
+/* Tarjetas con borde y sombra más marcados */
+body.light .hub-card,body.light .ws-card,body.light .folder-card:not(.new-folder){box-shadow:0 3px 10px rgba(80,65,30,.16),0 0 0 1px var(--border2)}
+body.light .hub-card:hover,body.light .ws-card:hover,body.light .folder-card:not(.new-folder):hover{box-shadow:0 12px 28px rgba(80,65,30,.26),0 0 0 1px var(--border2)}
+body.light .hub-card-label,body.light .ws-card-label{border-top-color:var(--border2)}

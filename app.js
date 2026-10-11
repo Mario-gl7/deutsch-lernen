@@ -4175,6 +4175,9 @@ function _lecCounts(d, id, depth = 0) {
   return { folders: subs.length, books };
 }
 
+function _folderCoverBg(col) {   // degradado de portada; en modo claro se mezcla con un tono tierra (ver --cov-* en CSS)
+  return 'linear-gradient(135deg,color-mix(in srgb,' + col + ' var(--cov-a),var(--cov-base)),color-mix(in srgb,' + col + ' var(--cov-b),var(--cov-base)))';
+}
 function _lecDraw() {
   const section = document.getElementById('lecturaLibrarySection');
   if (!section) return;
@@ -4198,7 +4201,7 @@ function _lecDraw() {
     const c = _lecCounts(d, f.id), col = _safeFolderColor(f.color);
     const meta = (c.folders ? c.folders + (c.folders === 1 ? ' carpeta · ' : ' carpetas · ') : '') + c.books + (c.books === 1 ? ' elemento' : ' elementos');
     return '<div class="folder-card" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' +
-      '<div class="folder-card-cover" style="background:linear-gradient(135deg,' + col + '30,' + col + '18)">' +
+      '<div class="folder-card-cover" style="background:' + _folderCoverBg(col) + '">' +
         '<span class="folder-card-icon">🗂️</span>' +
         '<button class="folder-edit-btn" data-ui-click="lec-folder-edit" data-id="' + _esc(f.id) + '" title="Editar carpeta">✏️</button>' +
         '<button class="folder-menu-btn" data-ui-click="lec-folder-delete" data-id="' + _esc(f.id) + '" title="Eliminar carpeta">🗑</button>' +
@@ -4531,7 +4534,7 @@ function _renderFolderView() {
     const col = _safeFolderColor(f.color);
     const colLight = col + '30';
     html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="${_esc(f.id)}">
-      <div class="folder-card-cover" style="background:linear-gradient(135deg,${colLight},${col}18)">
+      <div class="folder-card-cover" style="background:${_folderCoverBg(col)}">
         <span class="folder-card-icon">🗂️</span>
         <button class="folder-edit-btn" data-ui-click="folder-edit" data-folder-id="${_esc(f.id)}" title="Editar carpeta">✏️</button>
         <button class="folder-menu-btn" data-ui-click="folder-delete" data-folder-id="${_esc(f.id)}" title="Eliminar carpeta">🗑</button>

@@ -30,11 +30,11 @@
 body.light {
   /* Crema suave: fondos cálidos en vez de blanco puro y acentos apagados (salvia, azul pizarra, terracota) */
   --bg:       #f4efe4;
-  --bg2:      #ece6d8;
-  --surface:  #fbf8f1;
-  --surface2: #f1ecdf;
-  --border:   #d3c9b1;
-  --border2:  #b8ac90;
+  --bg2:      #ebe8e0;
+  --surface:  #ffffff;
+  --surface2: #f2f1ed;
+  --border:   #d8d4ca;
+  --border2:  #bdb8ab;
   --text:     #25221a;
   --text2:    #5a5546;
   --text3:    #8c8671;
@@ -2169,8 +2169,8 @@ body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe
     --nav-pill:var(--bg);
     --nav-hi:rgba(255,255,255,.75);
     --nav-shadow:0 8px 24px rgba(80,65,30,.18);
-    background:linear-gradient(180deg,#fbf8f1 0%,#f3eee1 100%);
-    border:1px solid rgba(80,70,40,.12);
+    background:linear-gradient(180deg,#ffffff 0%,#f5f4f0 100%);
+    border:1px solid rgba(60,60,50,.14);
     box-shadow:inset 0 1px 0 var(--nav-hi),var(--nav-shadow);
   }
   body.light .app-nav-ripple{background:radial-gradient(circle,rgba(80,65,30,.14),rgba(80,65,30,0) 70%)}
@@ -2180,8 +2180,8 @@ body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe
     --nav-fg:rgba(60,56,42,.78);
     --nav-fg-on:var(--text);
     --nav-hi:rgba(255,255,255,.75);
-    background:linear-gradient(180deg,#faf6ec 0%,#f1ebdc 100%);
-    box-shadow:inset 0 0 0 1px rgba(80,70,40,.12),0 10px 30px rgba(80,65,30,.12);
+    background:linear-gradient(180deg,#fefefd 0%,#f4f3ef 100%);
+    box-shadow:inset 0 0 0 1px rgba(60,60,50,.14),0 10px 30px rgba(60,55,40,.14);
   }
   body.light .app-nav-user{color:var(--text)}
   body.light .app-nav-logo{
@@ -2202,8 +2202,7 @@ body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe
 }
 
 /* ═══════════════ Modo claro · más contraste y colores más oscuros ═══════════════ */
-/* Inicio: crema general más marcado, sin el resplandor verde */
-body.light[data-page="home"]{--bg:#ebe1c8}
+/* Inicio: mismo fondo que el resto de páginas, sin el resplandor verde */
 body.light #page-home .home-orb,body.light #page-home .home-grid-bg{display:none}
 /* Portadas de las tarjetas (colores fijos en el HTML → se reemplazan con tonos más profundos y apagados) */
 body.light .hub-card-cover[style*="74,222,128"],body.light .folder-card-cover[style*="74,222,128"]{background:linear-gradient(135deg,#a3cfb3,#7fb596)!important}

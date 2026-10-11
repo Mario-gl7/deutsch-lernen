@@ -525,6 +525,9 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <span class="breadcrumb-sep"> / </span>
       <span id="lecturaBookTitle">Lectura</span>
     </div>
+    <button class="lectura-info-btn" id="lecturaInfoBtn" data-ui-click="lec-info" title="Información" aria-label="Información del lector">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.6" r=".6" fill="currentColor"/></svg>
+    </button>
     <button class="lectura-toolbar-btn" id="lecturaViewBtn" data-ui-click="reading-view" title="Texto / página original" style="display:none">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
     </button>
@@ -615,12 +618,6 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
     <!-- Upload / Biblioteca -->
     <div id="lecturaUpload" class="lectura-upload-zone">
-      <div style="font-size:52px;margin-bottom:16px">📖</div>
-      <div style="font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.3px;margin-bottom:8px">Lector inmersivo</div>
-      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:28px;max-width:260px;text-align:center">
-        Sube un PDF o EPUB en alemán, o abre un enlace web.<br>
-        Toca cualquier palabra para traducirla y guardarla en tu lista.
-      </div>
       <button class="lectura-upload-btn" data-ui-click="reading-file-open">
         📂 Subir PDF o EPUB
       </button>
@@ -694,6 +691,57 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <div class="form-err" id="folderModalErr"></div>
     <button class="btn-primary" data-ui-click="save-folder">Guardar</button>
     <button class="btn-secondary" data-ui-modal-close="folderModal">Cancelar</button>
+  </div>
+</div>
+
+<!-- Lectura: información -->
+<div class="modal-overlay" id="lecturaInfoModal" data-ui-overlay="lecturaInfoModal">
+  <div class="modal-box">
+    <button class="modal-close-x" data-ui-modal-close="lecturaInfoModal">✕</button>
+    <h3>📖 Lector inmersivo</h3>
+    <div style="font-size:13px;color:var(--text2);line-height:1.65">
+      <p style="margin-bottom:10px">Sube un PDF o EPUB en alemán, o abre un enlace web.</p>
+      <p style="margin-bottom:10px">Toca cualquier palabra para traducirla y guardarla en tu lista.</p>
+      <p style="margin-bottom:10px">Los PDF y EPUB se leen a pantalla completa: desliza para pasar página y toca fuera de las letras para ver el botón de salir y los ajustes (Aa).</p>
+      <p>Organiza tu biblioteca con carpetas y subcarpetas desde «＋ Carpeta»; el menú ⋯ de cada elemento permite renombrarlo y moverlo.</p>
+    </div>
+    <button class="btn-secondary" style="margin-top:16px" data-ui-modal-close="lecturaInfoModal">Cerrar</button>
+  </div>
+</div>
+
+<!-- Lectura: menú de carpeta / libro -->
+<div class="modal-overlay" id="lecMenuModal" data-ui-overlay="lecMenuModal">
+  <div class="modal-box">
+    <button class="modal-close-x" data-ui-modal-close="lecMenuModal">✕</button>
+    <h3 id="lecMenuTitle"></h3>
+    <button class="btn-secondary lec-menu-btn" data-ui-click="lec-rename">✏️ Renombrar</button>
+    <button class="btn-secondary lec-menu-btn" data-ui-click="lec-move">📂 Mover a…</button>
+    <button class="btn-secondary lec-menu-btn lec-danger" id="lecMenuDelete" data-ui-click="lec-delete">🗑 Eliminar carpeta</button>
+  </div>
+</div>
+
+<!-- Lectura: nombre de carpeta / libro -->
+<div class="modal-overlay" id="lecNameModal" data-ui-overlay="lecNameModal">
+  <div class="modal-box">
+    <button class="modal-close-x" data-ui-modal-close="lecNameModal">✕</button>
+    <h3 id="lecNameTitle">Nueva carpeta</h3>
+    <div class="form-row">
+      <div class="form-label">Nombre</div>
+      <input class="form-input" id="lecNameInput" type="text" placeholder="ej. Novelas" maxlength="60" autocomplete="off" data-ui-enter="lec-name">
+    </div>
+    <div class="form-err" id="lecNameErr"></div>
+    <button class="btn-primary" data-ui-click="lec-name-save">Guardar</button>
+    <button class="btn-secondary" data-ui-modal-close="lecNameModal">Cancelar</button>
+  </div>
+</div>
+
+<!-- Lectura: mover a carpeta -->
+<div class="modal-overlay" id="lecMoveModal" data-ui-overlay="lecMoveModal">
+  <div class="modal-box">
+    <button class="modal-close-x" data-ui-modal-close="lecMoveModal">✕</button>
+    <h3 id="lecMoveTitle">Mover</h3>
+    <div id="lecMoveList" style="display:flex;flex-direction:column;margin-bottom:10px;max-height:50dvh;overflow-y:auto"></div>
+    <button class="btn-secondary" data-ui-modal-close="lecMoveModal">Cancelar</button>
   </div>
 </div>
 
@@ -798,7 +846,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.54</div>
+<div id="buildBadge" class="build-badge">1.07.56</div>
 
 <script src="app.js"></script>
 </body>

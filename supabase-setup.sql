@@ -54,6 +54,13 @@ create table if not exists public.user_books (
   primary key (user_id, book_id)
 );
 
+-- ── Biblioteca de Lectura: carpetas y enlaces (un documento por usuario) ──
+create table if not exists public.user_reading_library (
+  user_id    uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  data       jsonb not null default '{}'::jsonb check (pg_column_size(data) < 500000),
+  updated_at timestamptz default now()
+);
+
 -- ── Vocabulario base (solo lectura) ──────────────────────
 create table if not exists public.base_words (
   id       serial primary key,
@@ -72,7 +79,7 @@ create index if not exists user_folders_user_id_idx  on public.user_folders(user
 do $$
 declare t text;
 begin
-  foreach t in array array['user_words','user_progress','user_folders','user_books'] loop
+  foreach t in array array['user_words','user_progress','user_folders','user_books','user_reading_library'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon', t);
     execute format('drop policy if exists "own_rows" on public.%I', t);

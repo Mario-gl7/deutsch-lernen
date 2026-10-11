@@ -3026,6 +3026,7 @@ async function handleLecturaFile(e) {
     const bookId = 'book_' + Date.now();
     const bookData = { id: bookId, title, ext, pages, pageIdx: 0, ts: Date.now() };
     _saveBooksLS(bookData);
+    _lecAssign(bookId, _lecFolder);
     _uploadBookToSupabase(file, bookId, title, pages.length);
     _lectura.current = bookData;
     _hideLecturaLoader();
@@ -3050,7 +3051,7 @@ function _splitTextToPages(text, chunk = 3000) {
 }
 
 // textView=true abre directamente la vista de texto; por defecto se abre la página original
-async function openLecturaUrl(raw, textView) {
+async function openLecturaUrl(raw, textView, reuse) {
   let url = (raw || '').trim();
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -3063,8 +3064,9 @@ async function openLecturaUrl(raw, textView) {
     const pages = _splitTextToPages(j.text || '');
     if (!pages.length) throw new Error('Sin contenido legible');
     let host = ''; try { host = new URL(j.url || url).hostname; } catch(e) {}
-    const bookData = { id: 'web_' + Date.now(), title: j.title || host || url, ext: 'web', url: j.url || url, pages, pageIdx: 0, ts: Date.now() };
+    const bookData = { id: reuse?.id || 'web_' + Date.now(), title: reuse?.title || j.title || host || url, ext: 'web', url: j.url || url, pages, pageIdx: 0, ts: Date.now() };
     _saveBooksLS(bookData);
+    if (!reuse) { _lecAssign(bookData.id, _lecFolder); _lecAddLink(bookData); }
     _lectura.webView = !textView;
     _lectura.current = bookData;
     _hideLecturaLoader();
@@ -3199,6 +3201,7 @@ async function _renderLecturaLibrary() {
   if (!section) return;
   const cached = _getAllBooksLS();
   let books = [...cached];
+  _lecBooksCache = cached; _lecDraw();   // pinta ya con lo local; luego se completa con la nube
   if (_dbReady) {
     try {
       const sb = await getSupabase();
@@ -3212,23 +3215,14 @@ async function _renderLecturaLibrary() {
       }
     } catch(e) {}
   }
-  if (!books.length) { section.innerHTML = ''; return; }
-  section.innerHTML = '<div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;text-align:left">Biblioteca</div>' +
-    '<div class="lectura-library-grid">' +
-    books.map(b => {
-      const total = b.pages?.length || b.totalPages || 1;
-      const pct = Math.round(((b.pageIdx||0) / total) * 100);
-      const icon = b.noCache ? '☁️' : (b.ext === 'web' ? '🌐' : b.ext === 'epub' ? '📗' : '📕');
-      return '<div class="lectura-lib-card" data-ui-click="book-open" data-book-id="' + _esc(b.id) + '">' +
-        '<div class="lectura-lib-card-icon">' + icon + '</div>' +
-        '<div class="lectura-lib-card-info">' +
-          '<div class="lectura-lib-card-title">' + _esc(b.title) + '</div>' +
-          '<div class="lectura-lib-card-meta">p. ' + ((b.pageIdx||0)+1) + ' de ' + total + ' · ' + pct + '%</div>' +
-          '<div class="lectura-lib-prog"><div class="lectura-lib-prog-fill" style="width:' + pct + '%"></div></div>' +
-        '</div>' +
-        '<button class="lectura-lib-del" data-ui-click="book-delete" data-book-id="' + _esc(b.id) + '" title="Eliminar">🗑</button>' +
-      '</div>';
-    }).join('') + '</div>';
+  await _lecPull();
+  _lecReconcileLinks();
+  const _ld = _lecLoad();
+  books = books.filter(b => b.ext !== 'web' || _ld.links.some(l => l.id === b.id));   // enlaces borrados en otro dispositivo
+  books.forEach(b => { const l = b.ext === 'web' && _ld.links.find(x => x.id === b.id); if (l) b.title = l.title; });
+  _ld.links.forEach(l => { if (!books.some(b => b.id === l.id)) books.push({ id: l.id, title: l.title, ext: 'web', url: l.url, pageIdx: 0, totalPages: l.tp || 1 }); });
+  _lecBooksCache = books;
+  _lecDraw();
 }
 
 async function openBookFromLibrary(bookId) {
@@ -3240,6 +3234,10 @@ async function openBookFromLibrary(bookId) {
     document.getElementById('lecturaUpload').style.display = 'none';
     _showReader();
     return;
+  }
+  if (String(bookId).startsWith('web_')) {   // enlace sincronizado desde otro dispositivo: se vuelve a cargar la página
+    const l = _lecLoad().links.find(x => x.id === bookId);
+    if (l) { openLecturaUrl(l.url, false, { id: l.id, title: l.title }); return; }
   }
   if (!_dbReady) { showToast('Libro no en caché. Súbelo de nuevo.'); return; }
   _showLecturaLoader('Descargando libro…');
@@ -3271,6 +3269,8 @@ async function deleteBook(bookId) {
   const _what = _isWeb ? 'este enlace' : (_bk?.ext === 'epub' ? 'este EPUB' : 'este PDF');
   if (!confirm('¿Eliminar ' + _what + ' de la biblioteca?' + (_isWeb ? '' : ' También se borrará de la nube.'))) return;
   try { const all = _getAllBooksLS().filter(b => b.id !== bookId); localStorage.setItem(_LBOOKS(), JSON.stringify(all)); } catch(e) {}
+  _lecAssign(bookId, null);
+  if (String(bookId).startsWith('web_')) _lecRemoveLink(bookId);
   if (_dbReady) {
     try {
       const sb = await getSupabase();
@@ -4059,6 +4059,287 @@ document.addEventListener('fullscreenchange', () => {
   if (document.fullscreenElement || !_lectura.fullscreen || currentPage !== 'lectura') return;
   if (_isBookMode()) closeLecturaBook(); else toggleLecturaFull();
 });
+
+
+// ═══════════════════════════════════════════════════════════════════
+// LECTURA · CARPETAS DE LA BIBLIOTECA (carpetas, subcarpetas, renombrar, mover)
+// Se guardan en localStorage por usuario: { folders:[{id,name,parent}], map:{bookId:folderId} }
+// ═══════════════════════════════════════════════════════════════════
+const _LFOLD = () => 'lectura_folders_' + (currentUser?.id || 'anon');
+let _lecFolder = null;        // carpeta abierta (null = raíz)
+let _lecBooksCache = [];      // libros/enlaces visibles en la biblioteca
+let _lecSel = null;           // { kind:'folder'|'book', id } elemento del menú
+let _lecEdit = null;          // { mode:'new-folder'|'rename' }
+
+function _lecSanitize(d) {
+  d = (d && typeof d === 'object') ? d : {};
+  const folders = (Array.isArray(d.folders) ? d.folders : []).filter(f => f && f.id && typeof f.name === 'string')
+    .map(f => ({ id: String(f.id), name: f.name.slice(0, 60), parent: f.parent || null }));
+  const ids = new Set(folders.map(f => f.id));
+  folders.forEach(f => { if (!ids.has(f.parent) || f.parent === f.id) f.parent = null; });
+  const links = (Array.isArray(d.links) ? d.links : []).filter(l => l && typeof l.id === 'string' && typeof l.url === 'string')
+    .map(l => ({ id: l.id, title: String(l.title || l.url).slice(0, 300), url: l.url, tp: Number(l.tp) || 1 }));
+  const del = (Array.isArray(d.del) ? d.del : []).filter(x => typeof x === 'string').slice(-300);
+  return { folders, map: (d.map && typeof d.map === 'object') ? d.map : {}, links, del, ts: Number(d.ts) || 0 };
+}
+function _lecLoad() {
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem(_LFOLD()) || '{}'); } catch(e) {}
+  return _lecSanitize(d);
+}
+function _lecSave(d) {
+  d.ts = Date.now();
+  try { localStorage.setItem(_LFOLD(), JSON.stringify({ folders: d.folders, map: d.map, links: d.links, del: d.del, ts: d.ts })); }
+  catch(e) { showToast('No se pudo guardar'); }
+  _lecSchedulePush();
+}
+
+// ── Sincronización con Supabase (un documento por usuario; gana el más reciente) ──
+let _lecPushT = null;
+function _lecSchedulePush() { clearTimeout(_lecPushT); _lecPushT = setTimeout(_lecPush, 800); }
+async function _lecPush() {
+  if (!_dbReady || !currentUser) return;
+  try {
+    const d = _lecLoad(), sb = await getSupabase();
+    const { error } = await sb.from('user_reading_library').upsert({ user_id: currentUser.id, data: d, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw error;
+  } catch(e) { console.warn('[Lectura] no se pudo sincronizar las carpetas', e); }
+}
+// Trae el documento de la nube; devuelve true si había uno más reciente y se ha aplicado
+async function _lecPull() {
+  if (!_dbReady || !currentUser) return false;
+  try {
+    const sb = await getSupabase();
+    const { data: row, error } = await sb.from('user_reading_library').select('data').eq('user_id', currentUser.id).maybeSingle();
+    if (error) return false;
+    const local = _lecLoad();
+    if (!row || !row.data) { if (local.ts) _lecSchedulePush(); return false; }
+    const remote = _lecSanitize(row.data);
+    if (remote.ts > local.ts) {
+      localStorage.setItem(_LFOLD(), JSON.stringify(remote));
+      if (remote.del.length) {   // enlaces borrados en otro dispositivo
+        try { const all = _getAllBooksLS().filter(b => !remote.del.includes(b.id)); localStorage.setItem(_LBOOKS(), JSON.stringify(all)); } catch(e) {}
+      }
+      return true;
+    }
+    if (remote.ts < local.ts) _lecSchedulePush();
+  } catch(e) {}
+  return false;
+}
+// Enlaces ya guardados en este dispositivo antes de existir la sincronización
+function _lecReconcileLinks() {
+  const d = _lecLoad(); let ch = false;
+  _getAllBooksLS().filter(b => b.ext === 'web' && b.url).forEach(b => {
+    if (!d.links.some(l => l.id === b.id) && !d.del.includes(b.id)) { d.links.push({ id: b.id, title: b.title, url: b.url, tp: b.pages?.length || 1 }); ch = true; }
+  });
+  if (ch) _lecSave(d);
+}
+function _lecAddLink(b) {
+  const d = _lecLoad();
+  if (d.links.some(l => l.id === b.id)) return;
+  d.links.push({ id: b.id, title: b.title, url: b.url, tp: b.pages?.length || 1 });
+  d.del = d.del.filter(x => x !== b.id);
+  _lecSave(d);
+}
+function _lecRemoveLink(id) {
+  const d = _lecLoad();
+  d.links = d.links.filter(l => l.id !== id);
+  if (!d.del.includes(id)) d.del.push(id);
+  d.del = d.del.slice(-300);
+  _lecSave(d);
+}
+function _lecBookFolder(d, bookId) {
+  const f = d.map[bookId];
+  return f && d.folders.some(x => x.id === f) ? f : null;
+}
+function _lecAssign(bookId, folderId) {
+  const d = _lecLoad();
+  if (folderId) d.map[bookId] = folderId; else delete d.map[bookId];
+  _lecSave(d);
+}
+function _lecPath(d, id) {
+  const out = []; let cur = d.folders.find(f => f.id === id), n = 0;
+  while (cur && n++ < 30) { out.unshift(cur); cur = d.folders.find(f => f.id === cur.parent); }
+  return out;
+}
+function _lecDesc(d, id, out = new Set(), depth = 0) {
+  out.add(id);
+  if (depth < 30) d.folders.filter(f => f.parent === id).forEach(f => _lecDesc(d, f.id, out, depth + 1));
+  return out;
+}
+function _lecCounts(d, id, depth = 0) {
+  const subs = d.folders.filter(f => f.parent === id);
+  let books = _lecBooksCache.filter(b => _lecBookFolder(d, b.id) === id).length;
+  if (depth < 30) subs.forEach(s => { books += _lecCounts(d, s.id, depth + 1).books; });
+  return { folders: subs.length, books };
+}
+
+function _lecDraw() {
+  const section = document.getElementById('lecturaLibrarySection');
+  if (!section) return;
+  const d = _lecLoad();
+  if (_lecFolder && !d.folders.some(f => f.id === _lecFolder)) _lecFolder = null;
+  const cur = _lecFolder;
+  const path = cur ? _lecPath(d, cur) : [];
+  let crumbs = cur
+    ? '<button class="lec-crumb" data-ui-click="lec-open-folder" data-folder-id="">Biblioteca</button>'
+    : '<span class="lec-crumb-cur">Biblioteca</span>';
+  path.forEach((f, i) => {
+    crumbs += '<span class="lec-sep">›</span>' + (i === path.length - 1
+      ? '<span class="lec-crumb-cur">' + _esc(f.name) + '</span>'
+      : '<button class="lec-crumb" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' + _esc(f.name) + '</button>');
+  });
+  const subs = d.folders.filter(f => f.parent === cur).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const items = _lecBooksCache.filter(b => _lecBookFolder(d, b.id) === cur);
+  const folderCards = subs.map(f => {
+    const c = _lecCounts(d, f.id);
+    const meta = [c.folders ? c.folders + (c.folders === 1 ? ' carpeta' : ' carpetas') : '', c.books + (c.books === 1 ? ' elemento' : ' elementos')].filter(Boolean).join(' · ');
+    return '<div class="lectura-lib-card" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' +
+      '<div class="lectura-lib-card-icon">📁</div>' +
+      '<div class="lectura-lib-card-info"><div class="lectura-lib-card-title">' + _esc(f.name) + '</div><div class="lectura-lib-card-meta">' + meta + '</div></div>' +
+      '<div class="lec-actions"><button class="lec-more" data-ui-click="lec-menu" data-kind="folder" data-id="' + _esc(f.id) + '" title="Más opciones" aria-label="Más opciones">⋯</button></div>' +
+    '</div>';
+  }).join('');
+  const bookCards = items.map(b => {
+    const total = b.pages?.length || b.totalPages || 1;
+    const pct = Math.round(((b.pageIdx || 0) / total) * 100);
+    const icon = b.noCache ? '☁️' : (b.ext === 'web' ? '🌐' : b.ext === 'epub' ? '📗' : '📕');
+    return '<div class="lectura-lib-card" data-ui-click="book-open" data-book-id="' + _esc(b.id) + '">' +
+      '<div class="lectura-lib-card-icon">' + icon + '</div>' +
+      '<div class="lectura-lib-card-info">' +
+        '<div class="lectura-lib-card-title">' + _esc(b.title) + '</div>' +
+        '<div class="lectura-lib-card-meta">p. ' + ((b.pageIdx || 0) + 1) + ' de ' + total + ' · ' + pct + '%</div>' +
+        '<div class="lectura-lib-prog"><div class="lectura-lib-prog-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>' +
+      '<div class="lec-actions">' +
+        '<button class="lec-more" data-ui-click="lec-menu" data-kind="book" data-id="' + _esc(b.id) + '" title="Más opciones" aria-label="Más opciones">⋯</button>' +
+        '<button class="lectura-lib-del" data-ui-click="book-delete" data-book-id="' + _esc(b.id) + '" title="Eliminar">🗑</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  const empty = (!subs.length && !items.length)
+    ? '<div class="lec-empty">' + (cur ? 'Carpeta vacía' : 'Aún no hay nada. Sube un PDF o EPUB, abre un enlace o crea una carpeta.') + '</div>' : '';
+  section.innerHTML =
+    '<div class="lec-head"><div class="lec-crumbs">' + crumbs + '</div>' +
+    '<button class="lec-newfolder" data-ui-click="lec-new-folder">＋ Carpeta</button></div>' +
+    '<div class="lectura-library-grid">' + folderCards + bookCards + '</div>' + empty;
+}
+
+function _lecOpenFolder(id) { _lecFolder = id || null; _lecDraw(); }
+
+function _lecOpenMenu(kind, id) {
+  const d = _lecLoad();
+  const name = kind === 'folder' ? d.folders.find(f => f.id === id)?.name : _lecBooksCache.find(b => b.id === id)?.title;
+  if (name == null) return;
+  _lecSel = { kind, id };
+  document.getElementById('lecMenuTitle').textContent = name;
+  document.getElementById('lecMenuDelete').style.display = kind === 'folder' ? '' : 'none';
+  openModal('lecMenuModal');
+}
+
+function _lecOpenName(mode) {
+  const d = _lecLoad();
+  let title, val = '';
+  if (mode === 'new-folder') title = _lecFolder ? 'Nueva subcarpeta' : 'Nueva carpeta';
+  else {
+    if (!_lecSel) return;
+    title = _lecSel.kind === 'folder' ? 'Renombrar carpeta' : 'Renombrar';
+    val = _lecSel.kind === 'folder' ? (d.folders.find(f => f.id === _lecSel.id)?.name || '') : (_lecBooksCache.find(b => b.id === _lecSel.id)?.title || '');
+  }
+  _lecEdit = { mode };
+  const inp = document.getElementById('lecNameInput');
+  document.getElementById('lecNameTitle').textContent = title;
+  document.getElementById('lecNameErr').textContent = '';
+  inp.value = val;
+  openModal('lecNameModal');
+  setTimeout(() => { try { inp.focus(); inp.select(); } catch(e) {} }, 60);
+}
+
+async function _lecRenameBook(id, title) {
+  try {
+    const all = _getAllBooksLS(), b = all.find(x => x.id === id);
+    if (b) { b.title = title; localStorage.setItem(_LBOOKS(), JSON.stringify(all)); }
+  } catch(e) {}
+  const c = _lecBooksCache.find(x => x.id === id); if (c) c.title = title;
+  if (_lectura.current?.id === id) _lectura.current.title = title;
+  if (String(id).startsWith('web_')) {
+    const d = _lecLoad(), l = d.links.find(x => x.id === id);
+    if (l) { l.title = title; _lecSave(d); }
+  } else if (currentUser && _dbReady) {
+    try { const sb = await getSupabase(); await sb.from('user_books').update({ title }).eq('user_id', currentUser.id).eq('book_id', id); } catch(e) {}
+  }
+}
+
+function _lecSaveName() {
+  const name = document.getElementById('lecNameInput').value.replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (!name) { document.getElementById('lecNameErr').textContent = 'Escribe un nombre'; return; }
+  if (!_lecEdit) return;
+  const d = _lecLoad();
+  if (_lecEdit.mode === 'new-folder') {
+    d.folders.push({ id: 'lf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, parent: _lecFolder });
+    _lecSave(d);
+  } else if (_lecSel?.kind === 'folder') {
+    const f = d.folders.find(x => x.id === _lecSel.id); if (f) { f.name = name; _lecSave(d); }
+  } else if (_lecSel?.kind === 'book') {
+    _lecRenameBook(_lecSel.id, name);
+  }
+  closeModal('lecNameModal');
+  _lecDraw();
+}
+
+function _lecOpenMove() {
+  if (!_lecSel) return;
+  closeModal('lecMenuModal');
+  const d = _lecLoad(), sel = _lecSel;
+  const exclude = sel.kind === 'folder' ? _lecDesc(d, sel.id) : new Set();
+  const here = sel.kind === 'folder' ? (d.folders.find(f => f.id === sel.id)?.parent ?? null) : _lecBookFolder(d, sel.id);
+  const name = sel.kind === 'folder' ? d.folders.find(f => f.id === sel.id)?.name : _lecBooksCache.find(b => b.id === sel.id)?.title;
+  document.getElementById('lecMoveTitle').textContent = 'Mover «' + (name || '') + '»';
+  const row = (id, label, depth) => '<button class="btn-secondary lec-move-row" data-ui-click="lec-move-to" data-folder-id="' + _esc(id || '') + '" style="padding-left:' + (14 + depth * 18) + 'px"' + (id === here ? ' disabled' : '') + '>' +
+    (id ? '📁 ' : '🏠 ') + _esc(label) + (id === here ? ' · aquí' : '') + '</button>';
+  let html = row(null, 'Biblioteca', 0);
+  const walk = (parent, depth) => {
+    if (depth > 30) return;
+    d.folders.filter(f => f.parent === parent && !exclude.has(f.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .forEach(f => { html += row(f.id, f.name, depth); walk(f.id, depth + 1); });
+  };
+  walk(null, 1);
+  document.getElementById('lecMoveList').innerHTML = html;
+  openModal('lecMoveModal');
+}
+
+function _lecMoveTo(folderId) {
+  if (!_lecSel) return;
+  const target = folderId || null, d = _lecLoad();
+  if (_lecSel.kind === 'folder') {
+    if (target && _lecDesc(d, _lecSel.id).has(target)) return;
+    const f = d.folders.find(x => x.id === _lecSel.id); if (!f) return;
+    f.parent = target;
+    _lecSave(d);
+  } else {
+    if (target) d.map[_lecSel.id] = target; else delete d.map[_lecSel.id];
+    _lecSave(d);
+  }
+  closeModal('lecMoveModal');
+  _lecDraw();
+  showToast('✓ Movido');
+}
+
+function _lecDeleteFolder() {
+  if (_lecSel?.kind !== 'folder') return;
+  closeModal('lecMenuModal');
+  const d = _lecLoad(), f = d.folders.find(x => x.id === _lecSel.id);
+  if (!f) return;
+  const dest = f.parent ? d.folders.find(x => x.id === f.parent)?.name : 'Biblioteca';
+  if (!confirm('¿Eliminar la carpeta «' + f.name + '»? Su contenido (libros y subcarpetas) pasará a «' + dest + '».')) return;
+  d.folders.forEach(x => { if (x.parent === f.id) x.parent = f.parent; });
+  Object.keys(d.map).forEach(k => { if (d.map[k] === f.id) { if (f.parent) d.map[k] = f.parent; else delete d.map[k]; } });
+  d.folders = d.folders.filter(x => x.id !== f.id);
+  _lecSave(d);
+  if (_lecFolder === f.id) _lecFolder = f.parent;
+  _lecDraw();
+  showToast('🗑 Carpeta eliminada');
+}
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4853,6 +5134,15 @@ function _handleUiClick(event) {
     case 'reading-file-open': document.getElementById('lecturaFileIn').click(); break;
     case 'reading-url-open': openLecturaUrl(document.getElementById('lecturaUrlIn').value); break;
     case 'reading-url-prompt': { const url = prompt('Pega el enlace de la página:'); if (url) openLecturaUrl(url); break; }
+    case 'lec-info': openModal('lecturaInfoModal'); break;
+    case 'lec-new-folder': _lecOpenName('new-folder'); break;
+    case 'lec-open-folder': _lecOpenFolder(el.dataset.folderId); break;
+    case 'lec-menu': event.stopPropagation(); _lecOpenMenu(el.dataset.kind, el.dataset.id); break;
+    case 'lec-rename': closeModal('lecMenuModal'); _lecOpenName('rename'); break;
+    case 'lec-move': _lecOpenMove(); break;
+    case 'lec-move-to': _lecMoveTo(el.dataset.folderId); break;
+    case 'lec-delete': _lecDeleteFolder(); break;
+    case 'lec-name-save': _lecSaveName(); break;
     case 'bk-prev': bookTurn(-1); break;
     case 'bk-next': bookTurn(1); break;
     case 'bk-opt': bkSetOpt(el.dataset.key, el.dataset.value); break;
@@ -4951,6 +5241,7 @@ document.addEventListener('keydown', event => {
     if (el.dataset.uiEnter === 'login') doLogin();
     if (el.dataset.uiEnter === 'reading-url') openLecturaUrl(el.value);
     if (el.dataset.uiEnter === 'save-folder') saveFolderModal();
+    if (el.dataset.uiEnter === 'lec-name') _lecSaveName();
   }
   if (el.dataset.uiKeydown === 'crossword-navigation') cwNav(event, Number(el.dataset.row), Number(el.dataset.col));
 });

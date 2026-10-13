@@ -2217,3 +2217,8 @@ body.light .ws-card:nth-child(3) .ws-card-cover{background:linear-gradient(135de
 body.light .hub-card,body.light .ws-card,body.light .folder-card:not(.new-folder){box-shadow:0 3px 10px rgba(80,65,30,.16),0 0 0 1px var(--border2)}
 body.light .hub-card:hover,body.light .ws-card:hover,body.light .folder-card:not(.new-folder):hover{box-shadow:0 12px 28px rgba(80,65,30,.26),0 0 0 1px var(--border2)}
 body.light .hub-card-label,body.light .ws-card-label{border-top-color:var(--border2)}
+
+/* iOS: capa propia para la barra móvil (evita que quede elevada al reabrir la app) */
+@media (max-width:699px){
+  .app-nav{transform:translateZ(0);-webkit-transform:translateZ(0)}
+}

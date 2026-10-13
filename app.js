@@ -752,6 +752,21 @@ function _navRipple(tab, e) {
   // Cambios de tamaño (contraer/expandir el rail, girar el móvil, PC ↔ móvil)
   if ('ResizeObserver' in window) new ResizeObserver(() => { if (!_navPress) { _navMeasure(); _navSyncActive(true); } }).observe(track);   // snap: el rail ya se anima por CSS; el selector debe seguirlo pegado, sin muelle
   _navMQ.addEventListener?.('change', () => { _navMeasure(); _navSyncActive(true); });
+  // iOS: al reabrir la app (Safari/PWA) la barra puede quedar elevada; se fuerza un relayout y se vuelve a medir
+  window._navRefit = function _navRefit() {
+    const nav = document.getElementById('appNav');
+    if (!nav || nav.hidden) return;
+    nav.style.transform = 'translateZ(0)';
+    void nav.offsetHeight;
+    nav.style.transform = '';
+    _navMeasure(); _navSyncActive(true);
+  };
+  const _refitSoon = () => { requestAnimationFrame(() => { window._navRefit(); setTimeout(window._navRefit, 250); }); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _refitSoon(); });
+  window.addEventListener('pageshow', _refitSoon);
+  window.addEventListener('resize', _refitSoon);
+  window.addEventListener('orientationchange', _refitSoon);
+  _refitSoon();
 })();
 
 // Apply initial language (currentPage is now defined)

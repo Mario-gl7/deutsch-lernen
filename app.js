@@ -1045,6 +1045,9 @@ async function loadUserData() {
   if (currentPage === 'progreso') renderProgreso();
   if (currentPage === 'lista') renderLista();
   if (currentPage === 'vocab-hub' || currentPage === 'home') updateStats();
+  await _goalsPull();
+  _renderGoalsCard();
+  _goalStart();
 }
 
 // ── Fetch words from DB ──
@@ -1054,7 +1057,7 @@ async function _fetchWordsFromDB() {
     const sb = await getSupabase();
     const { data, error } = await sb
       .from('user_words')
-      .select('id,tipo,articulo,de,es,folder_id')
+      .select('id,tipo,articulo,de,es,folder_id,created_at')
       .eq('user_id', currentUser.id)
       .order('created_at');
     if (error) {
@@ -1069,7 +1072,7 @@ async function _fetchWordsFromDB() {
       if (baseWords && baseWords.length > 0) { await _seedWords(baseWords); return baseWords; }
       return [];
     }
-    const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null }));
+    const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
     _cacheWords(words);
     return words;
   } catch(e) {
@@ -1096,6 +1099,8 @@ async function _seedWords(words) {
 
 // ── Save words — cache instantly, flush to DB debounced ──
 function saveWords(words) {
+  // palabras nuevas (aún sin id de la BD): fecha de alta = hoy
+  words.forEach(w => { if (!w._id && !w.added) w.added = _dayKey(); });
   _cacheWords(words);
   updateStats();
   if (!_dbReady) return;
@@ -1262,7 +1267,7 @@ async function _flushProgress() {
 // Local: act_<uid> = { init, m:[palabras ya dominadas], d:{ 'AAAA-MM-DD': {l: aprendidas, p: practicadas} } }.
 // "Aprendida" = la palabra pasa a dominada (3+ intentos y 80 % de aciertos). Cada palabra cuenta una sola vez.
 // Nube: tabla user_activity (ver supabase-migration-1.07.49.sql); si no existe, todo sigue funcionando en local.
-let _actDirty = {}, _actTimer = 0, _actNoTable = false;
+let _actDirty = {}, _actTimer = 0, _actNoTable = false, _actNoExt = false;   // _actNoExt: la BD aún no tiene las columnas correct/seconds
 const _actEmpty = () => ({ init: false, m: [], d: {} });
 function _actGet() { try { const s = localStorage.getItem(_lsKey('act')); const o = s ? JSON.parse(s) : null; return (o && o.d) ? o : _actEmpty(); } catch (e) { return _actEmpty(); } }
 function _actSave(a) { try { localStorage.setItem(_lsKey('act'), JSON.stringify(a)); } catch (e) {} }
@@ -1274,10 +1279,11 @@ function _actMark(day) {
   clearTimeout(_actTimer);
   _actTimer = setTimeout(_flushActivity, 2500);
 }
-function _actRecordAnswer() {
+function _actRecordAnswer(ok) {
   const a = _actGet(), k = _dayKey();
   const x = a.d[k] || (a.d[k] = { l: 0, p: 0 });
   x.p++;
+  if (ok) x.c = (x.c || 0) + 1;
   // palabras que acaban de pasar a dominadas (solo cuenta si ya se hizo la carga inicial)
   const p = getProgress(), set = new Set(a.m);
   let newly = 0;
@@ -1297,12 +1303,18 @@ async function _fetchActivityFromDB() {
   if (!currentUser || _actNoTable) return;
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb.from('user_activity').select('day,learned,practiced').eq('user_id', currentUser.id);
+    const q = cols => sb.from('user_activity').select(cols).eq('user_id', currentUser.id);
+    let res = _actNoExt ? await q('day,learned,practiced') : await q('day,learned,practiced,correct,seconds');
+    if (res.error && !_actNoExt && /correct|seconds|42703/i.test((res.error.code || '') + ' ' + (res.error.message || ''))) { _actNoExt = true; res = await q('day,learned,practiced'); }
+    const { data, error } = res;
     if (error) throw error;
     const a = _actGet();
+    a.t = a.t || {};
     (data || []).forEach(r => {
       const x = a.d[r.day] || (a.d[r.day] = { l: 0, p: 0 });
       x.l = Math.max(x.l, r.learned || 0); x.p = Math.max(x.p, r.practiced || 0);
+      if (r.correct) x.c = Math.max(x.c || 0, r.correct);
+      if (r.seconds) a.t[r.day] = Math.max(a.t[r.day] || 0, r.seconds);
     });
     _actSave(a);
     // lo que solo existe en local se sube
@@ -1319,7 +1331,11 @@ async function _flushActivity() {
   const keys = Object.keys(_actDirty);
   if (!keys.length) return;
   const a = _actGet();
-  const rows = keys.filter(k => a.d[k]).map(k => ({ user_id: currentUser.id, day: k, learned: a.d[k].l || 0, practiced: a.d[k].p || 0, updated_at: new Date().toISOString() }));
+  const rows = keys.filter(k => a.d[k] || (a.t && a.t[k])).map(k => {
+    const x = a.d[k] || {}, r = { user_id: currentUser.id, day: k, learned: x.l || 0, practiced: x.p || 0, updated_at: new Date().toISOString() };
+    if (!_actNoExt) { r.correct = x.c || 0; r.seconds = Math.round((a.t && a.t[k]) || 0); }
+    return r;
+  });
   _actDirty = {};
   try {
     const sb = await getSupabase();
@@ -1327,10 +1343,279 @@ async function _flushActivity() {
     if (error) throw error;
   } catch (e) {
     console.warn('[sync] flushActivity:', e.message);
+    if (!_actNoExt && /correct|seconds|42703|PGRST204/i.test((e.code || '') + ' ' + (e.message || ''))) { _actNoExt = true; keys.forEach(k => { _actDirty[k] = 1; }); clearTimeout(_actTimer); _actTimer = setTimeout(_flushActivity, 500); return; }
     if (/user_activity|42P01|PGRST205/i.test((e.code || '') + ' ' + (e.message || ''))) _actNoTable = true;
     else keys.forEach(k => { _actDirty[k] = 1; });
   }
 }
+
+// ═══════════════════ FECHAS Y ÁMBITO DE JUEGOS ═══════════════════
+// w.added = día en que se añadió la palabra (AAAA-MM-DD, hora local); viene de created_at de la BD.
+// Ámbito de juegos (carpeta + fecha), común a Parejas, Crucigrama y Velocidad: scope_<uid> en localStorage.
+function _dateKeyMatch(w, key) {
+  if (!key || key === 'all') return true;
+  const a = w.added || '';
+  if (!a) return false;
+  if (key === 'today') return a === _dayKey();
+  if (key === 'yesterday') return a === _dayKey(Date.now() - 864e5);
+  if (key === '7d') return a >= _dayKey(Date.now() - 6 * 864e5);
+  return /^\d{4}-\d\d-\d\d$/.test(key) && a === key;
+}
+function _dateLabel(k) {
+  const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(k || '');
+  if (!m) return '—';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'es-ES', { day: 'numeric', month: 'short' });
+}
+function _fmtAdded(k) { return k ? _dateLabel(k) : '—'; }
+function _dateFilterName(key) { return key === 'today' ? 'Hoy' : key === 'yesterday' ? 'Ayer' : key === '7d' ? '7 días' : _dateLabel(key); }
+function _dateOptions(words, selected) {
+  const today = _dayKey(), yest = _dayKey(Date.now() - 864e5), counts = {};
+  words.forEach(w => { if (w.added) counts[w.added] = (counts[w.added] || 0) + 1; });
+  const n = key => words.filter(w => _dateKeyMatch(w, key)).length;
+  const o = [['all', 'Todas las fechas (' + words.length + ')'], ['today', 'Hoy (' + n('today') + ')'], ['yesterday', 'Ayer (' + n('yesterday') + ')'], ['7d', 'Últimos 7 días (' + n('7d') + ')']];
+  Object.keys(counts).sort().reverse().filter(k => k !== today && k !== yest).slice(0, 60).forEach(k => o.push([k, _dateLabel(k) + ' (' + counts[k] + ')']));
+  if (selected && /^\d{4}-\d\d-\d\d$/.test(selected) && !o.some(x => x[0] === selected)) o.push([selected, _dateLabel(selected) + ' (0)']);
+  return o.map(([v, l]) => `<option value="${_esc(v)}" ${v === selected ? 'selected' : ''}>${_esc(l)}</option>`).join('');
+}
+
+function _scopeGet() {
+  try { const o = JSON.parse(localStorage.getItem(_lsKey('scope')) || 'null') || {}; return { folder: typeof o.folder === 'string' ? o.folder : 'all', date: typeof o.date === 'string' ? o.date : 'all' }; }
+  catch (e) { return { folder: 'all', date: 'all' }; }
+}
+function _scopeSet(sc) { try { localStorage.setItem(_lsKey('scope'), JSON.stringify(sc)); } catch (e) {} }
+function _scopeFolders() { return (_folders && _folders.length) ? _folders : _cachedFolders(); }
+function _scopeFolderWords() {
+  const sc = _scopeGet(), fl = _scopeFolders();
+  let w = getWords();
+  if (sc.folder === '__none__') w = w.filter(x => !x.folder_id);
+  else if (sc.folder !== 'all' && (!fl.length || fl.some(f => f.id === sc.folder))) w = w.filter(x => x.folder_id === sc.folder);
+  return w;
+}
+function _scopeWords() { const sc = _scopeGet(); return _scopeFolderWords().filter(w => _dateKeyMatch(w, sc.date)); }
+function _scopePickerHtml(ctx) {
+  const sc = _scopeGet(), fl = _scopeFolders();
+  const fOpts = [['all', 'Todas las carpetas'], ['__none__', 'Sin carpeta'], ...fl.map(f => [f.id, f.name])];
+  const fSel = fOpts.map(([v, l]) => `<option value="${_esc(v)}" ${v === sc.folder ? 'selected' : ''}>${_esc(l)}</option>`).join('');
+  return `<div class="game-scope">
+    <label class="gs-row"><span>📁 Carpeta</span><select class="form-input" data-ui-change="game-scope" data-kind="folder" data-ctx="${ctx}">${fSel}</select></label>
+    <label class="gs-row"><span>📅 Fecha</span><select class="form-input" data-ui-change="game-scope" data-kind="date" data-ctx="${ctx}">${_dateOptions(_scopeFolderWords(), sc.date)}</select></label>
+    <div class="gs-count">${_scopeWords().length} palabras disponibles</div>
+  </div>`;
+}
+function gameScopeChange(el) {
+  const sc = _scopeGet();
+  if (el.dataset.kind === 'folder') { sc.folder = el.value; sc.date = 'all'; } else sc.date = el.value;
+  _scopeSet(sc);
+  const ctx = el.dataset.ctx;
+  if (ctx === 'match') renderMatchCfgDrawer();
+  else if (ctx === 'speed') renderSpeedSetup();
+  else if (ctx === 'cw') { _renderCwScope(); if (cwSource === 'smart') buildCrossword(); }
+}
+function _renderCwScope() {
+  const box = document.getElementById('cwScope');
+  if (box) box.innerHTML = cwSource === 'smart' ? _scopePickerHtml('cw') : '';
+}
+
+// ═══════════════════ OBJETIVOS + RECORDATORIO ═══════════════════
+// Guardado en este dispositivo y sincronizado con la tabla user_goals (gana el más reciente): goals_<uid> = { goals:[{id,type,target,period}], rem:{on,time,days,pending,done} }.
+// Puntos = 10 por respuesta correcta + 50 por palabra aprendida. El tiempo cuenta solo con la app visible y uso reciente en páginas de estudio.
+const _GOAL_TYPES = {
+  words:   { lbl: 'Palabras aprendidas', unit: 'palabras',    ico: '📘' },
+  answers: { lbl: 'Respuestas',          unit: 'respuestas',  ico: '✍️' },
+  points:  { lbl: 'Puntos',              unit: 'puntos',      ico: '⭐' },
+  minutes: { lbl: 'Tiempo de estudio',   unit: 'min',         ico: '⏱' }
+};
+const _GOAL_MAX = 8;
+const _GOAL_STUDY = new Set(['lista', 'parejas', 'crucigrama', 'velocidad', 'lectura']);
+let _goalSecs = 0, _goalLastAct = Date.now(), _goalTimer = 0, _remReady = false;
+
+function _remDefault() { return { on: false, time: '20:00', days: [0, 1, 2, 3, 4, 5, 6], pending: true, done: '' }; }
+function _goalsClean(o) {
+  const goals = ((o && Array.isArray(o.goals)) ? o.goals : []).filter(g => g && typeof g.id === 'string' && _GOAL_TYPES[g.type] && g.target > 0 && (g.period === 'day' || g.period === 'week')).slice(0, _GOAL_MAX)
+    .map(g => ({ id: g.id.slice(0, 20), type: g.type, target: Math.min(100000, Math.round(g.target)), period: g.period }));
+  const rem = Object.assign(_remDefault(), (o && o.rem && typeof o.rem === 'object') ? o.rem : {});
+  rem.on = !!rem.on; rem.pending = !!rem.pending;
+  if (!/^\d\d:\d\d$/.test(rem.time)) rem.time = '20:00';
+  rem.days = Array.isArray(rem.days) ? rem.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6) : [0, 1, 2, 3, 4, 5, 6];
+  if (typeof rem.done !== 'string') rem.done = '';
+  return { goals, rem, ts: Number(o && o.ts) || 0 };
+}
+function _goalsGet() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(_lsKey('goals')) || 'null'); } catch (e) {}
+  return _goalsClean(o);
+}
+// touch = cambio hecho por el usuario: se marca la hora y se sube a la nube
+function _goalsSave(o, touch) {
+  if (touch) o.ts = Date.now();
+  try { localStorage.setItem(_lsKey('goals'), JSON.stringify(o)); } catch (e) {}
+  if (touch) _goalsSchedulePush();
+}
+let _goalsNoTable = false, _goalsPushT = null, _goalsLastPull = 0;
+function _goalsSchedulePush() { clearTimeout(_goalsPushT); _goalsPushT = setTimeout(_goalsPush, 800); }
+async function _goalsPush() {
+  if (!_dbReady || !currentUser || _goalsNoTable) return;
+  try {
+    const o = _goalsGet(), sb = await getSupabase();
+    const data = { goals: o.goals, rem: { on: o.rem.on, time: o.rem.time, days: o.rem.days, pending: o.rem.pending }, ts: o.ts };
+    const { error } = await sb.from('user_goals').upsert({ user_id: currentUser.id, data, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw error;
+  } catch (e) {
+    if (/42P01|PGRST205|user_goals/i.test((e.code || '') + ' ' + (e.message || ''))) _goalsNoTable = true;
+    console.warn('[goals] no se pudo sincronizar', e.message || e);
+  }
+}
+async function _goalsPull() {
+  if (!_dbReady || !currentUser || _goalsNoTable) return;
+  _goalsLastPull = Date.now();
+  try {
+    const sb = await getSupabase();
+    const { data: row, error } = await sb.from('user_goals').select('data').eq('user_id', currentUser.id).maybeSingle();
+    if (error) throw error;
+    const local = _goalsGet();
+    if (!row || !row.data) {
+      if (local.goals.length || local.rem.on) { if (!local.ts) { local.ts = Date.now(); _goalsSave(local); } _goalsSchedulePush(); }
+      return;
+    }
+    const remote = _goalsClean(row.data);
+    if (remote.ts > local.ts) { remote.rem.done = local.rem.done; _goalsSave(remote); _renderGoalsCard(); }
+    else if (remote.ts < local.ts) _goalsSchedulePush();
+  } catch (e) {
+    if (/42P01|PGRST205|user_goals/i.test((e.code || '') + ' ' + (e.message || ''))) _goalsNoTable = true;
+    console.warn('[goals] no se pudo leer', e.message || e);
+  }
+}
+
+function _goalMetric(a, k, type) {
+  const x = a.d[k] || {};
+  if (type === 'words') return x.l || 0;
+  if (type === 'answers') return x.p || 0;
+  if (type === 'points') return (x.c || 0) * 10 + (x.l || 0) * 50;
+  return ((a.t && a.t[k]) || 0) / 60;
+}
+function _goalValue(g) {
+  const a = _actGet(), now = new Date();
+  const n = g.period === 'week' ? (now.getDay() + 6) % 7 : 0;
+  let v = 0;
+  for (let i = 0; i <= n; i++) v += _goalMetric(a, _dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)), g.type);
+  return v;
+}
+
+// ── Tiempo de estudio ──
+function _goalFlushTime() {
+  if (!_goalSecs) return;
+  const a = _actGet(), k = _dayKey();
+  a.t = a.t || {};
+  a.t[k] = (a.t[k] || 0) + _goalSecs;
+  _goalSecs = 0;
+  _actSave(a);
+  _actMark(k);
+}
+function _goalTouch() { _goalLastAct = Date.now(); }
+function _goalTick() {
+  if (!currentUser) return;
+  if (document.visibilityState === 'visible' && _GOAL_STUDY.has(currentPage) && Date.now() - _goalLastAct < 45000) {
+    _goalSecs += 5;
+    if (_goalSecs >= 60) _goalFlushTime();
+  }
+  _remCheck();
+}
+function _goalStart() {
+  _remReady = true;
+  if (_goalTimer) return;
+  ['pointerdown', 'keydown', 'touchstart', 'scroll', 'wheel'].forEach(ev => document.addEventListener(ev, _goalTouch, { passive: true, capture: true }));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _goalFlushTime(); else { _remCheck(); if (Date.now() - _goalsLastPull > 60000) _goalsPull().then(_renderGoalsCard); } });
+  _goalTimer = setInterval(_goalTick, 5000);
+  _remCheck();
+}
+
+// ── Tarjeta en Progresión ──
+function _renderGoalsCard() {
+  const box = document.getElementById('goalsList');
+  if (!box) return;
+  const { goals } = _goalsGet();
+  if (!goals.length) { box.innerHTML = '<div class="prog-hint">Todavía no tienes objetivos. Pulsa «Gestionar» para crear el primero.</div>'; return; }
+  box.innerHTML = goals.map(g => {
+    const v = _goalValue(g), T = _GOAL_TYPES[g.type], done = v >= g.target, pct = Math.min(100, Math.round(v / g.target * 100));
+    return `<div class="goal-row ${done ? 'done' : ''}"><div class="goal-top"><span>${T.ico} ${T.lbl} · ${g.period === 'week' ? 'esta semana' : 'hoy'}</span><b>${done ? '✓ ' : ''}${Math.floor(v)} / ${g.target}${g.type === 'minutes' ? ' min' : ''}</b></div><div class="goal-bar"><i style="width:${pct}%"></i></div></div>`;
+  }).join('');
+}
+
+// ── Ventana «Gestionar objetivos» ──
+function _goalsModalList() {
+  const box = document.getElementById('goalsModalList');
+  if (!box) return;
+  const { goals } = _goalsGet();
+  box.innerHTML = goals.length ? goals.map(g => {
+    const T = _GOAL_TYPES[g.type];
+    return `<div class="goal-item"><span>${T.ico} ${g.target} ${T.unit} · ${g.period === 'week' ? 'por semana' : 'al día'}</span><button type="button" class="goal-del" data-ui-click="goal-del" data-id="${_esc(g.id)}" aria-label="Eliminar objetivo">✕</button></div>`;
+  }).join('') : '<div class="prog-hint">Sin objetivos todavía.</div>';
+}
+function goalsOpen() {
+  const { rem } = _goalsGet(), $ = id => document.getElementById(id);
+  _goalsModalList();
+  const flag = (el, on) => { if (!el) return; el.classList.toggle('on', !!on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+  flag($('remOn'), rem.on); flag($('remPending'), rem.pending);
+  document.querySelectorAll('#goalsModal .rem-day').forEach(b => flag(b, rem.days.includes(+b.dataset.d)));
+  if ($('remTime')) $('remTime').value = rem.time;
+  if ($('remShortcutUrl')) $('remShortcutUrl').textContent = location.origin + '/';
+  openModal('goalsModal');
+}
+function goalFlag(el) { el.classList.toggle('on'); el.setAttribute('aria-pressed', el.classList.contains('on') ? 'true' : 'false'); }
+function goalAdd() {
+  const $ = id => document.getElementById(id);
+  const type = $('goalType')?.value, period = $('goalPeriod')?.value, target = Math.round(Number($('goalTarget')?.value));
+  if (!_GOAL_TYPES[type] || (period !== 'day' && period !== 'week')) return;
+  if (!(target >= 1 && target <= 100000)) { showToast('⚠ Pon una cantidad entre 1 y 100000'); return; }
+  const o = _goalsGet();
+  if (o.goals.length >= _GOAL_MAX) { showToast('⚠ Máximo ' + _GOAL_MAX + ' objetivos'); return; }
+  o.goals.push({ id: Date.now().toString(36), type, target, period });
+  _goalsSave(o, true);
+  _goalsModalList(); _renderGoalsCard();
+  showToast('✓ Objetivo añadido');
+}
+function goalDel(id) {
+  const o = _goalsGet();
+  o.goals = o.goals.filter(g => g.id !== id);
+  _goalsSave(o, true);
+  _goalsModalList(); _renderGoalsCard();
+}
+function goalRemSave() {
+  const $ = id => document.getElementById(id);
+  const o = _goalsGet(), time = $('remTime')?.value || '';
+  if (!/^\d\d:\d\d$/.test(time)) { showToast('⚠ Elige una hora'); return; }
+  const days = [...document.querySelectorAll('#goalsModal .rem-day.on')].map(b => +b.dataset.d);
+  const on = !!$('remOn')?.classList.contains('on');
+  if (on && !days.length) { showToast('⚠ Elige al menos un día'); return; }
+  const now = new Date(), [h, m] = time.split(':').map(Number);
+  // si la hora elegida ya pasó hoy, el primer aviso es mañana
+  const done = (now.getHours() * 60 + now.getMinutes() >= h * 60 + m) ? _dayKey() : '';
+  o.rem = { on, time, days, pending: !!$('remPending')?.classList.contains('on'), done };
+  _goalsSave(o, true);
+  showToast(on ? '✓ Recordatorio guardado' : '✓ Recordatorio desactivado');
+}
+
+// ── Recordatorio diario (aviso dentro de la app) ──
+function _remCheck() {
+  if (!currentUser || !_remReady) return;
+  const o = _goalsGet(), r = o.rem;
+  if (!r.on) return;
+  const now = new Date(), k = _dayKey(now), dow = (now.getDay() + 6) % 7;
+  if (r.done === k || !r.days.includes(dow)) return;
+  const [h, m] = r.time.split(':').map(Number);
+  if (now.getHours() * 60 + now.getMinutes() < h * 60 + m) return;
+  const unmet = o.goals.filter(g => _goalValue(g) < g.target);
+  const practiced = (_actGet().d[k]?.p || 0) > 0;
+  o.rem.done = k; _goalsSave(o);                 // un aviso por día, se muestre o no
+  if (r.pending && (o.goals.length ? !unmet.length : practiced)) return;
+  const txt = unmet.length ? (unmet.length === 1 ? 'Te falta 1 objetivo por cumplir.' : 'Te faltan ' + unmet.length + ' objetivos por cumplir.') : 'Hoy aún no has practicado.';
+  const b = document.getElementById('remBanner'), t = document.getElementById('remBannerTxt');
+  if (!b) return;
+  if (t) t.textContent = txt;
+  b.hidden = false;
+}
+function remGo() { const b = document.getElementById('remBanner'); if (b) b.hidden = true; navigate('vocab-hub', 'forward'); }
+function remClose() { const b = document.getElementById('remBanner'); if (b) b.hidden = true; }
 
 // ── Manual sync (pull latest from DB) ──
 async function manualSync() {
@@ -1379,7 +1664,7 @@ function updateWordProgress(wordDE, wasCorrect) {
   else h = wasCorrect ? ratio*48+6 : 2;
   e.nextReview = now + h*3600*1000;
   saveProgress(p, [wordDE]);
-  _actRecordAnswer();
+  _actRecordAnswer(wasCorrect);
 }
 function setDifficulty(wordDE, level) {
   const p = getProgress();
@@ -1406,7 +1691,7 @@ function getSortedWords(words) {
 // ═══════════════════ LISTA ═══════════════════
 const TIPOS_KEYS = ['Todos','Nomen','Verb','Adjektive','Redewendung','Adverb'];
 const DIFF_FILTER_KEYS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','🆕 Nuevas'];
-let activeFilter = 'Todos', vocabDiffFilter = 'Todas';
+let activeFilter = 'Todos', vocabDiffFilter = 'Todas', listaDateFilter = 'all';
 let _editingIdx = null;
 
 
@@ -1417,7 +1702,8 @@ function _buildFilterLabel() {
   const tipoPart = activeFilter !== 'Todos' ? activeFilter : '';
   const diffLabels = { '🔴 Difícil': 'Difícil', '🟢 Fácil': 'Fácil', '📊 Normal': 'Normal', '🆕 Nuevas': 'Nuevas' };
   const diffPart = vocabDiffFilter !== 'Todas' ? (diffLabels[vocabDiffFilter] || vocabDiffFilter) : '';
-  const parts = [tipoPart, diffPart].filter(Boolean);
+  const datePart = listaDateFilter !== 'all' ? _dateFilterName(listaDateFilter) : '';
+  const parts = [tipoPart, diffPart, datePart].filter(Boolean);
   const btn = document.getElementById('listaFilterBtn');
   const lbl = document.getElementById('listaFilterBtnLabel');
   if (lbl) lbl.textContent = parts.length ? `Filtros: ${parts.join(' · ')}` : 'Filtros';
@@ -1434,6 +1720,9 @@ function _buildFilterPanelChips() {
     const isActive = k === activeFilter;
     return `<button class="fdp-chip ${isActive ? 'active' : ''}" data-ui-click="list-filter-type" data-value="${k}">${TIPOS[i]}</button>`;
   }).join('');
+
+  const dateEl = document.getElementById('fdpDate');
+  if (dateEl) dateEl.innerHTML = _dateOptions(getWords(), listaDateFilter);
 
   const diffEl = document.getElementById('fdpDiffChips');
   if (diffEl) diffEl.innerHTML = DIFF_FILTER_KEYS.map((k,i) => {
@@ -1469,7 +1758,7 @@ function toggleListaFilterPanel(e) {
 }
 
 function resetListaFilters() {
-  activeFilter = 'Todos'; vocabDiffFilter = 'Todas';
+  activeFilter = 'Todos'; vocabDiffFilter = 'Todas'; listaDateFilter = 'all';
   _buildFilterPanelChips();
   _buildFilterLabel();
   renderLista();
@@ -1604,6 +1893,7 @@ async function deleteRow(gIdx) {
 function quickDiff(wordDE, level) { setDifficulty(wordDE, level); renderLista(); }
 function setListaFilter(typ) { activeFilter = typ; renderLista(); }
 function setListaDiff(d) { vocabDiffFilter = d; renderLista(); }
+function setListaDate(v) { listaDateFilter = v; renderLista(); }
 
 // ═══════════════════ ADD WORD ═══════════════════
 function showAddModal() {
@@ -1718,8 +2008,13 @@ function renderMatchCfgDrawer() {
   const wordsPerRound = getMatchSetting('wordsPerRound');
   const totalRounds   = getMatchSetting('totalRounds');
   const modeOptions = [['smart','🧠 Inteligente'],['hard','🔴 Difícil'],['all','🔀 Aleatorio']];
+  const scopeHtml = _scopePickerHtml('match');
   const tipoOptions = TIPOS_KEYS.map((k,i)=>[k, i===0?t('filterAll'):k]);
   drawer.innerHTML = `<div class="match-cfg-drawer">
+    <div class="cfg-section">
+      <div class="cfg-section-title">Palabras</div>
+      ${scopeHtml}
+    </div>
     <div class="cfg-section">
       <div class="cfg-section-title">Modo de selección</div>
       <div class="cfg-chips">${modeOptions.map(([v,l])=>`<button class="cfg-chip ${matchMode===v?'active':''}" data-ui-click="match-mode" data-value="${v}">${l}</button>`).join('')}</div>
@@ -1788,7 +2083,8 @@ function startRoundSession() {
 }
 
 function startMatch() {
-  const pool = matchFilter==='Todos' ? getWords() : getWords().filter(w=>w.tipo===matchFilter);
+  const base = _scopeWords();
+  const pool = matchFilter==='Todos' ? base : base.filter(w=>w.tipo===matchFilter);
   if (pool.length<2) { document.getElementById('matchContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)">${t('matchNoWords')}</div>`; return; }
   currentBatch = pickBatch(pool, getMatchSetting('wordsPerRound'));
   matchState = {selectedDE:null, selectedES:null, matched:new Set(), total:currentBatch.length, errors:0, wrongMap:{}};
@@ -1906,12 +2202,13 @@ function renderSpeedSetup() {
   const dur = _speedDefaultDuration();
   const c = document.getElementById('speedContent');
   if (!c) return;
-  const pool = getWords();
+  const pool = _scopeWords();
   if (pool.length < 4) {
     c.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text2)">
       <div style="font-size:40px;margin-bottom:12px">😅</div>
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Pocas palabras</div>
-      <div style="font-size:13px">Añade al menos 4 palabras para jugar.</div>
+      <div style="font-size:13px;margin-bottom:18px">Necesitas al menos 4 palabras. Cambia la carpeta o la fecha.</div>
+      <div style="max-width:300px;margin:0 auto">${_scopePickerHtml('speed')}</div>
     </div>`;
     return;
   }
@@ -1935,6 +2232,9 @@ function renderSpeedSetup() {
             font-family:Inter,sans-serif;font-size:13px;font-weight:700;cursor:pointer;
             transition:all .15s">${s}s</button>`).join('')}
         </div>
+
+        <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-top:8px;margin-bottom:2px">Palabras</div>
+        ${_scopePickerHtml('speed')}
 
         <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-top:8px;margin-bottom:2px">Tipo de palabras</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center" id="speedTipoWrap">
@@ -1987,7 +2287,8 @@ function setSpeedTipo(k) {
 // ── Countdown 3-2-1-GO ──
 function startSpeedGame() {
   const tipo = localStorage.getItem('speedTipo') || 'Todos';
-  let pool = tipo === 'Todos' ? getWords() : getWords().filter(w => w.tipo === tipo);
+  const base = _scopeWords();
+  let pool = tipo === 'Todos' ? base : base.filter(w => w.tipo === tipo);
   if (pool.length < 4) { showToast('Pocas palabras para este filtro'); return; }
 
   // Ordenar por dificultad/SRS y mezclar
@@ -2321,6 +2622,7 @@ function stopSpeedGame() {
 // ═══════════════════ CROSSWORD ═══════════════════
 let cwData = null;
 function buildCrossword() {
+  _renderCwScope();
   const allWords = getWords();
   let pool;
   if (cwSource==='bag') {
@@ -2329,7 +2631,7 @@ function buildCrossword() {
     pool=allWords.filter(w=>bag.includes(w.de));
   } else {
     const p=getProgress(), now=Date.now();
-    pool=[...allWords].sort((a,b)=>{
+    pool=[..._scopeWords()].sort((a,b)=>{
       const pa=p[a.de]||{}, pb=p[b.de]||{};
       const sa=(pa.difficulty===1?100:0)+(pa.nextReview<=now?50:0)+(1-(pa.seen>0?pa.correct/pa.seen:.5))*30+Math.random()*10;
       const sb=(pb.difficulty===1?100:0)+(pb.nextReview<=now?50:0)+(1-(pb.seen>0?pb.correct/pb.seen:.5))*30+Math.random()*10;
@@ -2822,6 +3124,7 @@ function renderProgreso() {
       return `<div class="prog-day ${cls} ${done ? 'done' : ''}" style="--i:${i}"><div class="prog-dot">${done ? '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : ''}</div><span>${l}</span></div>`;
     }).join('');
   }
+  _renderGoalsCard();
   _renderProgChart(true);
 }
 
@@ -4604,8 +4907,9 @@ function _renderFolderContent(folderId) {
     words = allWords.filter(w => w.folder_id === folderId);
   }
 
-  // Aplicar filtros tipo/dificultad
+  // Aplicar filtros tipo/dificultad/fecha
   if (activeFilter !== 'Todos') words = words.filter(w => w.tipo === activeFilter);
+  if (listaDateFilter !== 'all') words = words.filter(w => _dateKeyMatch(w, listaDateFilter));
   if (vocabDiffFilter === '🔴 Difícil') words = words.filter(w => p[w.de]?.difficulty === 1);
   else if (vocabDiffFilter === '🟢 Fácil') words = words.filter(w => p[w.de]?.difficulty === 2);
   else if (vocabDiffFilter === '📊 Normal') words = words.filter(w => !p[w.de] || p[w.de].difficulty === 0);
@@ -4639,6 +4943,11 @@ function _renderFolderContent(folderId) {
             <div class="fdp-chips" id="fdpDiffChips"></div>
           </div>
           <div class="fdp-divider"></div>
+          <div class="fdp-section">
+            <div class="fdp-section-label">Fecha</div>
+            <select class="form-input" id="fdpDate" data-ui-change="list-filter-date"></select>
+          </div>
+          <div class="fdp-divider"></div>
           <button class="fdp-reset" data-ui-click="list-filter-reset">↺ Quitar filtros</button>
         </div>
       </div>
@@ -4665,6 +4974,7 @@ function _renderFolderContent(folderId) {
       <th class="col-art"><span class="th-ico">◉</span>Art.</th>
       <th class="col-de"><span class="th-ico">Aa</span>Alemán</th>
       <th class="col-es"><span class="th-ico">Aa</span>Español</th>
+      <th class="col-fecha"><span class="th-ico">📅</span>Fecha</th>
       <th class="col-act" style="text-align:center"></th>
     </tr>
   </thead>`;
@@ -4695,6 +5005,7 @@ function _renderFolderContent(folderId) {
         <td class="td-art"><select class="cell-select" id="edit-art">${artOpts}</select></td>
         <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}"></td>
         <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
+        <td class="td-fecha">${_fmtAdded(w.added)}</td>
         <td class="td-actions">
           <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}">✓</button>
           <button class="row-btn cancel-btn" data-ui-click="row-cancel">✕</button>
@@ -4709,6 +5020,7 @@ function _renderFolderContent(folderId) {
       <td class="td-art" ${tdAct('articulo')}>${w.articulo?`<span class="art-tag ${_esc(w.articulo)}">${_esc(w.articulo)}</span>`:''}</td>
       <td class="td-de" ${tdAct('de')}>${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
       <td class="td-es" ${tdAct('es')}>${_esc(w.es)}</td>
+      <td class="td-fecha">${_fmtAdded(w.added)}</td>
       <td class="td-actions">
         <button class="row-btn" data-ui-click="row-menu" data-index="${gIdx}" aria-label="Más opciones">⋯</button>
       </td>
@@ -5132,6 +5444,13 @@ function _handleUiClick(event) {
     case 'pass-toggle': togglePassVis(); break;
     case 'login': doLogin(); break;
     case 'install-open': showInstallModal(); break;
+    case 'goals-open': goalsOpen(); break;
+    case 'goal-add': goalAdd(); break;
+    case 'goal-del': goalDel(el.dataset.id); break;
+    case 'goal-flag': goalFlag(el); break;
+    case 'goal-rem-save': goalRemSave(); break;
+    case 'rem-go': remGo(); break;
+    case 'rem-close': remClose(); break;
     case 'user-dropdown': toggleUserDropdown(); break;
     case 'lang-es': setLang('es'); break;
     case 'lang-de': setLang('de'); break;
@@ -5269,6 +5588,8 @@ document.addEventListener('change', event => {
     case 'reading-file': handleLecturaFile(event); break;
     case 'import-file': handleImportFile(event); break;
     case 'selection-row': toggleSelRow(Number(el.dataset.index), el.checked); break;
+    case 'game-scope': gameScopeChange(el); break;
+    case 'list-filter-date': setListaDate(el.value); break;
     case 'selection-all': toggleSelAll(el.checked, el.dataset.indices.split(',').filter(Boolean).map(Number)); break;
   }
 });

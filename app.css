@@ -2222,3 +2222,43 @@ body.light .hub-card-label,body.light .ws-card-label{border-top-color:var(--bord
 @media (max-width:699px){
   .app-nav{transform:translateZ(0);-webkit-transform:translateZ(0)}
 }
+
+/* ═══════════════════ OBJETIVOS + RECORDATORIO ═══════════════════ */
+.goal-row{margin-top:12px}
+.goal-top{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--text);margin-bottom:6px}
+.goal-top b{font-weight:700;white-space:nowrap}
+.goal-bar{height:8px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+.goal-bar i{display:block;height:100%;border-radius:99px;background:var(--blue);transition:width .5s ease}
+.goal-row.done .goal-bar i{background:var(--green)}
+.goal-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:6px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r)}
+.goal-del{background:none;border:none;color:var(--text2);font-size:15px;cursor:pointer;padding:4px 8px}
+.goal-form{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.goal-form .form-input{margin:0}
+.goal-form-row{display:flex;gap:8px}
+.goal-form-row .form-input{flex:1;min-width:0}
+.goal-note{font-size:12px;color:var(--text2);line-height:1.5}
+.rem-switch{display:flex;align-items:center;gap:10px;background:none;border:none;color:var(--text);font:inherit;font-size:13px;cursor:pointer;padding:4px 0;text-align:left}
+.rem-switch i{flex:none;width:38px;height:22px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);position:relative;transition:background .2s}
+.rem-switch i::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text2);transition:transform .2s,background .2s}
+.rem-switch.on i{background:var(--green)}
+.rem-switch.on i::after{transform:translateX(16px);background:#fff}
+.rem-days{display:flex;gap:6px}
+.rem-day{flex:1;padding:9px 0;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-weight:600;font-size:13px;cursor:pointer}
+.rem-day.on{background:var(--green);border-color:var(--green);color:#0f1117}
+.rem-banner{position:fixed;z-index:900;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));max-width:460px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.rem-banner[hidden]{display:none}
+.rem-txt{flex:1;display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--text2)}
+.rem-txt b{font-size:14px;color:var(--text)}
+.rem-go{background:var(--green);color:#0f1117;border:none;border-radius:var(--r);padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer}
+.rem-x{background:none;border:none;color:var(--text2);font-size:15px;cursor:pointer;padding:4px 6px}
+
+/* ═══════════════════ FECHA + ÁMBITO DE JUEGOS ═══════════════════ */
+.vocab-table .col-fecha{width:1%;min-width:58px}
+.vocab-table td.td-fecha{white-space:nowrap;font-size:11px;color:var(--text3)}
+.game-scope{display:flex;flex-direction:column;gap:8px;text-align:left}
+.gs-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2)}
+.gs-row>span{flex:none;width:72px}
+.gs-row .form-input{flex:1;min-width:0;margin:0;padding:8px 10px;font-size:13px}
+.gs-count{font-size:11px;color:var(--text3)}
+#cwScope{margin-bottom:12px}
+#cwScope:empty{display:none}

@@ -356,6 +356,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
         🎒 Bolsa <span class="bag-badge" id="cwBagCount">0</span>
       </button>
     </div>
+    <div id="cwScope"></div>
     <div id="crossContent"></div>
   </div>
 </div>
@@ -476,6 +477,14 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
         <div><div class="prog-streak-n"><span id="progStreak">0</span> <small>días de racha</small></div><div class="prog-streak-best">Mejor racha: <b id="progBest">0</b></div></div>
       </div>
       <div class="prog-week" id="progWeek"></div>
+    </section>
+
+    <section class="prog-card">
+      <div class="prog-chart-head">
+        <div class="prog-card-title">Objetivos</div>
+        <button type="button" class="prog-seg-btn" data-ui-click="goals-open">Gestionar</button>
+      </div>
+      <div id="goalsList"></div>
     </section>
 
     <section class="prog-card">
@@ -822,6 +831,48 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   </div>
 </div>
 
+<!-- Objetivos y recordatorio -->
+<div class="modal-overlay" id="goalsModal" data-ui-overlay="goalsModal">
+  <div class="modal-box">
+    <button class="modal-close-x" data-ui-modal-close="goalsModal">✕</button>
+    <h3>Objetivos</h3>
+    <div id="goalsModalList"></div>
+    <div class="goal-form">
+      <select id="goalType" class="form-input">
+        <option value="words">📘 Palabras aprendidas</option>
+        <option value="answers">✍️ Respuestas</option>
+        <option value="points">⭐ Puntos</option>
+        <option value="minutes">⏱ Minutos de estudio</option>
+      </select>
+      <div class="goal-form-row">
+        <input id="goalTarget" class="form-input" type="number" min="1" max="100000" value="10" inputmode="numeric">
+        <select id="goalPeriod" class="form-input"><option value="day">al día</option><option value="week">por semana</option></select>
+      </div>
+      <button type="button" class="btn-primary" data-ui-click="goal-add">Añadir objetivo</button>
+      <div class="goal-note">Puntos: 10 por respuesta correcta + 50 por palabra aprendida.</div>
+    </div>
+
+    <h3 style="margin-top:22px">Recordatorio diario</h3>
+    <div class="goal-form">
+      <button type="button" id="remOn" class="rem-switch" aria-pressed="false" data-ui-click="goal-flag"><i></i><span>Avisarme cada día</span></button>
+      <input id="remTime" class="form-input" type="time" value="20:00">
+      <div class="rem-days">
+        <button type="button" class="rem-day" data-d="0" data-ui-click="goal-flag">L</button>
+        <button type="button" class="rem-day" data-d="1" data-ui-click="goal-flag">M</button>
+        <button type="button" class="rem-day" data-d="2" data-ui-click="goal-flag">X</button>
+        <button type="button" class="rem-day" data-d="3" data-ui-click="goal-flag">J</button>
+        <button type="button" class="rem-day" data-d="4" data-ui-click="goal-flag">V</button>
+        <button type="button" class="rem-day" data-d="5" data-ui-click="goal-flag">S</button>
+        <button type="button" class="rem-day" data-d="6" data-ui-click="goal-flag">D</button>
+      </div>
+      <button type="button" id="remPending" class="rem-switch" aria-pressed="true" data-ui-click="goal-flag"><i></i><span>Solo si me falta algún objetivo</span></button>
+      <button type="button" class="btn-primary" data-ui-click="goal-rem-save">Guardar recordatorio</button>
+      <div class="goal-note">Los objetivos y el recordatorio se sincronizan entre tus dispositivos. El aviso aparece dentro de la app a la hora elegida (o al abrirla después). Con la app cerrada, una web no puede avisar sin un servidor de notificaciones. Alternativa en iPhone: Atajos → Automatización → «Hora del día» → «Abrir URL» con <b id="remShortcutUrl"></b> y añade el widget de Atajos a la pantalla de bloqueo para entrar con un toque.</div>
+    </div>
+    <button class="btn-primary" data-ui-modal-close="goalsModal" style="margin-top:14px">Cerrar</button>
+  </div>
+</div>
+
 <!-- Install -->
 <div class="modal-overlay" id="installModal" data-ui-overlay="installModal">
   <div class="modal-box">
@@ -834,6 +885,12 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <div class="install-step"><div class="step-num">4</div><div class="step-text">Confirma con <b style="color:var(--green)">"Añadir"</b> — ¡listo!</div></div>
     <button class="btn-primary" data-ui-modal-close="installModal">Entendido</button>
   </div>
+</div>
+
+<div id="remBanner" class="rem-banner" hidden role="status">
+  <div class="rem-txt"><b>🔔 Hora de practicar</b><span id="remBannerTxt"></span></div>
+  <button type="button" class="rem-go" data-ui-click="rem-go">Practicar</button>
+  <button type="button" class="rem-x" data-ui-click="rem-close" aria-label="Cerrar">✕</button>
 </div>
 
 <nav id="appNav" class="app-nav" aria-label="Navegación" hidden>
@@ -851,7 +908,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.62</div>
+<div id="buildBadge" class="build-badge">1.07.64</div>
 
 <script src="app.js"></script>
 </body>

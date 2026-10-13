@@ -131,3 +131,20 @@ create policy "own_rows" on public.user_activity
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
+-- ── Objetivos y recordatorio (un documento por usuario) ──
+create table if not exists public.user_goals (
+  user_id    uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  data       jsonb not null default '{}'::jsonb check (pg_column_size(data) < 20000),
+  updated_at timestamptz default now()
+);
+alter table public.user_goals enable row level security;
+revoke all on public.user_goals from anon;
+drop policy if exists "own_rows" on public.user_goals;
+create policy "own_rows" on public.user_goals
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+-- ── Actividad: respuestas correctas y segundos de estudio ──
+alter table public.user_activity add column if not exists correct integer not null default 0 check (correct >= 0);
+alter table public.user_activity add column if not exists seconds integer not null default 0 check (seconds >= 0);

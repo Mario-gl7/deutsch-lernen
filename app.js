@@ -2078,7 +2078,7 @@ function pickBatch(pool, count) {
 }
 
 function startRoundSession() {
-  roundSession = { current:0, total:getMatchSetting('totalRounds'), active:true };
+  roundSession = { current:0, total:getMatchSetting('totalRounds'), active:true, results:[], errors:0 };
   startMatch();
 }
 
@@ -2106,34 +2106,38 @@ function renderRoundsBar() {
 function renderMatch() {
   const s=matchState, c=document.getElementById('matchContent');
   if (s.matched.size===s.total) {
-    roundSession.current++;
-    const p=getProgress();
-    const summary=currentBatch.map(w=>{ const e=p[w.de]||{}, acc=e.seen>0?Math.round(e.correct/e.seen*100):0, wrong=s.wrongMap[w.de]||0;
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:5px">
-        <div style="font-size:13px;font-weight:500;color:var(--text)">${displayDE(w)}</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:var(--text2)">${wrong===0?'✅':'❌×'+wrong}</span>
-          <div style="width:40px;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
-            <div style="width:${acc}%;height:100%;background:${acc>=75?'var(--green)':acc>=40?'var(--orange)':'var(--red)'}"></div>
-          </div>
-          <span style="font-size:10px;color:var(--text3)">${acc}%</span>
-        </div>
-      </div>`;
-    }).join('');
+    // Se guarda el resultado de la ronda una sola vez; el resumen de palabras sale al final de la sesión
+    if (!s.recorded) {
+      s.recorded = true;
+      roundSession.current++;
+      roundSession.errors = (roundSession.errors||0) + s.errors;
+      const res = roundSession.results || (roundSession.results = []);
+      currentBatch.forEach(w => {
+        const wr = s.wrongMap[w.de]||0, x = res.find(r => r.w.de===w.de);
+        if (x) x.wrong += wr; else res.push({ w, wrong: wr });
+      });
+    }
     const allDone = roundSession.current>=roundSession.total;
-    const errMsg = s.errors===0?'¡Sin errores! 🌟':s.errors+' error'+(s.errors>1?'es':'');
+    const errTxt = n => n===0 ? '¡Sin errores! 🌟' : n+' error'+(n>1?'es':'');
     if (allDone) {
+      const res = roundSession.results || [];
+      const failed = res.filter(r => r.wrong>0).sort((x,y) => y.wrong-x.wrong);
+      const good = res.filter(r => !r.wrong);
+      const row = (r, ok) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:5px">
+          <div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">${_esc(displayDE(r.w))}</div><div style="font-size:12px;color:var(--text2)">${_esc(r.w.es)}</div></div>
+          <span style="flex:none;font-size:12px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${ok?'✅':'❌ ×'+r.wrong}</span>
+        </div>`;
+      const group = (title, list, ok) => list.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:${ok?'var(--green)':'var(--red)'};margin:14px 0 8px">${title} (${list.length})</div>${list.map(r => row(r, ok)).join('')}` : '';
       c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy">🏆</div>
         <h2>¡Sesión completa!</h2>
         <p style="color:var(--text2);margin-bottom:4px">${roundSession.total} ronda${roundSession.total>1?'s':''} terminadas</p>
-        <p style="color:var(--text2);margin-bottom:16px">${errMsg}</p>
-        <div style="text-align:left;margin-bottom:16px">${summary}</div>
+        <p style="color:var(--text2);margin-bottom:16px">${errTxt(roundSession.errors||0)}</p>
+        <div style="text-align:left;margin-bottom:16px">${group('❌ Falladas', failed, false)}${group('✅ Acertadas', good, true)}</div>
         <button class="btn-primary" data-ui-click="match-round-start">${t('matchNewRound')}</button></div>`;
     } else {
       c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy" style="font-size:36px">⭐</div>
         <h2 style="color:var(--blue)">Ronda ${roundSession.current} ✓</h2>
-        <p style="color:var(--text2);margin-bottom:16px">${errMsg}</p>
-        <div style="text-align:left;margin-bottom:16px">${summary}</div>
+        <p style="color:var(--text2);margin-bottom:16px">${errTxt(s.errors)}</p>
         <button class="btn-primary" data-ui-click="match-next">Siguiente ronda →</button></div>`;
     }
     return;

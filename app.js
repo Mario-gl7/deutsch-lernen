@@ -2119,6 +2119,7 @@ function renderMatch() {
     }
     const allDone = roundSession.current>=roundSession.total;
     const errTxt = n => n===0 ? '¡Sin errores! 🌟' : n+' error'+(n>1?'es':'');
+    const allDoneNow = () => roundSession.current>=roundSession.total;
     if (allDone) {
       const res = roundSession.results || [];
       const failed = res.filter(r => r.wrong>0).sort((x,y) => y.wrong-x.wrong);
@@ -2135,10 +2136,8 @@ function renderMatch() {
         <div style="text-align:left;margin-bottom:16px">${group('❌ Falladas', failed, false)}${group('✅ Acertadas', good, true)}</div>
         <button class="btn-primary" data-ui-click="match-round-start">${t('matchNewRound')}</button></div>`;
     } else {
-      c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy" style="font-size:36px">⭐</div>
-        <h2 style="color:var(--blue)">Ronda ${roundSession.current} ✓</h2>
-        <p style="color:var(--text2);margin-bottom:16px">${errTxt(s.errors)}</p>
-        <button class="btn-primary" data-ui-click="match-next">Siguiente ronda →</button></div>`;
+      // Ronda intermedia: pasa sola a la siguiente, sin pantalla de resultados
+      setTimeout(() => { if (matchState === s && roundSession.active && !allDoneNow()) startMatch(); }, 250);
     }
     return;
   }

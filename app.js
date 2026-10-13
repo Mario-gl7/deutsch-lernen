@@ -1213,9 +1213,11 @@ async function _fetchProgressFromDB() {
 }
 
 // ── Save progress — cache instantly, batch upsert debounced ──
-function saveProgress(p) {
+// keys = palabras que han cambiado; solo esas se suben (antes se subía el progreso de TODAS en cada respuesta)
+function saveProgress(p, keys) {
   _cacheProgress(p);
-  Object.assign(_pendingProgressSave, p);
+  if (keys && keys.length) keys.forEach(k => { if (p[k]) _pendingProgressSave[k] = p[k]; });
+  else Object.assign(_pendingProgressSave, p);
   if (!_dbReady) return;
   clearTimeout(_progressDebounceTimer);
   _progressDebounceTimer = setTimeout(_flushProgress, 1500);
@@ -1361,14 +1363,14 @@ function updateWordProgress(wordDE, wasCorrect) {
   else if (e.difficulty===2) h = wasCorrect ? ratio*72+24 : 6;
   else h = wasCorrect ? ratio*48+6 : 2;
   e.nextReview = now + h*3600*1000;
-  saveProgress(p);
+  saveProgress(p, [wordDE]);
   _actRecordAnswer();
 }
 function setDifficulty(wordDE, level) {
   const p = getProgress();
   if (!p[wordDE]) p[wordDE] = {seen:0,correct:0,difficulty:0,nextReview:Date.now()};
   p[wordDE].difficulty = level; p[wordDE].nextReview = Date.now();
-  saveProgress(p);
+  saveProgress(p, [wordDE]);
 }
 function getSortedWords(words) {
   const p = getProgress(), now = Date.now();
@@ -1562,7 +1564,7 @@ async function saveEditRow(gIdx) {
   allWords[gIdx] = { ...oldWord, tipo, articulo, de, es };
   if (oldDE !== de) {
     const prog = getProgress();
-    if (prog[oldDE]) { prog[de]=prog[oldDE]; delete prog[oldDE]; saveProgress(prog); }
+    if (prog[oldDE]) { prog[de]=prog[oldDE]; delete prog[oldDE]; saveProgress(prog, [de]); }
   }
   _editingIdx = null;
   saveWords(allWords);
@@ -5085,7 +5087,7 @@ function _commitCell(gIdx, field, value) {
   allWords[gIdx] = { ...oldWord, [field]: value };
   if (field === 'de' && oldDE !== value) {
     const prog = getProgress();
-    if (prog[oldDE]) { prog[value] = prog[oldDE]; delete prog[oldDE]; saveProgress(prog); }
+    if (prog[oldDE]) { prog[value] = prog[oldDE]; delete prog[oldDE]; saveProgress(prog, [value]); }
   }
   saveWords(allWords);
   renderLista();

@@ -402,7 +402,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">¿Cómo quieres que te llame?</div>
       <div style="display:flex;gap:8px">
         <input class="form-input" id="perfilNombre" type="text" placeholder="Tu nombre o apodo…" style="flex:1;margin:0" maxlength="32">
-        <button data-ui-click="save-name" class="hover-dim-button" style="background:var(--green);color:#0f1117;border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s">Guardar</button>
+        <button data-ui-click="save-name" class="hover-dim-button" style="background:var(--accent);color:var(--accent-ink);border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s">Guardar</button>
       </div>
       <div id="perfilNombreMsg" style="font-size:12px;color:var(--green-t);margin-top:8px;min-height:18px"></div>
     </div>
@@ -421,6 +421,12 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
           <button class="lang-pill" data-ui-click="lang-de" type="button">🇩🇪</button>
         </div>
       </div>
+    </div>
+
+    <!-- Paleta de colores -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Paleta de colores · <span id="palModeLbl">modo oscuro</span></div>
+      <div class="pal-grid" id="palPicker"></div>
     </div>
 
     <!-- Instalar app (antes en la cabecera) -->
@@ -908,7 +914,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast"></div>
 
-<div id="buildBadge" class="build-badge">1.07.67</div>
+<div id="buildBadge" class="build-badge">1.07.68</div>
 
 <script src="app.js"></script>
 </body>

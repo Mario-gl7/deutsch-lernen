@@ -358,6 +358,32 @@ initLoginTurnstile().catch(error => console.error('[Turnstile] No se pudo cargar
 // ═══════════════════ SESSION ═══════════════════
 let currentUser = null, currentEmail = '';
 
+// ═══════════════════ PALETAS DE COLOR ═══════════════════
+// Los valores viven en app.css ([data-pal]); aquí solo la lista y la elección (una por modo, guardada en este dispositivo).
+const _PALS = {"dark": [{"id": "midnight", "name": "Medianoche", "bg": "#0f1117", "su": "#1c2333", "ac": "#4ade80"}, {"id": "forest", "name": "Bosque", "bg": "#0e1512", "su": "#1a2722", "ac": "#34d399"}, {"id": "ocean", "name": "Océano", "bg": "#0b1520", "su": "#162738", "ac": "#22d3ee"}, {"id": "grape", "name": "Uva", "bg": "#14111c", "su": "#221d30", "ac": "#a78bfa"}, {"id": "ember", "name": "Ámbar", "bg": "#16130f", "su": "#262019", "ac": "#fbbf24"}, {"id": "rosa", "name": "Rosa", "bg": "#181016", "su": "#2a1c26", "ac": "#f472b6"}], "light": [{"id": "crema", "name": "Crema", "bg": "#f4efe4", "su": "#ffffff", "ac": "#5aa57b"}, {"id": "salvia", "name": "Salvia", "bg": "#eef2ec", "su": "#ffffff", "ac": "#4d9b82"}, {"id": "cielo", "name": "Cielo", "bg": "#eaf1f8", "su": "#ffffff", "ac": "#4f86c6"}, {"id": "lavanda", "name": "Lavanda", "bg": "#f1eef8", "su": "#ffffff", "ac": "#8472c4"}, {"id": "arena", "name": "Arena", "bg": "#f8eee6", "su": "#ffffff", "ac": "#d17b52"}, {"id": "grafito", "name": "Grafito", "bg": "#f1f2f4", "su": "#ffffff", "ac": "#5a6b8c"}]};
+function _palMode() { return document.body.classList.contains('light') ? 'light' : 'dark'; }
+function _palGet(mode) { try { return localStorage.getItem('pal_' + mode) || ''; } catch (e) { return ''; } }
+function applyPalette() {
+  const mode = _palMode(), list = _PALS[mode], p = list.find(x => x.id === _palGet(mode));
+  if (p && p !== list[0]) document.body.dataset.pal = p.id; else delete document.body.dataset.pal;
+  const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim();
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg || (mode === 'light' ? '#f4efe4' : '#0f1117'));
+}
+function _renderPalPicker() {
+  const box = document.getElementById('palPicker');
+  if (!box) return;
+  const mode = _palMode(), cur = document.body.dataset.pal || _PALS[mode][0].id;
+  const lbl = document.getElementById('palModeLbl');
+  if (lbl) lbl.textContent = mode === 'light' ? 'modo claro' : 'modo oscuro';
+  box.innerHTML = _PALS[mode].map(p => `<button type="button" class="pal-btn ${p.id === cur ? 'on' : ''}" data-ui-click="pal-set" data-id="${p.id}" aria-pressed="${p.id === cur}"><span class="pal-sw"><i style="background:${p.bg}"></i><i style="background:${p.su}"></i><i style="background:${p.ac}"></i></span><span>${p.name}</span></button>`).join('');
+}
+function palSet(id) {
+  const mode = _palMode();
+  if (!_PALS[mode].some(p => p.id === id)) return;
+  try { localStorage.setItem('pal_' + mode, id); } catch (e) {}
+  applyPalette(); _renderPalPicker();
+}
+
 // ═══════════════════ THEME ═══════════════════
 function applyTheme(isDark) {
   document.body.classList.toggle('light', !isDark);
@@ -366,7 +392,7 @@ function applyTheme(isDark) {
   const loginBtn = document.getElementById('loginThemeBtn');
   if (loginBtn) loginBtn.textContent = isDark ? '☀️' : '🌙';
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#0f1117' : '#f4efe4');
+  applyPalette(); _renderPalPicker();
 }
 function toggleTheme() { applyTheme(document.body.classList.contains('light')); }
 applyTheme(localStorage.getItem('theme') !== 'light');
@@ -5588,6 +5614,7 @@ document.addEventListener('change', event => {
   if (!el) return;
   switch (el.dataset.uiChange) {
     case 'theme-check': toggleTheme(); break;
+    case 'pal-set': palSet(el.dataset.id); break;
     case 'reading-file': handleLecturaFile(event); break;
     case 'import-file': handleImportFile(event); break;
     case 'selection-row': toggleSelRow(Number(el.dataset.index), el.checked); break;

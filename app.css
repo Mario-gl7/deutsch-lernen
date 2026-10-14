@@ -1764,7 +1764,7 @@ body.has-nav .build-badge{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
     border-radius:44px;
     background:
       radial-gradient(120% 40% at 50% 0%,rgba(255,255,255,.16),rgba(255,255,255,0) 70%),
-      linear-gradient(180deg,#0f9272 0%,#0a6450 36%,#053a2f 66%,#020f0c 100%);
+      linear-gradient(180deg,#0f9272 0%,#0c7a60 36%,#0a6450 66%,#08503f 100%);
     border:1px solid rgba(255,255,255,.2);
     transition:width .45s cubic-bezier(.34,1.25,.64,1);
   }
@@ -2262,3 +2262,24 @@ body.light .hub-card-label,body.light .ws-card-label{border-top-color:var(--bord
 .gs-count{font-size:11px;color:var(--text3)}
 #cwScope{margin-bottom:12px}
 #cwScope:empty{display:none}
+
+/* ═══════════════════ MODO OSCURO: plano, texto blanco y profundidad por capas ═══════════════════
+   Capas (de fondo a frente): --bg #0f1117 → --bg2 → --surface (tarjetas) → --surface2 (menús, ventanas, avisos).
+   Sin sombras: la separación se hace con tono de superficie + borde. Acentos en tonos 200–500 (Tailwind 400/500). */
+:root{
+  --text:#ffffff;
+  --shadow:0 0 0 0 transparent;
+  --shadow-lg:0 0 0 0 transparent;
+}
+body:not(.light) *{text-shadow:none!important}
+body:not(.light) .app-nav{--nav-shadow:0 0 0 0 transparent;--nav-glow:transparent}
+body:not(.light) .ws-card:hover,body:not(.light) .hub-card:hover{box-shadow:0 0 0 1px var(--border2)}
+body:not(.light) .ws-card-cover-emoji,body:not(.light) .hub-card-cover-emoji,body:not(.light) .folder-card-icon,body:not(.light) .prog-flame{filter:none}
+body:not(.light) .prog-col.sel .prog-bar{box-shadow:none}
+body:not(.light) .lectura-upload-btn,body:not(.light) .lectura-exit-full-btn,body:not(.light) .app-nav-logo,body:not(.light) .home-float{box-shadow:none}
+/* elementos flotantes: más "cerca" del usuario = superficie más clara + borde marcado */
+body:not(.light) :is(.login-card,.user-dropdown,.filter-dropdown-panel,.lectura-popup,.cell-pop,.bk-panel,.rem-banner,#lecturaFontPanel,#folderCtxMenu){
+  background:var(--surface2)!important;border-color:var(--border2)!important;box-shadow:none!important}
+body:not(.light) .modal-box{background:var(--surface2);border-color:var(--border2)}
+/* cualquier sombra puesta en línea desde el JS */
+body:not(.light) [style*="box-shadow"]{box-shadow:none!important}

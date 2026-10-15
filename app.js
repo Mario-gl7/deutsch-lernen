@@ -2574,7 +2574,7 @@ function _spawnChip(parentEl, text, type) {
   if (type === 'ok') {
     chip.style.background = 'var(--green-bg)';
     chip.style.color = 'var(--green-t)';
-    chip.style.border = '1px solid rgba(74,222,128,.4)';
+    chip.style.border = '1px solid rgba(var(--accent-rgb),.4)';
   } else {
     chip.style.background = 'var(--red-bg)';
     chip.style.color = 'var(--red)';
@@ -4855,7 +4855,7 @@ function _renderFolderView() {
 
   // Carpeta "Todas mis palabras"
   html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="__all__">
-    <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(74,222,128,.18),rgba(96,165,250,.12))">
+    <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(var(--accent-rgb),.18),rgba(var(--blue-rgb),.12))">
       <span class="folder-card-icon">📚</span>
     </div>
     <div class="folder-card-body">

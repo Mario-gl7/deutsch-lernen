@@ -360,7 +360,7 @@ let currentUser = null, currentEmail = '';
 
 // ═══════════════════ PALETAS DE COLOR ═══════════════════
 // Los valores viven en app.css ([data-pal]); aquí solo la lista y la elección (una por modo, guardada en este dispositivo).
-const _PALS = {"dark": [{"id": "midnight", "name": "Medianoche", "bg": "#0f1117", "su": "#1c2333", "ac": "#4ade80"}, {"id": "forest", "name": "Bosque", "bg": "#0e1512", "su": "#1a2722", "ac": "#34d399"}, {"id": "ocean", "name": "Océano", "bg": "#0b1520", "su": "#162738", "ac": "#22d3ee"}, {"id": "grape", "name": "Uva", "bg": "#14111c", "su": "#221d30", "ac": "#a78bfa"}, {"id": "ember", "name": "Ámbar", "bg": "#16130f", "su": "#262019", "ac": "#fbbf24"}, {"id": "rosa", "name": "Rosa", "bg": "#181016", "su": "#2a1c26", "ac": "#f472b6"}], "light": [{"id": "crema", "name": "Crema", "bg": "#f4efe4", "su": "#ffffff", "ac": "#5aa57b"}, {"id": "salvia", "name": "Salvia", "bg": "#eef2ec", "su": "#ffffff", "ac": "#4d9b82"}, {"id": "cielo", "name": "Cielo", "bg": "#eaf1f8", "su": "#ffffff", "ac": "#4f86c6"}, {"id": "lavanda", "name": "Lavanda", "bg": "#f1eef8", "su": "#ffffff", "ac": "#8472c4"}, {"id": "arena", "name": "Arena", "bg": "#f8eee6", "su": "#ffffff", "ac": "#d17b52"}, {"id": "grafito", "name": "Grafito", "bg": "#f1f2f4", "su": "#ffffff", "ac": "#5a6b8c"}]};
+const _PALS = {"dark": [{"id": "main", "name": "Main", "bg": "#0f1117", "su": "#1c2333", "ac": "#4ade80"}, {"id": "clean", "name": "Minimal Clean", "bg": "#0B1220", "su": "#141e2e", "ac": "#3B82F6"}, {"id": "nature", "name": "Nature & Calm", "bg": "#0F172A", "su": "#0a3232", "ac": "#10B981"}, {"id": "warm", "name": "Warm & Modern", "bg": "#0B1220", "su": "#151e2c", "ac": "#EF4444"}, {"id": "cool", "name": "Cool & Focus", "bg": "#0F172A", "su": "#16193a", "ac": "#6366F1"}, {"id": "soft", "name": "Soft Tech", "bg": "#0B1220", "su": "#141e2e", "ac": "#60A5FA"}], "light": [{"id": "main", "name": "Main", "bg": "#f4efe4", "su": "#ffffff", "ac": "#5aa57b"}, {"id": "clean", "name": "Minimal Clean", "bg": "#FAFAFB", "su": "#ffffff", "ac": "#2563EB"}, {"id": "nature", "name": "Nature & Calm", "bg": "#F9FAFB", "su": "#ffffff", "ac": "#059669"}, {"id": "warm", "name": "Warm & Modern", "bg": "#FFFBFA", "su": "#ffffff", "ac": "#FF6B6B"}, {"id": "cool", "name": "Cool & Focus", "bg": "#F8FAFC", "su": "#ffffff", "ac": "#6366F1"}, {"id": "soft", "name": "Soft Tech", "bg": "#FDFDFD", "su": "#ffffff", "ac": "#3B82F6"}]};
 function _palMode() { return document.body.classList.contains('light') ? 'light' : 'dark'; }
 function _palGet(mode) { try { return localStorage.getItem('pal_' + mode) || ''; } catch (e) { return ''; } }
 function applyPalette() {
@@ -5473,6 +5473,7 @@ function _handleUiClick(event) {
     case 'pass-toggle': togglePassVis(); break;
     case 'login': doLogin(); break;
     case 'install-open': showInstallModal(); break;
+    case 'pal-set': palSet(el.dataset.id); break;
     case 'goals-open': goalsOpen(); break;
     case 'goal-add': goalAdd(); break;
     case 'goal-del': goalDel(el.dataset.id); break;
@@ -5614,7 +5615,6 @@ document.addEventListener('change', event => {
   if (!el) return;
   switch (el.dataset.uiChange) {
     case 'theme-check': toggleTheme(); break;
-    case 'pal-set': palSet(el.dataset.id); break;
     case 'reading-file': handleLecturaFile(event); break;
     case 'import-file': handleImportFile(event); break;
     case 'selection-row': toggleSelRow(Number(el.dataset.index), el.checked); break;

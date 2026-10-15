@@ -5653,3 +5653,12 @@ document.addEventListener('drop', event => {
   const zone = event.target.closest('[data-ui-dropzone]');
   if (zone) { event.preventDefault(); handleImportDrop(event); }
 });
+
+// Teclado: Enter/Espacio activan los elementos clicables que no son <button> (role="button")
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const el = event.target && event.target.closest ? event.target.closest('[role="button"][data-ui-click]') : null;
+  if (!el || el.tagName === 'BUTTON') return;
+  event.preventDefault();
+  el.click();
+});

@@ -1,0 +1,880 @@
+diff --git a/app.css b/app.css
+index e9f737d..2257d8c 100644
+--- a/app.css
++++ b/app.css
+@@ -61,8 +61,8 @@ body.light {
+ 
+ /* ═══════════════════ BASE ═══════════════════ */
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+-body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s}
+-button{font-family:'Inter',sans-serif}
++body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s}
++button{font-family:var(--font)}
+ 
+ /* ═══════════════════ ANIMATIONS ═══════════════════ */
+ @keyframes spin{to{transform:rotate(360deg)}}
+@@ -119,7 +119,7 @@ button{font-family:'Inter',sans-serif}
+   font-size:11px;font-weight:600;color:var(--text3);
+   background:var(--surface);border:1px solid var(--border);
+   border-radius:20px;padding:3px 10px;
+-  transition:all .2s;
++  transition:background-color .2s,border-color .2s,color .2s,box-shadow .2s,transform .2s,opacity .2s;
+ }
+ .speed-streak.hot{color:var(--orange);border-color:rgba(251,146,60,.4);background:rgba(251,146,60,.07)}
+ 
+@@ -153,9 +153,9 @@ button{font-family:'Inter',sans-serif}
+ .match-mode-tab{
+   flex:1;padding:9px 8px;border-radius:var(--r);
+   border:1px solid var(--border);background:var(--surface);
+-  color:var(--text2);font-family:'Inter',sans-serif;
++  color:var(--text2);font-family:var(--font);
+   font-size:12px;font-weight:600;cursor:pointer;
+-  transition:all .15s;text-align:center;
++  transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;text-align:center;
+ }
+ .match-mode-tab.active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+ .match-mode-tab.active.speed{background:rgba(251,146,60,.1);border-color:rgba(251,146,60,.4);color:var(--orange)}
+@@ -237,7 +237,7 @@ button{font-family:'Inter',sans-serif}
+   width:100%;padding:11px 14px;
+   background:var(--bg2);border:1px solid var(--border);
+   border-radius:var(--r);color:var(--text);
+-  font-family:'Inter',sans-serif;font-size:14px;font-weight:400;
++  font-family:var(--font);font-size:14px;font-weight:400;
+   outline:none;margin-bottom:14px;transition:border-color .2s;
+ }
+ .field-input:focus{border-color:var(--green)}
+@@ -247,7 +247,7 @@ button{font-family:'Inter',sans-serif}
+ .btn-login{
+   width:100%;background:var(--green);color:#0f1117;
+   border:none;padding:13px;border-radius:var(--r);
+-  font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
++  font-family:var(--font);font-weight:600;font-size:14px;
+   cursor:pointer;letter-spacing:.3px;transition:opacity .15s,transform .1s;
+ }
+ .btn-login:hover{opacity:.9}
+@@ -278,7 +278,7 @@ button{font-family:'Inter',sans-serif}
+ .top-bar-back{
+   display:flex;align-items:center;gap:6px;
+   background:none;border:none;color:var(--text2);
+-  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
++  font-family:var(--font);font-size:13px;font-weight:500;
+   cursor:pointer;padding:6px 8px;border-radius:6px;
+   transition:background .15s,color .15s;margin-left:-6px;
+ }
+@@ -296,7 +296,7 @@ button{font-family:'Inter',sans-serif}
+   display:flex;align-items:center;gap:7px;
+   background:none;border:1px solid var(--border);
+   border-radius:8px;padding:5px 10px 5px 8px;
+-  font-family:'Inter',sans-serif;font-size:12px;font-weight:500;
++  font-family:var(--font);font-size:12px;font-weight:500;
+   color:var(--text2);cursor:pointer;position:relative;
+   transition:border-color .15s,background .15s;
+ }
+@@ -329,7 +329,7 @@ button{font-family:'Inter',sans-serif}
+   display:flex;align-items:center;gap:9px;
+   width:100%;padding:11px 14px;
+   background:none;border:none;
+-  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
++  font-family:var(--font);font-size:13px;font-weight:500;
+   color:var(--text);cursor:pointer;text-align:left;
+   transition:background .12s;
+ }
+@@ -616,8 +616,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .filter-chip{
+   padding:5px 12px;border-radius:20px;
+   border:1px solid var(--border);background:var(--surface);
+-  color:var(--text2);font-family:'Inter',sans-serif;
+-  font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;
++  color:var(--text2);font-family:var(--font);
++  font-size:11px;font-weight:500;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;
+ }
+ .filter-chip.active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+ 
+@@ -627,9 +627,9 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+   padding:9px 8px;border-radius:var(--r);
+   border:1px solid var(--border);background:var(--surface);
+-  color:var(--text2);font-family:'Inter',sans-serif;
++  color:var(--text2);font-family:var(--font);
+   font-size:12px;font-weight:500;cursor:pointer;
+-  transition:all .15s;
++  transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;
+ }
+ .list-action-btn:hover{border-color:var(--border2);color:var(--text);background:var(--surface2)}
+ .word-item{
+@@ -659,7 +659,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .diff-micro{
+   background:var(--surface2);border:1px solid var(--border);
+   border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer;
+-  transition:all .12s;
++  transition:background-color .12s,border-color .12s,color .12s,box-shadow .12s,transform .12s,opacity .12s;
+ }
+ .diff-micro.active-red{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4)}
+ .diff-micro.active-green{background:rgba(var(--accent-rgb),.12);border-color:rgba(var(--accent-rgb),.35)}
+@@ -688,7 +688,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   font-size:12px;font-weight:500;min-height:54px;
+   display:flex;align-items:center;justify-content:center;
+   user-select:none;line-height:1.3;color:var(--text);
+-  transition:all .12s;
++  transition:background-color .12s,border-color .12s,color .12s,box-shadow .12s,transform .12s,opacity .12s;
+ }
+ .word-card:active{transform:scale(.97)}
+ .word-card.selected{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+@@ -705,7 +705,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .cw-cell{
+   background:var(--surface);border:none;border-radius:3px;
+   font-size:14px;font-weight:700;text-align:center;color:var(--text);
+-  font-family:'Inter',sans-serif;text-transform:uppercase;
++  font-family:var(--font);text-transform:uppercase;
+   caret-color:var(--green);outline:none;padding:0;
+ }
+ .cw-cell:focus{background:var(--blue-bg)}
+@@ -788,7 +788,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .btn-primary{
+   width:100%;background:var(--green);color:#0f1117;
+   border:none;padding:13px;border-radius:var(--r);
+-  font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
++  font-family:var(--font);font-weight:600;font-size:14px;
+   cursor:pointer;margin-top:12px;letter-spacing:.2px;
+   transition:opacity .15s,transform .1s;
+ }
+@@ -797,15 +797,15 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .btn-secondary{
+   width:100%;background:var(--surface);color:var(--text2);
+   border:1px solid var(--border);padding:11px;border-radius:var(--r);
+-  font-family:'Inter',sans-serif;font-weight:500;font-size:13px;
+-  cursor:pointer;margin-top:8px;transition:all .15s;
++  font-family:var(--font);font-weight:500;font-size:13px;
++  cursor:pointer;margin-top:8px;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;
+ }
+ .btn-secondary:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+ .btn-blue{
+   width:100%;background:var(--blue-bg);color:var(--blue);
+   border:1px solid rgba(var(--blue-rgb),.25);padding:11px;border-radius:var(--r);
+-  font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
+-  cursor:pointer;margin-top:8px;transition:all .15s;
++  font-family:var(--font);font-weight:600;font-size:13px;
++  cursor:pointer;margin-top:8px;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;
+ }
+ .btn-blue:hover{background:rgba(var(--blue-rgb),.15)}
+ 
+@@ -835,7 +835,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   width:100%;padding:10px 13px;
+   background:var(--bg2);border:1px solid var(--border);
+   border-radius:var(--r);color:var(--text);
+-  font-family:'Inter',sans-serif;font-size:14px;font-weight:400;
++  font-family:var(--font);font-size:14px;font-weight:400;
+   outline:none;transition:border-color .2s;-webkit-appearance:none;
+ }
+ .form-input:focus,.form-select:focus{border-color:var(--green)}
+@@ -924,8 +924,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .cfg-chip{
+   padding:5px 11px;border-radius:20px;
+   border:1px solid var(--border);background:var(--bg2);
+-  color:var(--text2);font-family:'Inter',sans-serif;
+-  font-size:11px;font-weight:500;cursor:pointer;transition:all .13s;
++  color:var(--text2);font-family:var(--font);
++  font-size:11px;font-weight:500;cursor:pointer;transition:background-color .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s,opacity .13s;
+ }
+ .cfg-chip.active{background:var(--green-bg);border-color:rgba(var(--accent-rgb),.4);color:var(--green-t)}
+ .cfg-chip.active-blue{background:var(--blue-bg);border-color:rgba(var(--blue-rgb),.35);color:var(--blue)}
+@@ -1007,7 +1007,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   background:var(--surface2);border:1px solid var(--border);
+   border-radius:6px;padding:5px 12px;
+   font-size:11px;font-weight:600;color:var(--text);
+-  cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;margin-top:4px;
++  cursor:pointer;font-family:var(--font);transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;margin-top:4px;
+ }
+ .setup-banner .copy-sql-btn:hover{border-color:var(--border2);background:var(--border)}
+ 
+@@ -1020,14 +1020,14 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .dd-sync-btn{
+   background:var(--surface2);border:1px solid var(--border);
+   border-radius:6px;padding:4px 10px;
+-  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+-  color:var(--text2);cursor:pointer;transition:all .15s;
++  font-family:var(--font);font-size:11px;font-weight:600;
++  color:var(--text2);cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;
+ }
+ .dd-sync-btn:hover{border-color:var(--border2);color:var(--text)}
+ 
+ .build-badge{
+   position:fixed;bottom:10px;right:12px;z-index:9000;
+-  font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
++  font-family:var(--font);font-size:10px;font-weight:600;
+   color:var(--text3);letter-spacing:.4px;
+   pointer-events:none;user-select:none;
+ }
+@@ -1036,8 +1036,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .lang-pill{
+   background:var(--surface2);border:1px solid var(--border);
+   border-radius:6px;padding:3px 9px;
+-  font-family:"Inter",sans-serif;font-size:11px;font-weight:600;
+-  color:var(--text2);cursor:pointer;transition:all .15s;
++  font-family:var(--font);font-size:11px;font-weight:600;
++  color:var(--text2);cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;
+ }
+ .lang-pill:hover{border-color:var(--border2);color:var(--text)}
+ .lang-pill.active{background:var(--green-bg);border-color:rgba(var(--accent-rgb),.35);color:var(--green-t)}
+@@ -1049,8 +1049,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   padding:6px 12px 6px 10px;
+   border-radius:20px;border:1px solid var(--border);
+   background:var(--surface);color:var(--text2);
+-  font-family:'Inter',sans-serif;font-size:11px;font-weight:500;
+-  cursor:pointer;transition:all .15s;white-space:nowrap;
++  font-family:var(--font);font-size:11px;font-weight:500;
++  cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .15s,opacity .15s;white-space:nowrap;
+ }
+ .filter-dropdown-btn:hover{border-color:var(--border2);color:var(--text);background:var(--surface2)}
+ .filter-dropdown-btn.has-active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+@@ -1075,9 +1075,9 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .fdp-chip{
+   padding:4px 10px;border-radius:14px;
+   border:1px solid var(--border);background:var(--bg2);
+-  color:var(--text2);font-family:'Inter',sans-serif;
++  color:var(--text2);font-family:var(--font);
+   font-size:11px;font-weight:500;cursor:pointer;
+-  transition:all .13s;white-space:nowrap;
++  transition:background-color .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s,opacity .13s;white-space:nowrap;
+ }
+ .fdp-chip:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+ .fdp-chip.active{background:var(--accent-bg);border-color:rgba(var(--accent-rgb),.4);color:var(--accent-t)}
+@@ -1088,7 +1088,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .fdp-reset{
+   display:block;width:100%;padding:9px 14px;
+   background:none;border:none;
+-  font-family:'Inter',sans-serif;font-size:12px;font-weight:500;
++  font-family:var(--font);font-size:12px;font-weight:500;
+   color:var(--text3);cursor:pointer;text-align:left;
+   transition:background .12s,color .12s;
+ }
+@@ -1125,7 +1125,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .prog-mini-track{flex:1;min-width:32px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
+ .prog-mini-fill{height:100%;border-radius:1px}
+ .prog-mini-pct{font-size:9px;font-weight:600;color:var(--text3);white-space:nowrap}
+-.cell-select,.cell-input{background:var(--bg);border:1px solid var(--blue);border-radius:5px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:4px 6px;outline:none;width:100%;-webkit-appearance:none}
++.cell-select,.cell-input{background:var(--bg);border:1px solid var(--blue);border-radius:5px;color:var(--text);font-family:var(--font);font-size:12px;padding:4px 6px;outline:none;width:100%;-webkit-appearance:none}
+ .cell-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8ba8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:22px}
+ .cell-input:focus,.cell-select:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(var(--accent-rgb),.15)}
+ .row-btn{width:28px;height:28px;border-radius:6px;border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:background .12s;color:var(--text2)}
+@@ -1197,7 +1197,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .lectura-upload-btn{
+   background:var(--purple);color:#fff;border:none;
+   padding:13px 28px;border-radius:var(--r);
+-  font-family:Inter,sans-serif;font-size:14px;font-weight:700;
++  font-family:var(--font);font-size:14px;font-weight:700;
+   cursor:pointer;letter-spacing:.2px;transition:opacity .15s;
+   box-shadow:0 4px 20px rgba(var(--purple-rgb),.3);
+ }
+@@ -1278,7 +1278,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   border:1px solid var(--border);background:var(--surface);
+   color:var(--text2);font-size:20px;cursor:pointer;
+   display:flex;align-items:center;justify-content:center;
+-  transition:all .12s;line-height:1;
++  transition:background-color .12s,border-color .12s,color .12s,box-shadow .12s,transform .12s,opacity .12s;line-height:1;
+ }
+ .lectura-nav-btn:hover{border-color:var(--border2);color:var(--text);background:var(--surface2)}
+ .lectura-nav-btn:active{transform:scale(.94)}
+@@ -1304,7 +1304,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .lectura-popup-save{
+   flex:1;background:var(--purple);color:#fff;border:none;
+   padding:8px 12px;border-radius:8px;
+-  font-family:Inter,sans-serif;font-size:12px;font-weight:700;
++  font-family:var(--font);font-size:12px;font-weight:700;
+   cursor:pointer;transition:opacity .15s;white-space:nowrap;
+ }
+ .lectura-popup-save:hover{opacity:.88}
+@@ -1314,7 +1314,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   border-radius:8px;width:32px;height:32px;
+   display:flex;align-items:center;justify-content:center;
+   font-size:13px;cursor:pointer;color:var(--text2);
+-  transition:all .12s;flex-shrink:0;
++  transition:background-color .12s,border-color .12s,color .12s,box-shadow .12s,transform .12s,opacity .12s;flex-shrink:0;
+ }
+ .lectura-popup-close:hover{background:var(--surface);color:var(--text)}
+ 
+@@ -1322,8 +1322,8 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .lectura-width-btn{
+   flex:1;padding:5px 4px;border-radius:8px;
+   border:1px solid var(--border);background:var(--bg2);
+-  color:var(--text2);font-family:Inter,sans-serif;
+-  font-size:11px;font-weight:600;cursor:pointer;transition:all .13s;
++  color:var(--text2);font-family:var(--font);
++  font-size:11px;font-weight:600;cursor:pointer;transition:background-color .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s,opacity .13s;
+ }
+ .lectura-width-btn.active{background:rgba(var(--purple-rgb),.15);border-color:rgba(var(--purple-rgb),.4);color:var(--purple)}
+ 
+@@ -1439,7 +1439,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .lista-back-btn{
+   display:flex;align-items:center;gap:5px;
+   background:none;border:none;color:var(--text2);
+-  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
++  font-family:var(--font);font-size:13px;font-weight:500;
+   cursor:pointer;padding:5px 6px;border-radius:6px;
+   transition:background .15s,color .15s;margin-left:-4px;
+ }
+@@ -1464,9 +1464,9 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+ .sel-action-btn{
+   padding:7px 12px;border-radius:8px;
+   border:1px solid var(--border);background:var(--surface2);
+-  color:var(--text2);font-family:'Inter',sans-serif;
++  color:var(--text2);font-family:var(--font);
+   font-size:12px;font-weight:600;cursor:pointer;
+-  transition:all .13s;white-space:nowrap;
++  transition:background-color .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s,opacity .13s;white-space:nowrap;
+ }
+ .sel-action-btn:hover{border-color:var(--border2);color:var(--text)}
+ .sel-action-btn.danger{color:var(--red);border-color:rgba(248,113,113,.35)}
+@@ -1494,7 +1494,7 @@ td.td-check{width:36px;padding:0 6px 0 10px;vertical-align:middle}
+ /* Lectura — abrir enlace web */
+ .lectura-url-row{display:flex;gap:8px;width:100%;max-width:360px;margin-top:14px}
+ .lectura-url-row .form-input{flex:1;min-width:0}
+-.lectura-url-btn{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:0 16px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s}
++.lectura-url-btn{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:0 16px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s}
+ .lectura-url-btn:hover{border-color:var(--border2)}
+ 
+ /* Lectura — vista de página original */
+@@ -1634,21 +1634,21 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+ .cell-pop-input{
+   width:100%;display:block;resize:none;
+   background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+-  color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.4;
++  color:var(--text);font-family:var(--font);font-size:16px;line-height:1.4;
+   padding:10px 12px;outline:none;-webkit-appearance:none;
+ }
+ .cell-pop-input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(var(--blue-rgb),.2)}
+ .cell-pop-actions{display:flex;gap:8px;margin-top:12px}
+ .cell-pop-btn{
+   flex:1;padding:12px;border-radius:var(--r);border:1px solid var(--border);
+-  background:var(--surface2);color:var(--text);font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;
++  background:var(--surface2);color:var(--text);font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;
+ }
+ .cell-pop-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+ .cell-opt-list{display:flex;flex-direction:column;gap:2px}
+ .cell-opt{
+   display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+   padding:12px 10px;border:0;border-radius:8px;background:none;color:var(--text);
+-  font-family:'Inter',sans-serif;font-size:15px;text-align:left;cursor:pointer;
++  font-family:var(--font);font-size:15px;text-align:left;cursor:pointer;
+ }
+ .cell-opt:active{background:var(--surface2)}
+ .cell-opt.sel{background:var(--blue-bg)}
+@@ -1731,7 +1731,7 @@ body.light .app-nav{
+   position:relative;z-index:1;flex:1;
+   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+   background:none;border:none;border-radius:999px;overflow:hidden;cursor:pointer;
+-  color:var(--nav-fg);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.1px;
++  color:var(--nav-fg);font-family:var(--font);font-size:11px;font-weight:600;letter-spacing:.1px;
+   transition:color .25s;
+ }
+ .app-nav-tab.active{color:var(--nav-fg-on)}
+@@ -1995,7 +1995,7 @@ body:not([data-page="perfil"]) .build-badge{display:none}
+ @keyframes progPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+ .prog-chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+ .prog-seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:3px}
+-.prog-seg-btn{border:0;background:none;color:var(--text2);font:600 12px 'Inter',sans-serif;padding:6px 14px;border-radius:99px;cursor:pointer;transition:background .25s,color .25s}
++.prog-seg-btn{border:0;background:none;color:var(--text2);font:600 12px var(--font);padding:6px 14px;border-radius:99px;cursor:pointer;transition:background .25s,color .25s}
+ .prog-seg-btn.active{background:var(--green);color:#06210f}
+ .prog-sum{margin:10px 0 2px;font-size:32px;font-weight:800;letter-spacing:-1px}
+ .prog-sum small{font-size:13px;font-weight:500;color:var(--text2);letter-spacing:0}
+@@ -2096,7 +2096,7 @@ body:not([data-page="perfil"]) .build-badge{display:none}
+ #page-lectura.fullscreen-reader.bk-mode .bk-chrome{display:flex}
+ .bk-chrome.show{opacity:1;transform:none;pointer-events:auto}
+ .bk-chrome-btn{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:18px;border:1px solid rgba(128,128,128,.3);
+-  background:rgba(128,128,128,.14);color:inherit;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0}
++  background:rgba(128,128,128,.14);color:inherit;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0}
+ .bk-chrome-btn:hover{background:rgba(128,128,128,.26)}
+ .bk-aa{font-family:Georgia,serif;font-size:16px;font-weight:700}
+ .bk-chrome-title{flex:1;min-width:0;text-align:center;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+@@ -2120,7 +2120,7 @@ body:not([data-page="perfil"]) .build-badge{display:none}
+ .bk-sw.active{border-color:var(--purple)}
+ .bk-seg{display:flex;flex-wrap:wrap;gap:6px}
+ .bk-seg button{flex:1 1 auto;min-width:0;padding:8px 6px;border-radius:9px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);
+-  font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .13s}
++  font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;transition:background-color .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s,opacity .13s}
+ .bk-seg button.active{background:rgba(var(--purple-rgb),.15);border-color:rgba(var(--purple-rgb),.5);color:var(--purple)}
+ .bk-seg-fonts button{font-size:13px}
+ 
+@@ -2147,7 +2147,7 @@ body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe
+ .lec-crumb-cur{color:var(--text3)}
+ .lec-sep{color:var(--text3)}
+ .lec-newfolder{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:9px 13px;
+-  font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
++  font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+ .lec-newfolder:hover{border-color:var(--border2)}
+ .lec-actions{display:flex;gap:8px;flex-shrink:0}
+ .lec-more{width:44px;height:44px;flex-shrink:0;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);
+@@ -2307,3 +2307,125 @@ body.light[data-pal="soft"]{--bg:#FDFDFD;--bg2:#eef8fe;--surface:#ffffff;--surfa
+ .pal-btn.on{border-color:var(--accent);background:var(--accent-bg)}
+ .pal-sw{display:flex;flex:none;border-radius:99px;overflow:hidden;border:1px solid var(--border2)}
+ .pal-sw i{display:block;width:14px;height:26px}
++
++/* ═══════════════════ ESTÉTICA PREMIUM · 1.07.71 ═══════════════════
++   Solo apariencia: tipografía, bordes finos, sombras difusas, movimiento y foco.
++   Usa únicamente las variables existentes, así las paletas de Ajustes siguen funcionando. */
++:root{
++  --font:'Geist',-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
++  --font-display:'Instrument Serif','Iowan Old Style','Palatino Linotype',Georgia,serif;
++  --ease:cubic-bezier(.32,.72,0,1);
++  --hair:color-mix(in srgb,var(--text) 9%,transparent);
++  --hair-strong:color-mix(in srgb,var(--text) 16%,transparent);
++  --lift:inset 0 1px 0 rgba(255,255,255,.05);
++  --amb:0 1px 2px rgba(0,0,0,.28),0 12px 32px -12px rgba(0,0,0,.55);
++  --amb-hover:0 1px 2px rgba(0,0,0,.3),0 20px 44px -14px rgba(0,0,0,.65);
++  --r:12px; --r-lg:20px;
++  color-scheme:dark;
++}
++html:has(body.light){color-scheme:light}
++body.light{
++  --hair:color-mix(in srgb,var(--text) 10%,transparent);
++  --lift:inset 0 1px 0 rgba(255,255,255,.8);
++  --amb:0 1px 2px rgba(80,65,30,.08),0 14px 34px -16px rgba(80,65,30,.22);
++  --amb-hover:0 1px 2px rgba(80,65,30,.1),0 22px 46px -16px rgba(80,65,30,.30);
++}
++
++html{-webkit-text-size-adjust:100%;scroll-padding-top:16px}
++body{
++  font-family:var(--font);letter-spacing:-.011em;line-height:1.5;
++  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;
++  font-feature-settings:'ss01','cv11';
++  -webkit-tap-highlight-color:transparent;
++}
++button,input,select,textarea{font-family:var(--font);letter-spacing:inherit}
++button,a,[role=button],select,summary,label{touch-action:manipulation}
++::selection{background:rgba(var(--accent-rgb),.28);color:inherit}
++*{scrollbar-width:thin;scrollbar-color:var(--hair-strong) transparent}
++
++/* Titulares: serif de display, equilibrados */
++.login-title,.home-hero-title,.prog-title,.top-bar-title,.modal-box h3,.login-card h2{
++  font-family:var(--font-display);font-weight:400;letter-spacing:-.02em;text-wrap:balance;
++}
++.login-title{font-size:38px;line-height:1.05}
++.home-hero-title{font-size:44px;line-height:1.02}
++.prog-title{font-size:38px;line-height:1.05}
++.login-card h2,.modal-box h3{font-size:24px;line-height:1.15}
++.home-hero-sub,.login-subtitle{text-wrap:pretty;color:var(--text2)}
++
++/* Números: tabulares y con peso fino */
++.stat-num,.prog-pct,.prog-streak-n,.score-chip,td,.build-badge,[class*="timer"],[class*="score"]{font-variant-numeric:tabular-nums}
++.prog-pct,.prog-streak-n{font-family:var(--font-display);font-weight:400;letter-spacing:-.03em}
++.prog-pct small,.prog-streak-n small{font-family:var(--font);font-weight:500;letter-spacing:0}
++.prog-pct{font-size:54px}.prog-streak-n{font-size:32px}
++.stat-num{font-weight:500;letter-spacing:-.03em}
++
++/* Etiquetas pequeñas: capitular fina y aireada */
++.field-label,.stat-lbl,.dd-label,.prog-card-title{letter-spacing:.12em;font-weight:500}
++
++/* Superficies: doble capa (borde fino + brillo interior + sombra ambiental) */
++.login-card,.hub-card,.folder-card,.prog-card,.stat-tile,.modal-box,.dd-box,.setup-banner{
++  border:1px solid var(--hair);
++  box-shadow:var(--lift),var(--amb);
++  transition:transform .5s var(--ease),box-shadow .5s var(--ease),border-color .3s var(--ease),background-color .3s var(--ease);
++}
++.hub-card{border-radius:var(--r-lg)}
++.folder-card{border-radius:var(--r-lg)}
++.prog-card,.modal-box{border-radius:var(--r-lg)}
++.hub-card:hover,.folder-card:hover{
++  border-color:var(--hair-strong);box-shadow:var(--lift),var(--amb-hover);transform:translateY(-3px);
++}
++.hub-card:active,.folder-card:active{transform:scale(.985);transition-duration:.12s}
++.hub-card.disabled:hover{transform:none;box-shadow:var(--lift),var(--amb);border-color:var(--hair)}
++.hub-card-title{font-size:12px;font-weight:600;letter-spacing:-.005em}
++.hub-card-cover-emoji{transition:transform .6s var(--ease)}
++
++/* Botones */
++.btn-primary,.btn-login{
++  border-radius:var(--r);font-weight:600;letter-spacing:-.01em;
++  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.25),0 8px 20px -10px rgba(var(--accent-rgb),.55);
++  transition:transform .35s var(--ease),filter .25s var(--ease),box-shadow .35s var(--ease),opacity .2s;
++}
++.btn-primary:hover,.btn-login:hover{opacity:1;filter:brightness(1.07) saturate(1.05)}
++.btn-primary:active,.btn-login:active{transform:scale(.97);transition-duration:.1s}
++.btn-secondary,.btn-blue,.cfg-chip,.prog-seg-btn,.pal-btn{
++  border-radius:var(--r);border-color:var(--hair);
++  transition:transform .3s var(--ease),background-color .25s var(--ease),border-color .25s var(--ease),color .25s var(--ease);
++}
++.btn-secondary:active,.btn-blue:active,.cfg-chip:active{transform:scale(.97)}
++
++/* Campos */
++.field-input,.cell-input,.cell-select{
++  border-color:var(--hair);border-radius:var(--r);
++  transition:border-color .25s var(--ease),box-shadow .25s var(--ease),background-color .25s var(--ease);
++}
++.field-input:focus,.field-input:focus-visible{
++  border-color:rgba(var(--accent-rgb),.7);box-shadow:0 0 0 4px rgba(var(--accent-rgb),.14);outline:none;
++}
++
++/* Foco visible para teclado (sin anillo al hacer clic) */
++:focus{outline:none}
++:focus-visible{outline:2px solid rgba(var(--accent-rgb),.9);outline-offset:2px;border-radius:inherit}
++.field-input:focus-visible{outline:none}
++
++/* Tarjetas de juego */
++.word-card{border-radius:14px;border-color:var(--hair);transition:transform .3s var(--ease),border-color .25s var(--ease),background-color .25s var(--ease),color .25s var(--ease)}
++.word-card:active{transform:scale(.97)}
++
++/* Barra de navegación: cristal más fino */
++.app-nav{border:1px solid var(--hair);box-shadow:var(--lift),0 18px 40px -16px rgba(0,0,0,.6)}
++.app-nav-pill{box-shadow:var(--lift)}
++
++/* Modales */
++.modal-overlay{backdrop-filter:blur(10px) saturate(1.1);-webkit-backdrop-filter:blur(10px) saturate(1.1)}
++.modal-box{overscroll-behavior:contain}
++
++/* Texto largo seguro en flex */
++.folder-card-body,.hub-card-label,.dd-row{min-width:0}
++.folder-card-body *,.hub-card-title{overflow-wrap:anywhere}
++
++/* Reduce movimiento si el sistema lo pide */
++@media (prefers-reduced-motion:reduce){
++  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
++}
++@media (pointer:fine){html{overscroll-behavior:none}}
+diff --git a/app.js b/app.js
+index 968a56a..2ad5f7b 100644
+--- a/app.js
++++ b/app.js
+@@ -5653,3 +5653,12 @@ document.addEventListener('drop', event => {
+   const zone = event.target.closest('[data-ui-dropzone]');
+   if (zone) { event.preventDefault(); handleImportDrop(event); }
+ });
++
++// Teclado: Enter/Espacio activan los elementos clicables que no son <button> (role="button")
++document.addEventListener('keydown', event => {
++  if (event.key !== 'Enter' && event.key !== ' ') return;
++  const el = event.target && event.target.closest ? event.target.closest('[role="button"][data-ui-click]') : null;
++  if (!el || el.tagName === 'BUTTON') return;
++  event.preventDefault();
++  el.click();
++});
+diff --git a/index.html b/index.html
+index 34dede6..47662c7 100644
+--- a/index.html
++++ b/index.html
+@@ -15,14 +15,16 @@
+ <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+ <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+ <link rel="manifest" href="manifest.webmanifest">
+-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
++<link rel="preconnect" href="https://fonts.googleapis.com">
++<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
++<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="app.css">
+ </head>
+ <body>
+ 
+ <!-- ═══════════════════ LOGIN PAGE ═══════════════════ -->
+ <div class="page active" id="page-login">
+-  <button class="login-theme-btn" data-ui-click="theme" id="loginThemeBtn">☀️</button>
++  <button aria-label="Cambiar tema claro u oscuro" class="login-theme-btn" data-ui-click="theme" id="loginThemeBtn">☀️</button>
+   <div class="login-logo">🇩🇪</div>
+   <div class="login-title">Deutsch Lernen</div>
+   <div class="login-subtitle">Tu vocabulario alemán · siempre contigo</div>
+@@ -35,12 +37,12 @@
+     <div id="loginForm">
+       <div class="form-row">
+         <div class="field-label">Correo electrónico</div>
+-        <input class="field-input" id="loginEmail" type="email" placeholder="tu@correo.com" autocomplete="email" autocapitalize="off" inputmode="email">
++        <input class="field-input" id="loginEmail" aria-label="Correo electrónico" type="email" placeholder="tu@correo.com" autocomplete="email" autocapitalize="off" inputmode="email">
+       </div>
+       <div class="form-row">
+         <div class="field-label">Contraseña</div>
+         <div style="position:relative">
+-          <input class="field-input" id="loginPass" type="password" placeholder="••••••••" data-ui-enter="login">
++          <input class="field-input" id="loginPass" aria-label="Contraseña" type="password" placeholder="••••••••" data-ui-enter="login">
+           <button type="button" id="passToggleBtn" data-ui-click="pass-toggle" style="position:absolute;right:0;top:0;height:100%;width:40px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s" title="Mostrar/ocultar contraseña">
+             <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+             <svg id="eyeOffIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+@@ -81,7 +83,7 @@
+       <span style="font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.2px">Deutsch</span>
+     </div>
+     <button class="install-btn-top" data-ui-click="install-open" title="Instalar app">📲</button>
+-    <div class="user-pill" id="userPill" data-ui-click="user-dropdown">
++    <div class="user-pill" id="userPill" data-ui-click="user-dropdown" role="button" tabindex="0" aria-label="Menú de usuario" aria-haspopup="true">
+       <div class="user-avatar" id="userAvatar">?</div>
+       <span id="homeUserName" style="max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+       <span class="pill-caret">▾</span>
+@@ -100,8 +102,8 @@
+         <div class="dd-row" style="border-bottom:none;padding-bottom:6px">
+           <span data-i18n="language">Idioma</span>
+           <div style="display:flex;gap:4px">
+-            <button id="langBtnEs" data-ui-click="lang-es" class="lang-pill active">🇪🇸</button>
+-            <button id="langBtnDe" data-ui-click="lang-de" class="lang-pill">🇩🇪</button>
++            <button aria-label="Español" id="langBtnEs" data-ui-click="lang-es" class="lang-pill active">🇪🇸</button>
++            <button aria-label="Deutsch" id="langBtnDe" data-ui-click="lang-de" class="lang-pill">🇩🇪</button>
+           </div>
+         </div>
+         <button class="dd-btn" data-ui-click="profile-open">
+@@ -401,8 +403,8 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px">
+       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">¿Cómo quieres que te llame?</div>
+       <div style="display:flex;gap:8px">
+-        <input class="form-input" id="perfilNombre" type="text" placeholder="Tu nombre o apodo…" style="flex:1;margin:0" maxlength="32">
+-        <button data-ui-click="save-name" class="hover-dim-button" style="background:var(--accent);color:var(--accent-ink);border:none;border-radius:var(--r);padding:0 18px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s">Guardar</button>
++        <input class="form-input" id="perfilNombre" aria-label="Nombre o apodo" type="text" placeholder="Tu nombre o apodo…" style="flex:1;margin:0" maxlength="32">
++        <button data-ui-click="save-name" class="hover-dim-button" style="background:var(--accent);color:var(--accent-ink);border:none;border-radius:var(--r);padding:0 18px;font-family:var(--font);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:opacity .15s">Guardar</button>
+       </div>
+       <div id="perfilNombreMsg" style="font-size:12px;color:var(--green-t);margin-top:8px;min-height:18px"></div>
+     </div>
+@@ -412,13 +414,13 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin-bottom:14px">Preferencias</div>
+       <div class="dd-row" style="padding-top:0">
+         <span data-i18n="darkMode">Modo oscuro</span>
+-        <button class="lang-pill" data-ui-click="theme" type="button">🌓</button>
++        <button aria-label="Cambiar tema claro u oscuro" class="lang-pill" data-ui-click="theme" type="button">🌓</button>
+       </div>
+       <div class="dd-row" style="border-bottom:none;padding-bottom:0">
+         <span data-i18n="language">Idioma</span>
+         <div style="display:flex;gap:4px">
+-          <button class="lang-pill" data-ui-click="lang-es" type="button">🇪🇸</button>
+-          <button class="lang-pill" data-ui-click="lang-de" type="button">🇩🇪</button>
++          <button aria-label="Español" class="lang-pill" data-ui-click="lang-es" type="button">🇪🇸</button>
++          <button aria-label="Deutsch" class="lang-pill" data-ui-click="lang-de" type="button">🇩🇪</button>
+         </div>
+       </div>
+     </div>
+@@ -444,7 +446,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+     <!-- Danger zone -->
+     <div style="background:var(--surface);border:1px solid rgba(248,113,113,.2);border-radius:var(--r-lg);padding:20px">
+       <div style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--red);margin-bottom:14px">Zona peligrosa</div>
+-      <button data-ui-click="logout-confirm" class="hover-danger-button" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:background .15s">🚪 Cerrar sesión</button>
++      <button data-ui-click="logout-confirm" class="hover-danger-button" style="width:100%;background:var(--red-bg);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);padding:11px;font-family:var(--font);font-weight:600;font-size:13px;cursor:pointer;transition:background .15s">🚪 Cerrar sesión</button>
+     </div>
+   </div>
+ </div>
+@@ -558,9 +560,9 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+   <div id="lecturaFontPanel" style="display:none;position:absolute;top:calc(env(safe-area-inset-top,0px) + 56px);right:8px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;min-width:220px;box-shadow:var(--shadow-lg);animation:dropIn .15s ease both">
+     <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Tamaño</div>
+     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+-      <button data-ui-click="reading-font-down" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
++      <button aria-label="Reducir tamaño de letra" data-ui-click="reading-font-down" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+       <span id="lecturaFontSizeLabel" style="flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--text)">16px</span>
+-      <button data-ui-click="reading-font-up" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
++      <button aria-label="Aumentar tamaño de letra" data-ui-click="reading-font-up" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+     </div>
+     <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Ancho línea</div>
+     <div style="display:flex;gap:6px;margin-bottom:14px">
+@@ -638,7 +640,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+       </button>
+       <input type="file" id="lecturaFileIn" accept=".pdf,.epub" style="display:none" data-ui-change="reading-file">
+       <div class="lectura-url-row">
+-        <input class="form-input" id="lecturaUrlIn" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="🔗 Pega un enlace web…" data-ui-enter="reading-url">
++        <input class="form-input" id="lecturaUrlIn" aria-label="Dirección web" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="🔗 Pega un enlace web…" data-ui-enter="reading-url">
+         <button class="lectura-url-btn" data-ui-click="reading-url-open">Abrir</button>
+       </div>
+       <div id="lecturaLibrarySection" style="width:100%;max-width:560px;margin-top:32px"></div>
+@@ -654,8 +656,8 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+       <!-- Lector de libros (PDF/EPUB) estilo Apple Books — las webs no lo usan -->
+       <div id="lecturaBook" class="bk" data-turn="slide">
+         <div class="bk-viewport" id="bkViewport"><div class="bk-flow" id="bkFlow"></div></div>
+-        <div class="bk-edge bk-edge-l" data-ui-click="bk-prev" title="Página anterior"><span>‹</span></div>
+-        <div class="bk-edge bk-edge-r" data-ui-click="bk-next" title="Página siguiente"><span>›</span></div>
++        <div class="bk-edge bk-edge-l" data-ui-click="bk-prev" title="Página anterior" role="button" tabindex="0" aria-label="Página anterior"><span>‹</span></div>
++        <div class="bk-edge bk-edge-r" data-ui-click="bk-next" title="Página siguiente" role="button" tabindex="0" aria-label="Página siguiente"><span>›</span></div>
+         <div class="bk-foot"><span id="bkFootTxt"></span></div>
+       </div>
+       <div class="lectura-scroll" id="lecturaScroll">
+@@ -665,11 +667,11 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+       <div class="lectura-bottom-bar">
+         <span id="lecturaPageInfo" style="font-size:11px;color:var(--text3);min-width:64px">p. 1</span>
+         <div id="lecturaNavBtns" style="display:flex;gap:8px">
+-          <button class="lectura-nav-btn" data-ui-click="reading-prev">‹</button>
+-          <button class="lectura-nav-btn" data-ui-click="reading-next">›</button>
++          <button aria-label="Página anterior" class="lectura-nav-btn" data-ui-click="reading-prev">‹</button>
++          <button aria-label="Página siguiente" class="lectura-nav-btn" data-ui-click="reading-next">›</button>
+         </div>
+-        <button data-ui-click="reading-url-prompt" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer">🔗 Enlace</button>
+-        <button data-ui-click="reading-file-open" class="hover-border-button" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:Inter,sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s">📂 Otro</button>
++        <button data-ui-click="reading-url-prompt" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer">🔗 Enlace</button>
++        <button data-ui-click="reading-file-open" class="hover-border-button" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s">📂 Otro</button>
+       </div>
+     </div>
+ 
+@@ -683,7 +685,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+   <div class="lectura-popup-actions">
+     <button class="lectura-popup-save" id="lpSaveBtn" data-ui-click="popup-save" style="display:none">＋ Guardar en lista</button>
+     <button class="lectura-popup-save" id="lpLinkBtn" data-ui-click="popup-link" style="display:none;flex:none;background:var(--surface2);color:var(--text);border:1px solid var(--border)">↗ Enlace</button>
+-    <button class="lectura-popup-close" data-ui-click="popup-close">✕</button>
++    <button aria-label="Cerrar" class="lectura-popup-close" data-ui-click="popup-close">✕</button>
+   </div>
+ </div>
+ <div id="lecturaPopupOverlay" style="display:none;position:fixed;inset:0;z-index:800" data-ui-click="popup-close"></div>
+@@ -692,7 +694,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Nueva carpeta -->
+ <div class="modal-overlay" id="folderModal" data-ui-overlay="folderModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="folderModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="folderModal">✕</button>
+     <h3 id="folderModalTitle">Nueva carpeta</h3>
+     <div class="form-row">
+       <div class="form-label">Nombre</div>
+@@ -712,7 +714,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Lectura: información -->
+ <div class="modal-overlay" id="lecturaInfoModal" data-ui-overlay="lecturaInfoModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="lecturaInfoModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="lecturaInfoModal">✕</button>
+     <h3>📖 Lector inmersivo</h3>
+     <div style="font-size:13px;color:var(--text2);line-height:1.65">
+       <p style="margin-bottom:10px">Sube un PDF o EPUB en alemán, o abre un enlace web.</p>
+@@ -727,7 +729,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Lectura: menú de carpeta / libro -->
+ <div class="modal-overlay" id="lecMenuModal" data-ui-overlay="lecMenuModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="lecMenuModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="lecMenuModal">✕</button>
+     <h3 id="lecMenuTitle"></h3>
+     <button class="btn-secondary lec-menu-btn" data-ui-click="lec-rename">✏️ Renombrar</button>
+     <button class="btn-secondary lec-menu-btn" data-ui-click="lec-move">📂 Mover a…</button>
+@@ -738,11 +740,11 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Lectura: nombre de carpeta / libro -->
+ <div class="modal-overlay" id="lecNameModal" data-ui-overlay="lecNameModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="lecNameModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="lecNameModal">✕</button>
+     <h3 id="lecNameTitle">Nueva carpeta</h3>
+     <div class="form-row">
+       <div class="form-label">Nombre</div>
+-      <input class="form-input" id="lecNameInput" type="text" placeholder="ej. Novelas" maxlength="60" autocomplete="off" data-ui-enter="lec-name">
++      <input class="form-input" id="lecNameInput" aria-label="Nombre de la carpeta" type="text" placeholder="ej. Novelas" maxlength="60" autocomplete="off" data-ui-enter="lec-name">
+     </div>
+     <div class="form-row" id="lecColorRow">
+       <div class="form-label">Color</div>
+@@ -758,7 +760,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Lectura: mover a carpeta -->
+ <div class="modal-overlay" id="lecMoveModal" data-ui-overlay="lecMoveModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="lecMoveModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="lecMoveModal">✕</button>
+     <h3 id="lecMoveTitle">Mover</h3>
+     <div id="lecMoveList" style="display:flex;flex-direction:column;margin-bottom:10px;max-height:50dvh;overflow-y:auto"></div>
+     <button class="btn-secondary" data-ui-modal-close="lecMoveModal">Cancelar</button>
+@@ -768,7 +770,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Mover palabras -->
+ <div class="modal-overlay" id="moveModal" data-ui-overlay="moveModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="moveModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="moveModal">✕</button>
+     <h3>Mover <span id="moveModalCount"></span></h3>
+     <div id="moveModalFolders" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+     <button class="btn-secondary" data-ui-modal-close="moveModal">Cancelar</button>
+@@ -778,12 +780,12 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Add word -->
+ <div class="modal-overlay" id="addModal" data-ui-overlay="addModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="addModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="addModal">✕</button>
+     <h3>Añadir palabra</h3>
+     <div class="form-row-2">
+       <div class="form-row">
+         <div class="form-label">Tipo</div>
+-        <select class="form-select" id="addTipo">
++        <select class="form-select" id="addTipo" aria-label="Tipo de palabra">
+           <option value="">—</option>
+           <option value="Nomen">Nomen</option>
+           <option value="Verb">Verb</option>
+@@ -794,7 +796,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+       </div>
+       <div class="form-row">
+         <div class="form-label">Artículo</div>
+-        <select class="form-select" id="addArticle">
++        <select class="form-select" id="addArticle" aria-label="Artículo">
+           <option value="">—</option>
+           <option value="der">der</option>
+           <option value="die">die</option>
+@@ -804,11 +806,11 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+     </div>
+     <div class="form-row">
+       <div class="form-label">Alemán</div>
+-      <input class="form-input" id="addDE" type="text" placeholder="ej. Schule">
++      <input class="form-input" id="addDE" aria-label="Palabra en alemán" type="text" placeholder="ej. Schule">
+     </div>
+     <div class="form-row">
+       <div class="form-label">Español</div>
+-      <input class="form-input" id="addES" type="text" placeholder="ej. Escuela">
++      <input class="form-input" id="addES" aria-label="Traducción al español" type="text" placeholder="ej. Escuela">
+     </div>
+     <div class="form-err" id="addError"></div>
+     <button class="btn-primary" data-ui-click="save-word">Guardar palabra</button>
+@@ -819,10 +821,10 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Import -->
+ <div class="modal-overlay" id="importModal" data-ui-overlay="importModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="importModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="importModal">✕</button>
+     <h3>Importar vocabulario</h3>
+     <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">Formato CSV: <b style="color:var(--blue)">Tipo, Artículo, Alemán, Español</b></p>
+-    <div class="import-zone" id="importZone" data-ui-click="import-file-open" data-ui-dropzone>
++    <div class="import-zone" id="importZone" data-ui-click="import-file-open" data-ui-dropzone role="button" tabindex="0" aria-label="Seleccionar archivo para importar">
+       <div class="import-zone-icon">📂</div>
+       <div class="import-zone-text">Toca para elegir tu archivo CSV</div>
+     </div>
+@@ -840,19 +842,19 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Objetivos y recordatorio -->
+ <div class="modal-overlay" id="goalsModal" data-ui-overlay="goalsModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="goalsModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="goalsModal">✕</button>
+     <h3>Objetivos</h3>
+     <div id="goalsModalList"></div>
+     <div class="goal-form">
+-      <select id="goalType" class="form-input">
++      <select id="goalType" aria-label="Tipo de objetivo" class="form-input">
+         <option value="words">📘 Palabras aprendidas</option>
+         <option value="answers">✍️ Respuestas</option>
+         <option value="points">⭐ Puntos</option>
+         <option value="minutes">⏱ Minutos de estudio</option>
+       </select>
+       <div class="goal-form-row">
+-        <input id="goalTarget" class="form-input" type="number" min="1" max="100000" value="10" inputmode="numeric">
+-        <select id="goalPeriod" class="form-input"><option value="day">al día</option><option value="week">por semana</option></select>
++        <input id="goalTarget" aria-label="Cantidad objetivo" class="form-input" type="number" min="1" max="100000" value="10" inputmode="numeric">
++        <select id="goalPeriod" aria-label="Periodo del objetivo" class="form-input"><option value="day">al día</option><option value="week">por semana</option></select>
+       </div>
+       <button type="button" class="btn-primary" data-ui-click="goal-add">Añadir objetivo</button>
+       <div class="goal-note">Puntos: 10 por respuesta correcta + 50 por palabra aprendida.</div>
+@@ -861,15 +863,15 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+     <h3 style="margin-top:22px">Recordatorio diario</h3>
+     <div class="goal-form">
+       <button type="button" id="remOn" class="rem-switch" aria-pressed="false" data-ui-click="goal-flag"><i></i><span>Avisarme cada día</span></button>
+-      <input id="remTime" class="form-input" type="time" value="20:00">
++      <input id="remTime" aria-label="Hora del recordatorio" class="form-input" type="time" value="20:00">
+       <div class="rem-days">
+-        <button type="button" class="rem-day" data-d="0" data-ui-click="goal-flag">L</button>
+-        <button type="button" class="rem-day" data-d="1" data-ui-click="goal-flag">M</button>
+-        <button type="button" class="rem-day" data-d="2" data-ui-click="goal-flag">X</button>
+-        <button type="button" class="rem-day" data-d="3" data-ui-click="goal-flag">J</button>
+-        <button type="button" class="rem-day" data-d="4" data-ui-click="goal-flag">V</button>
+-        <button type="button" class="rem-day" data-d="5" data-ui-click="goal-flag">S</button>
+-        <button type="button" class="rem-day" data-d="6" data-ui-click="goal-flag">D</button>
++        <button aria-label="Recordar el lunes" type="button" class="rem-day" data-d="0" data-ui-click="goal-flag">L</button>
++        <button aria-label="Recordar el martes" type="button" class="rem-day" data-d="1" data-ui-click="goal-flag">M</button>
++        <button aria-label="Recordar el miércoles" type="button" class="rem-day" data-d="2" data-ui-click="goal-flag">X</button>
++        <button aria-label="Recordar el jueves" type="button" class="rem-day" data-d="3" data-ui-click="goal-flag">J</button>
++        <button aria-label="Recordar el viernes" type="button" class="rem-day" data-d="4" data-ui-click="goal-flag">V</button>
++        <button aria-label="Recordar el sábado" type="button" class="rem-day" data-d="5" data-ui-click="goal-flag">S</button>
++        <button aria-label="Recordar el domingo" type="button" class="rem-day" data-d="6" data-ui-click="goal-flag">D</button>
+       </div>
+       <button type="button" id="remPending" class="rem-switch" aria-pressed="true" data-ui-click="goal-flag"><i></i><span>Solo si me falta algún objetivo</span></button>
+       <button type="button" class="btn-primary" data-ui-click="goal-rem-save">Guardar recordatorio</button>
+@@ -882,7 +884,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+ <!-- Install -->
+ <div class="modal-overlay" id="installModal" data-ui-overlay="installModal">
+   <div class="modal-box">
+-    <button class="modal-close-x" data-ui-modal-close="installModal">✕</button>
++    <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="installModal">✕</button>
+     <h3>Añadir a pantalla de inicio</h3>
+     <p style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5">Instala la app para usarla offline en iPhone / iPad:</p>
+     <div class="install-step"><div class="step-num">1</div><div class="step-text">Abre esta página en <b style="color:var(--green)">Safari</b> (no Chrome)</div></div>
+@@ -912,9 +914,9 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
+   </div>
+ </nav>
+ 
+-<div class="toast hide" id="toast"></div>
++<div class="toast hide" id="toast" role="status" aria-live="polite"></div>
+ 
+-<div id="buildBadge" class="build-badge">1.07.70</div>
++<div id="buildBadge" class="build-badge">1.07.71</div>
+ 
+ <script src="app.js"></script>
+ </body>

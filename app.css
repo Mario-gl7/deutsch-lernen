@@ -367,7 +367,7 @@ button{font-family:var(--font)}
    HOME PAGE — Notion-style immersive workspace
 ═══════════════════════════════════════════════ */
 #page-home{
-  background:var(--bg);
+  background:none;
   position:relative;overflow:hidden;
   min-height:100vh;
 }
@@ -2207,7 +2207,7 @@ body.has-nav.lectura-reading .lectura-shell{height:calc(100dvh - 52px - env(safe
 
 /* ═══════════════ Modo claro · más contraste y colores más oscuros ═══════════════ */
 /* Inicio: mismo fondo que el resto de páginas, sin el resplandor verde */
-body.light #page-home .home-orb,body.light #page-home .home-grid-bg{display:none}
+body.light .app-ambient .home-orb,body.light .app-ambient .home-grid-bg{display:none}
 /* Portadas de las tarjetas (colores fijos en el HTML → se reemplazan con tonos más profundos y apagados) */
 body.light .hub-card-cover[style*="74,222,128"],body.light .folder-card-cover[style*="74,222,128"]{background:linear-gradient(135deg,#a3cfb3,#7fb596)!important}
 body.light .hub-card-cover[style*="96,165,250"]{background:linear-gradient(135deg,#a2bcdb,#7e9fc6)!important}
@@ -2429,3 +2429,27 @@ button,a,[role=button],select,summary,label{touch-action:manipulation}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
 @media (pointer:fine){html{overscroll-behavior:none}}
+
+
+/* ═══ 1.07.72 · Misma estética en todas las páginas ═══ */
+/* Fondo ambiental (el de Inicio) común a todas las páginas */
+.app-ambient{position:fixed;inset:0;z-index:-1}
+body:has(#page-login.active) .app-ambient{display:none}
+/* Títulos de página como en Progresión */
+.page-head{width:100%;max-width:760px;margin:0 auto;padding:0 16px}
+.hub-hero .prog-title{margin:8px 0 6px}
+.hub-hero{margin-bottom:24px}
+body.lectura-reading #lecturaTitle{display:none}
+#page-lectura .page-head .prog-title{margin-bottom:4px}
+/* Juegos: títulos en serif */
+.match-header h2{font-family:var(--font-display);font-weight:400;font-size:30px;letter-spacing:-.02em;line-height:1.05}
+/* Ajustes: tarjetas con el mismo tratamiento que el resto */
+#page-perfil .inner-content > div[style*="background:var(--surface)"]{border-color:var(--hair)!important;box-shadow:var(--lift),var(--amb)}
+#page-perfil [style*="text-transform:uppercase"]{letter-spacing:.12em!important;font-weight:500!important}
+/* Lectura: botones de la biblioteca */
+.lectura-upload-btn,.lectura-url-btn{border-radius:var(--r);border-color:var(--hair);transition:transform .3s var(--ease),border-color .25s var(--ease),background-color .25s var(--ease)}
+.lectura-upload-btn:active,.lectura-url-btn:active{transform:scale(.97)}
+/* Lectura: la biblioteca deja ver el fondo común; el lector conserva su fondo sólido */
+body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none}
+/* Vocabulario y juegos: también muestran el fondo común */
+#page-vocab-hub,#page-lista,#page-parejas,#page-crucigrama,#page-velocidad{background:none}

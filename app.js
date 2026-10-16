@@ -2245,7 +2245,7 @@ function renderSpeedSetup() {
   c.innerHTML = `
     <div style="text-align:center;padding:32px 0 20px;animation:fadeUp .3s ease both">
       <div style="font-size:52px;margin-bottom:10px">⚡</div>
-      <div style="font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px;margin-bottom:6px">Modo Velocidad</div>
+      <div style="font-family:var(--font-display);font-size:34px;font-weight:400;color:var(--text);letter-spacing:-.02em;line-height:1.05;margin-bottom:6px">Modo Velocidad</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:260px;margin:0 auto 28px">
         Une el máximo de parejas antes de que acabe el tiempo.<br>
         <span style="color:var(--orange);font-weight:600">${SPEED_BONUS_EVERY} seguidas</span> = <span style="color:var(--green);font-weight:600">+${SPEED_BONUS_SECS}s ⏱</span>

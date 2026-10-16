@@ -199,7 +199,25 @@ const TRANSLATIONS = {
 };
 
 // Iconos propios: <symbol id="i-…"> definidos en index.html (trazo fino + color de acento del tema)
-function ICO(name, inline) { return '<svg class="ico' + (inline ? ' ico-i' : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
+function ICO(name, inline, cls) { return '<svg class="ico' + (inline ? ' ico-i' : '') + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
+// Emoji de texto -> icono propio (mensajes, toasts y traducciones). [nombre, clase de color opcional]
+const _EMO_ICON = {
+  '✓':['check'], '⚠':['alerta'], '❌':['cruz','ico-red'], '✕':['cruz'], '🗑':['papelera'], '✅':['check-circulo','ico-green'],
+  '🔴':['nivel3','dif-hard'], '🟢':['nivel1','dif-easy'], '📊':['nivel2','dif-mid'], '🆕':['nuevo'],
+  '🧠':['cerebro'], '🎒':['mochila'], '🔀':['mezclar'], '⬆':['subir'], '🏆':['trofeo'], '🔥':['llama'], '🌟':['estrella'], '⭐':['estrella'],
+  '⏱':['reloj'], '📘':['lectura'], '✍':['gramatica'], '😅':['cara'], '🏁':['meta'], '🎉':['confeti'], '☑':['seleccion'], '⚙':['ajustes'],
+  '📅':['calendario'], '☁':['nube'], '🌐':['web'], '📗':['lectura'], '📕':['documento'], '☀':['sol'], '🌙':['luna'], '🌓':['contraste'],
+  '📲':['movil'], '🚪':['salir'], '👤':['usuario'], '🔄':['actualizar'], '🔔':['campana'], '⚡':['velocidad'], '📋':['lista'], '📂':['abierta'],
+  '📁':['carpeta'], '✏':['editar'], '🔗':['enlace'], '📚':['vocab']
+};
+const _EMO_KEYS = Object.keys(_EMO_ICON).join('|');
+const _EMO_TEST = new RegExp(_EMO_KEYS);
+const _EMO_RE = new RegExp('(\\s?)(' + _EMO_KEYS + ')\\uFE0F?\\s?', 'g');
+function icoText(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(_EMO_RE, (m, sp, e) => sp + ICO(_EMO_ICON[e][0], true, _EMO_ICON[e][1]));
+}
+function setI18n(el, str) { if (!el) return; str = String(str); if (_EMO_TEST.test(str)) el.innerHTML = icoText(str); else el.textContent = str; }
 let currentLang = localStorage.getItem('lang') || 'es';
 function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['es'][key] || key; }
 
@@ -218,7 +236,7 @@ function applyTranslations() {
   // data-i18n static elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
-    if (TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
+    if (TRANSLATIONS[lang][key]) setI18n(el, TRANSLATIONS[lang][key]);
   });
   // Login page
   const loginCard = document.querySelector('#page-login .login-card h2');
@@ -273,13 +291,13 @@ function applyTranslations() {
   const bagBtn = document.getElementById('cwSrcBtn-bag');
   if (bagBtn) {
     const badge = bagBtn.querySelector('.bag-badge');
-    bagBtn.textContent = t('cwBag') + ' ';
+    bagBtn.innerHTML = icoText(t('cwBag')) + ' ';
     if (badge) bagBtn.appendChild(badge);
   }
   // install modal
   setText2('#installModal h3', t('installTitle'));
   const installSteps = document.querySelectorAll('.step-text');
-  [t('installStep1'),t('installStep2'),t('installStep3'),t('installStep4')].forEach((s,i) => { if(installSteps[i]) installSteps[i].textContent = s; });
+  [t('installStep1'),t('installStep2'),t('installStep3'),t('installStep4')].forEach((s,i) => { if(installSteps[i]) setI18n(installSteps[i], s); });
   // Words badge in vocab card
   const wordsBadge = document.querySelector('#page-home .ws-card:not(.coming) .ws-card-body span:first-child');
   const hardBadge  = document.querySelector('#page-home .ws-card:not(.coming) .ws-card-body span:last-child');
@@ -294,8 +312,8 @@ function applyTranslations() {
   if (currentPage === 'crucigrama') buildCrossword();
 }
 
-function setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
-function setText2(sel, val) { const el=document.querySelector(sel); if(el) el.textContent=val; }
+function setText(id, val) { const el=document.getElementById(id); if(el) setI18n(el, val); }
+function setText2(sel, val) { const el=document.querySelector(sel); if(el) setI18n(el, val); }
 function setPlaceholder(id, val) { const el=document.getElementById(id); if(el) el.placeholder=val; }
 function setFieldLabel(idx, val) { const els=document.querySelectorAll('#page-login .field-label'); if(els[idx]) els[idx].textContent=val; }
 
@@ -392,7 +410,7 @@ function applyTheme(isDark) {
   const chk = document.getElementById('themeToggleCheck');
   if (chk) chk.checked = isDark;
   const loginBtn = document.getElementById('loginThemeBtn');
-  if (loginBtn) loginBtn.textContent = isDark ? '☀️' : '🌙';
+  if (loginBtn) loginBtn.innerHTML = ICO(isDark ? 'sol' : 'luna');
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
   applyPalette(); _renderPalPicker();
 }
@@ -1030,13 +1048,13 @@ function setSyncState(state, msg) {
   } else if (state === 'ok') {
     el.classList.add('ok');
     if (spin) spin.style.display = 'none';
-    if (tick) { tick.style.display = ''; tick.textContent = '✓'; }
-    if (txt) txt.textContent = msg || 'Sincronizado ✓';
+    if (tick) { tick.style.display = ''; tick.innerHTML = ICO('check'); }
+    if (txt) setI18n(txt, msg || 'Sincronizado ✓');
     setTimeout(() => setSyncState('hidden'), 2200);
   } else if (state === 'error') {
     el.classList.add('error');
     if (spin) spin.style.display = 'none';
-    if (tick) { tick.style.display = ''; tick.textContent = '⚠'; }
+    if (tick) { tick.style.display = ''; tick.innerHTML = ICO('alerta'); }
     if (txt) txt.textContent = msg || 'Sin conexión · modo local';
     setTimeout(() => setSyncState('hidden'), 4000);
   }
@@ -1565,7 +1583,7 @@ function _renderGoalsCard() {
   if (!goals.length) { box.innerHTML = '<div class="prog-hint">Todavía no tienes objetivos. Pulsa «Gestionar» para crear el primero.</div>'; return; }
   box.innerHTML = goals.map(g => {
     const v = _goalValue(g), T = _GOAL_TYPES[g.type], done = v >= g.target, pct = Math.min(100, Math.round(v / g.target * 100));
-    return `<div class="goal-row ${done ? 'done' : ''}"><div class="goal-top"><span>${T.ico} ${T.lbl} · ${g.period === 'week' ? 'esta semana' : 'hoy'}</span><b>${done ? '✓ ' : ''}${Math.floor(v)} / ${g.target}${g.type === 'minutes' ? ' min' : ''}</b></div><div class="goal-bar"><i style="width:${pct}%"></i></div></div>`;
+    return `<div class="goal-row ${done ? 'done' : ''}"><div class="goal-top"><span>${icoText(T.ico)}${T.lbl} · ${g.period === 'week' ? 'esta semana' : 'hoy'}</span><b>${done ? ICO('check', true) : ''}${Math.floor(v)} / ${g.target}${g.type === 'minutes' ? ' min' : ''}</b></div><div class="goal-bar"><i style="width:${pct}%"></i></div></div>`;
   }).join('');
 }
 
@@ -1576,7 +1594,7 @@ function _goalsModalList() {
   const { goals } = _goalsGet();
   box.innerHTML = goals.length ? goals.map(g => {
     const T = _GOAL_TYPES[g.type];
-    return `<div class="goal-item"><span>${T.ico} ${g.target} ${T.unit} · ${g.period === 'week' ? 'por semana' : 'al día'}</span><button type="button" class="goal-del" data-ui-click="goal-del" data-id="${_esc(g.id)}" aria-label="Eliminar objetivo">✕</button></div>`;
+    return `<div class="goal-item"><span>${icoText(T.ico)}${g.target} ${T.unit} · ${g.period === 'week' ? 'por semana' : 'al día'}</span><button type="button" class="goal-del" data-ui-click="goal-del" data-id="${_esc(g.id)}" aria-label="Eliminar objetivo">✕</button></div>`;
   }).join('') : '<div class="prog-hint">Sin objetivos todavía.</div>';
 }
 function goalsOpen() {
@@ -1756,7 +1774,7 @@ function _buildFilterPanelChips() {
   if (diffEl) diffEl.innerHTML = DIFF_FILTER_KEYS.map((k,i) => {
     const isActive = k === vocabDiffFilter;
     const cls = isActive ? (diffActiveClass[k] || 'active') : '';
-    return `<button class="fdp-chip ${cls}" data-ui-click="list-filter-diff" data-value="${k}">${DIFF_FILTERS[i]}</button>`;
+    return `<button class="fdp-chip ${cls}" data-ui-click="list-filter-diff" data-value="${k}">${icoText(DIFF_FILTERS[i])}</button>`;
   }).join('');
 }
 
@@ -1827,7 +1845,7 @@ function renderLista() {
       <th class="col-art">Art.</th>
       <th class="col-de">Alemán</th>
       <th class="col-es">Español</th>
-      <th class="col-act" style="text-align:center">⚙</th>
+      <th class="col-act" style="text-align:center">${ICO('ajustes')}</th>
     </tr>
   </thead>`;
 
@@ -1854,8 +1872,8 @@ function renderLista() {
         <td class="td-de"><input class="cell-input" id="edit-de" value="${_esc(w.de)}"></td>
         <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
         <td class="td-actions">
-          <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}" title="Guardar">✓</button>
-          <button class="row-btn cancel-btn" data-ui-click="row-cancel" title="Cancelar">✕</button>
+          <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}" title="Guardar">${ICO('check')}</button>
+          <button class="row-btn cancel-btn" data-ui-click="row-cancel" title="Cancelar">${ICO('cruz')}</button>
         </td>
       </tr>`;
     }
@@ -1964,7 +1982,7 @@ function processImportFile(file) {
     importParsed = parsed;
     const prev = document.getElementById('importPreview');
     prev.style.display = 'block';
-    prev.innerHTML = `✓ <b>${parsed.length} palabras</b> encontradas · Ej: ${_esc(displayDE(parsed[0]))} → ${_esc(parsed[0].es)}`;
+    prev.innerHTML = `${ICO('check', true)}<b>${parsed.length} palabras</b> encontradas · Ej: ${_esc(displayDE(parsed[0]))} → ${_esc(parsed[0].es)}`;
     document.getElementById('importConfirmBtn').disabled = false;
     document.getElementById('importConfirmBtn').style.opacity = '1';
   };
@@ -2045,7 +2063,7 @@ function renderMatchCfgDrawer() {
     </div>
     <div class="cfg-section">
       <div class="cfg-section-title">Modo de selección</div>
-      <div class="cfg-chips">${modeOptions.map(([v,l])=>`<button class="cfg-chip ${matchMode===v?'active':''}" data-ui-click="match-mode" data-value="${v}">${l}</button>`).join('')}</div>
+      <div class="cfg-chips">${modeOptions.map(([v,l])=>`<button class="cfg-chip ${matchMode===v?'active':''}" data-ui-click="match-mode" data-value="${v}">${icoText(l)}</button>`).join('')}</div>
     </div>
     <div class="cfg-section">
       <div class="cfg-section-title">Filtro por tipo</div>
@@ -2154,14 +2172,14 @@ function renderMatch() {
       const good = res.filter(r => !r.wrong);
       const row = (r, ok) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:5px">
           <div style="min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">${_esc(displayDE(r.w))}</div><div style="font-size:12px;color:var(--text2)">${_esc(r.w.es)}</div></div>
-          <span style="flex:none;font-size:12px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${ok?'✅':'❌ ×'+r.wrong}</span>
+          <span style="flex:none;font-size:12px;font-weight:600;color:${ok?'var(--green)':'var(--red)'}">${ok?ICO('check-circulo',false,'ico-green'):ICO('cruz',true,'ico-red')+'×'+r.wrong}</span>
         </div>`;
       const group = (title, list, ok) => list.length ? `<div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:${ok?'var(--green)':'var(--red)'};margin:14px 0 8px">${title} (${list.length})</div>${list.map(r => row(r, ok)).join('')}` : '';
-      c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy">🏆</div>
+      c.innerHTML=`${renderRoundsBar()}<div class="complete-msg"><div class="trophy">${ICO('trofeo')}</div>
         <h2>¡Sesión completa!</h2>
         <p style="color:var(--text2);margin-bottom:4px">${roundSession.total} ronda${roundSession.total>1?'s':''} terminadas</p>
-        <p style="color:var(--text2);margin-bottom:16px">${errTxt(roundSession.errors||0)}</p>
-        <div style="text-align:left;margin-bottom:16px">${group('❌ Falladas', failed, false)}${group('✅ Acertadas', good, true)}</div>
+        <p style="color:var(--text2);margin-bottom:16px">${icoText(errTxt(roundSession.errors||0))}</p>
+        <div style="text-align:left;margin-bottom:16px">${group(ICO('cruz', true, 'ico-red') + 'Falladas', failed, false)}${group(ICO('check-circulo', true, 'ico-green') + 'Acertadas', good, true)}</div>
         <button class="btn-primary" data-ui-click="match-round-start">${t('matchNewRound')}</button></div>`;
     } else {
       // Ronda intermedia: pasa sola a la siguiente, sin pantalla de resultados
@@ -2176,7 +2194,7 @@ function renderMatch() {
   let rows='';
   for (let i=0;i<currentBatch.length;i++) {
     const d=dew[i], e=esw[i], pe=p[d.de]||{};
-    const dot=pe.difficulty===1?'<span style="position:absolute;top:3px;right:4px;font-size:8px">🔴</span>':pe.difficulty===2?'<span style="position:absolute;top:3px;right:4px;font-size:8px">🟢</span>':'';
+    const dot=pe.difficulty===1?'<span style="position:absolute;top:3px;right:4px;font-size:11px;line-height:0">'+ICO('nivel3',false,'dif-hard')+'</span>':pe.difficulty===2?'<span style="position:absolute;top:3px;right:4px;font-size:11px;line-height:0">'+ICO('nivel1',false,'dif-easy')+'</span>':'';
     rows+=`<div class="word-card ${s.matched.has(d.idx)?'matched':''}" id="de-${d.idx}" data-ui-click="match-card" data-language="de" data-index="${d.idx}" style="position:relative">${dot}${displayDE(d)}</div>
            <div class="word-card ${s.matched.has(e.idx)?'matched':''}" id="es-${e.idx}" data-ui-click="match-card" data-language="es" data-index="${e.idx}">${e.es}</div>`;
   }
@@ -2236,7 +2254,7 @@ function renderSpeedSetup() {
   const pool = _scopeWords();
   if (pool.length < 4) {
     c.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text2)">
-      <div style="font-size:40px;margin-bottom:12px">😅</div>
+      <div style="font-size:40px;margin-bottom:12px;line-height:0;color:var(--text2)">${ICO('cara')}</div>
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Pocas palabras</div>
       <div style="font-size:13px;margin-bottom:18px">Necesitas al menos 4 palabras. Cambia la carpeta o la fecha.</div>
       <div style="max-width:300px;margin:0 auto">${_scopePickerHtml('speed')}</div>
@@ -2250,7 +2268,7 @@ function renderSpeedSetup() {
       <div style="font-family:var(--font-display);font-size:34px;font-weight:400;color:var(--text);letter-spacing:-.02em;line-height:1.05;margin-bottom:6px">Modo Velocidad</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:260px;margin:0 auto 28px">
         Une el máximo de parejas antes de que acabe el tiempo.<br>
-        <span style="color:var(--orange);font-weight:600">${SPEED_BONUS_EVERY} seguidas</span> = <span style="color:var(--green);font-weight:600">+${SPEED_BONUS_SECS}s ⏱</span>
+        <span style="color:var(--orange);font-weight:600">${SPEED_BONUS_EVERY} seguidas</span> = <span style="color:var(--green);font-weight:600">+${SPEED_BONUS_SECS}s ${ICO('reloj', true)}</span>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;margin:0 auto">
@@ -2431,7 +2449,7 @@ function _renderSpeedGame() {
     <div id="speedTimerDisplay" class="speed-timer-display">
       <div id="speedTimeNum" class="speed-time-num">${Math.ceil(s.timeLeft)}</div>
       <div class="speed-streak ${s.streak >= 2 ? 'hot' : ''}" id="speedStreak">
-        🔥 ${s.streak} seguidas
+        ${ICO('llama', true)}${s.streak} seguidas
       </div>
       <div class="speed-score-big" id="speedScore">${s.score}</div>
     </div>
@@ -2559,7 +2577,7 @@ function _updateSpeedHUD() {
   const streak = document.getElementById('speedStreak');
   if (score) score.textContent = s.score;
   if (streak) {
-    streak.textContent = `🔥 ${s.streak} seguidas`;
+    streak.innerHTML = ICO('llama', true) + s.streak + ' seguidas';
     streak.className = `speed-streak ${s.streak >= 2 ? 'hot' : ''}`;
   }
 }
@@ -2589,7 +2607,7 @@ function _spawnChip(parentEl, text, type) {
 function _spawnBonus(text) {
   const el = document.createElement('div');
   el.className = 'bonus-pop';
-  el.textContent = text;
+  setI18n(el, text);
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 750);
 }
@@ -2616,11 +2634,11 @@ function _renderSpeedGameOver() {
   if (isNew) localStorage.setItem(bestKey, s.score);
 
   c.innerHTML = `<div class="speed-gameover">
-    <div style="font-size:44px;margin-bottom:8px">🏁</div>
+    <div style="font-size:44px;margin-bottom:8px;line-height:0;color:var(--text)">${ICO('meta')}</div>
     <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px">Puntuación final</div>
     <div class="speed-gameover-score">${s.score}</div>
     <div class="speed-gameover-label">pares completados</div>
-    ${isNew ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.35);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--orange);margin-bottom:16px">🏆 ¡Nuevo récord!</div>` : `<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Récord: ${prev}</div>`}
+    ${isNew ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.35);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--orange);margin-bottom:16px">${ICO('trofeo', true)}¡Nuevo récord!</div>` : `<div style="font-size:12px;color:var(--text3);margin-bottom:16px">Récord: ${prev}</div>`}
     <div class="speed-stat-row">
       <div class="speed-stat"><div class="speed-stat-num">${s.pairs}</div><div class="speed-stat-lbl">Aciertos</div></div>
       <div class="speed-stat"><div class="speed-stat-num" style="color:var(--red)">${s.errors}</div><div class="speed-stat-lbl">Errores</div></div>
@@ -2658,7 +2676,7 @@ function buildCrossword() {
   let pool;
   if (cwSource==='bag') {
     const bag=getBag();
-    if (bag.length===0) { document.getElementById('crossContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px">🎒</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">${t('cwBagEmpty')}</div><div style="font-size:13px;color:var(--text2);line-height:1.5">${t('cwBagEmptySub').replace('\n',"<br>")}</div></div>`; return; }
+    if (bag.length===0) { document.getElementById('crossContent').innerHTML=`<div style="text-align:center;padding:40px;color:var(--text2)"><div style="font-size:32px;margin-bottom:12px;line-height:0;color:var(--text2)">${ICO('mochila')}</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">${t('cwBagEmpty')}</div><div style="font-size:13px;color:var(--text2);line-height:1.5">${t('cwBagEmptySub').replace('\n',"<br>")}</div></div>`; return; }
     pool=allWords.filter(w=>bag.includes(w.de));
   } else {
     const p=getProgress(), now=Date.now();
@@ -2852,7 +2870,7 @@ function renderCrossword() {
     <button class="btn-primary" data-ui-click="crossword-check">${t('cwCheck')}</button>
     <button class="btn-secondary" data-ui-click="crossword-reveal">${t('cwReveal')}</button>
     <button class="btn-blue" data-ui-click="crossword-new">${t('cwNew')}</button>
-    ${cwSource === 'bag' ? `<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" data-ui-click="crossword-clear-bag">🗑 Vaciar bolsa</button>` : ''}
+    ${cwSource === 'bag' ? `<button class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35);margin-top:8px" data-ui-click="crossword-clear-bag">${ICO('papelera', true)}Vaciar bolsa</button>` : ''}
     <div class="clues-section">
       <div class="clues-title">${t('cwHintTitle')} · toca para revelar</div>
       ${cluesHTML}
@@ -2989,7 +3007,7 @@ function checkCrossword() {
   const pct = Math.round(correct / total * 100);
   const btn = document.querySelector('#crossContent .btn-primary');
   const orig = btn.textContent;
-  btn.textContent = `${correct}/${total} (${pct}%)${pct === 100 ? ' 🎉' : ''}`;
+  btn.innerHTML = `${correct}/${total} (${pct}%)` + (pct === 100 ? ' ' + ICO('confeti', true) : '');
   setTimeout(() => btn.textContent = orig, 2800);
 }
 
@@ -3012,7 +3030,7 @@ function showInstallModal() { closeDropdown(); openModal('installModal'); }
 let toastTimer;
 function showToast(msg) {
   const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.remove('hide');
+  setI18n(t, msg); t.classList.remove('hide');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.add('hide'),2500);
 }
@@ -3197,7 +3215,7 @@ function saveNombre() {
   document.getElementById('userAvatar').textContent = displayName[0]?.toUpperCase() || '?';
   document.getElementById('perfilAvatar').textContent = displayName[0]?.toUpperCase() || '?';
   const msg = document.getElementById('perfilNombreMsg');
-  if (msg) { msg.textContent = '✓ Nombre guardado'; setTimeout(() => msg.textContent = '', 2000); }
+  if (msg) { setI18n(msg, '✓ Nombre guardado'); setTimeout(() => msg.textContent = '', 2000); }
   showToast('✓ ¡Hola, ' + displayName + '!');
   updateAppNav();
 }
@@ -3761,7 +3779,7 @@ async function _openWordPopup(word, rect, href) {
   const alreadySaved = getWords().some(w => w.de.toLowerCase() === word.toLowerCase());
   lpSave.style.display = '';
   if (alreadySaved) {
-    lpSave.textContent = '✓ Ya está en tu lista';
+    setI18n(lpSave, '✓ Ya está en tu lista');
     lpSave.disabled = true;
   } else {
     lpSave.textContent = '＋ Guardar en lista';
@@ -3789,7 +3807,7 @@ function savePopupWord() {
   _highlightSavedWords();
   showToast('✓ Guardada: ' + word);
   const btn = document.getElementById('lpSaveBtn');
-  if (btn) { btn.textContent = '✓ Guardada'; btn.disabled = true; }
+  if (btn) { setI18n(btn, '✓ Guardada'); btn.disabled = true; }
 }
 
 // ── Translation API (DeepL via proxy /api/translate) ────────────
@@ -4565,7 +4583,7 @@ function _lecDraw() {
   const bookCards = items.map(b => {
     const total = b.pages?.length || b.totalPages || 1;
     const pct = Math.round(((b.pageIdx || 0) / total) * 100);
-    const icon = b.noCache ? '☁️' : (b.ext === 'web' ? '🌐' : b.ext === 'epub' ? '📗' : '📕');
+    const icon = b.noCache ? ICO('nube') : (b.ext === 'web' ? ICO('web') : b.ext === 'epub' ? ICO('lectura') : ICO('documento'));
     return '<div class="lectura-lib-card" data-ui-click="book-open" data-book-id="' + _esc(b.id) + '">' +
       '<div class="lectura-lib-card-icon">' + icon + '</div>' +
       '<div class="lectura-lib-card-info">' +
@@ -4840,7 +4858,7 @@ function _renderFolderView() {
   if (topBar) topBar.innerHTML = `
     <div class="lista-top-bar-inner">
       <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="add-open">＋ Añadir</button>
-      <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="import-open">⬆ Importar</button>
+      <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="import-open">${ICO('subir', true)}Importar</button>
     </div>`;
 
   // Count label
@@ -4957,7 +4975,7 @@ function _renderFolderContent(folderId) {
       </button>
       <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(folderName)}</span>
       <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="add-open">＋</button>
-      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="selection-toggle">☑</button>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="selection-toggle">${ICO('seleccion')}</button>
       <div class="filter-dropdown-wrap" id="listaFilterWrap">
         <button class="filter-dropdown-btn" id="listaFilterBtn" data-ui-click="list-filter-toggle">
           <span id="listaFilterBtnLabel">Filtros</span>
@@ -5005,7 +5023,7 @@ function _renderFolderContent(folderId) {
       <th class="col-art"><span class="th-ico">◉</span>Art.</th>
       <th class="col-de"><span class="th-ico">Aa</span>Alemán</th>
       <th class="col-es"><span class="th-ico">Aa</span>Español</th>
-      <th class="col-fecha"><span class="th-ico">📅</span>Fecha</th>
+      <th class="col-fecha"><span class="th-ico">${ICO('calendario')}</span>Fecha</th>
       <th class="col-act" style="text-align:center"></th>
     </tr>
   </thead>`;
@@ -5038,8 +5056,8 @@ function _renderFolderContent(folderId) {
         <td class="td-es"><input class="cell-input" id="edit-es" value="${_esc(w.es)}"></td>
         <td class="td-fecha">${_fmtAdded(w.added)}</td>
         <td class="td-actions">
-          <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}">✓</button>
-          <button class="row-btn cancel-btn" data-ui-click="row-cancel">✕</button>
+          <button class="row-btn save-btn" data-ui-click="row-save" data-index="${gIdx}">${ICO('check')}</button>
+          <button class="row-btn cancel-btn" data-ui-click="row-cancel">${ICO('cruz')}</button>
         </td>
       </tr>`;
     }
@@ -5145,7 +5163,7 @@ function _renderSelBar() {
     <span class="sel-count">${n} seleccionada${n!==1?'s':''}</span>
     <button class="sel-action-btn primary" data-ui-click="selection-move" ${n===0?'disabled':''}>${ICO('carpeta', true)}Mover</button>
     <button class="sel-action-btn danger" data-ui-click="selection-delete" ${n===0?'disabled':''}>${ICO('papelera', true)}Eliminar</button>
-    <button class="sel-action-btn" data-ui-click="selection-toggle">✕ Cancelar</button>`;
+    <button class="sel-action-btn" data-ui-click="selection-toggle">${ICO('cruz', true)}Cancelar</button>`;
 }
 
 // ── Modal mover palabras ─────────────────────────────────────────
@@ -5392,7 +5410,7 @@ function openCellEdit(gIdx, field, td) {
     const rows = ['', ...cfg.opts].map(o => `
       <button type="button" class="cell-opt${o === cur ? ' sel' : ''}" data-ui-click="cell-option" data-index="${gIdx}" data-field="${field}" data-value="${_esc(o)}">
         ${o ? _cellTag(field, o) : '<span class="cell-opt-none">Sin valor</span>'}
-        ${o === cur ? '<span class="cell-opt-check">✓</span>' : ''}
+        ${o === cur ? '<span class="cell-opt-check">' + ICO('check') + '</span>' : ''}
       </button>`).join('');
     _cellPopShow(head + `<div class="cell-opt-list">${rows}</div>`, td);
     return;

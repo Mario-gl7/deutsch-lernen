@@ -2468,3 +2468,24 @@ body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none
 .hub-card-cover-emoji .ico{width:1.95em;height:1.95em}
 .folder-card-icon .ico{width:1.55em;height:1.55em}
 .import-zone-icon .ico{width:1.6em;height:1.6em}
+
+/* ═══ 1.07.74 · Resto de iconos (estado, feedback, objetivos, juegos) ═══ */
+.ico-red{color:var(--red)} .ico-green{color:var(--green)} .ico-orange{color:var(--orange)} .ico-blue{color:var(--blue)}
+.dif-hard{--ico-c:var(--red)} .dif-easy{--ico-c:var(--green)} .dif-mid{--ico-c:var(--blue)}
+.toast .ico{width:1.05em;height:1.05em;vertical-align:-.17em}
+.sync-tick .ico{width:12px;height:12px;stroke-width:2.2}
+.modal-close-x .ico,.lectura-popup-close .ico,.rem-x .ico{width:14px;height:14px}
+.install-btn-top .ico{width:18px;height:18px}
+.login-theme-btn .ico,.lang-pill .ico{width:1.15em;height:1.15em}
+.trophy{color:var(--text);line-height:0}
+.trophy .ico{width:1em;height:1em;stroke-width:2}
+.speed-streak .ico{width:1em;height:1em}
+.speed-streak.hot .ico{color:var(--orange)}
+.lectura-lib-card-icon{color:var(--text);display:inline-flex}
+.lectura-lib-card-icon .ico{width:1.2em;height:1.2em}
+.row-btn .ico,.fdp-chip .ico,.cfg-chip .ico,.filter-chip .ico,.sel-action-btn .ico,.list-action-btn .ico{width:1em;height:1em}
+.th-ico{display:inline-flex;vertical-align:middle}
+.th-ico .ico{width:1em;height:1em}
+.bonus-pop .ico{width:1em;height:1em}
+.goal-top .ico,.goal-item .ico{width:1.05em;height:1.05em;margin-right:.4em}
+.cell-opt-check .ico{width:1em;height:1em}

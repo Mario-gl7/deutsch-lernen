@@ -198,6 +198,8 @@ const TRANSLATIONS = {
   }
 };
 
+// Iconos propios: <symbol id="i-…"> definidos en index.html (trazo fino + color de acento del tema)
+function ICO(name, inline) { return '<svg class="ico' + (inline ? ' ico-i' : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
 let currentLang = localStorage.getItem('lang') || 'es';
 function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['es'][key] || key; }
 
@@ -1423,8 +1425,8 @@ function _scopePickerHtml(ctx) {
   const fOpts = [['all', 'Todas las carpetas'], ['__none__', 'Sin carpeta'], ...fl.map(f => [f.id, f.name])];
   const fSel = fOpts.map(([v, l]) => `<option value="${_esc(v)}" ${v === sc.folder ? 'selected' : ''}>${_esc(l)}</option>`).join('');
   return `<div class="game-scope">
-    <label class="gs-row"><span>📁 Carpeta</span><select class="form-input" data-ui-change="game-scope" data-kind="folder" data-ctx="${ctx}">${fSel}</select></label>
-    <label class="gs-row"><span>📅 Fecha</span><select class="form-input" data-ui-change="game-scope" data-kind="date" data-ctx="${ctx}">${_dateOptions(_scopeFolderWords(), sc.date)}</select></label>
+    <label class="gs-row"><span>${ICO('carpeta', true)}Carpeta</span><select class="form-input" data-ui-change="game-scope" data-kind="folder" data-ctx="${ctx}">${fSel}</select></label>
+    <label class="gs-row"><span>${ICO('calendario', true)}Fecha</span><select class="form-input" data-ui-change="game-scope" data-kind="date" data-ctx="${ctx}">${_dateOptions(_scopeFolderWords(), sc.date)}</select></label>
     <div class="gs-count">${_scopeWords().length} palabras disponibles</div>
   </div>`;
 }
@@ -1864,8 +1866,8 @@ function renderLista() {
       <td class="td-de">${diffDot}<span>${_esc(w.de)}</span>${progMini}</td>
       <td class="td-es">${_esc(w.es)}</td>
       <td class="td-actions" data-ui-stop>
-        <button class="row-btn" data-ui-click="row-edit" data-index="${gIdx}" title="Editar">✏️</button>
-        <button class="row-btn delete-btn" data-ui-click="row-delete" data-index="${gIdx}" title="Eliminar">🗑</button>
+        <button class="row-btn" data-ui-click="row-edit" data-index="${gIdx}" title="Editar">${ICO('editar')}</button>
+        <button class="row-btn delete-btn" data-ui-click="row-delete" data-index="${gIdx}" title="Eliminar">${ICO('papelera')}</button>
       </td>
     </tr>`;
   }).join('');
@@ -2244,7 +2246,7 @@ function renderSpeedSetup() {
 
   c.innerHTML = `
     <div style="text-align:center;padding:32px 0 20px;animation:fadeUp .3s ease both">
-      <div style="font-size:52px;margin-bottom:10px">⚡</div>
+      <div style="font-size:52px;margin-bottom:10px;line-height:0;color:var(--text)">${ICO('velocidad')}</div>
       <div style="font-family:var(--font-display);font-size:34px;font-weight:400;color:var(--text);letter-spacing:-.02em;line-height:1.05;margin-bottom:6px">Modo Velocidad</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:260px;margin:0 auto 28px">
         Une el máximo de parejas antes de que acabe el tiempo.<br>
@@ -4551,9 +4553,9 @@ function _lecDraw() {
     const meta = (c.folders ? c.folders + (c.folders === 1 ? ' carpeta · ' : ' carpetas · ') : '') + c.books + (c.books === 1 ? ' elemento' : ' elementos');
     return '<div class="folder-card" data-ui-click="lec-open-folder" data-folder-id="' + _esc(f.id) + '">' +
       '<div class="folder-card-cover" style="background:' + _folderCoverBg(col) + '">' +
-        '<span class="folder-card-icon">🗂️</span>' +
-        '<button class="folder-edit-btn" data-ui-click="lec-folder-edit" data-id="' + _esc(f.id) + '" title="Editar carpeta">✏️</button>' +
-        '<button class="folder-menu-btn" data-ui-click="lec-folder-delete" data-id="' + _esc(f.id) + '" title="Eliminar carpeta">🗑</button>' +
+        '<span class="folder-card-icon">' + ICO('carpeta') + '</span>' +
+        '<button class="folder-edit-btn" data-ui-click="lec-folder-edit" data-id="' + _esc(f.id) + '" title="Editar carpeta">' + ICO('editar') + '</button>' +
+        '<button class="folder-menu-btn" data-ui-click="lec-folder-delete" data-id="' + _esc(f.id) + '" title="Eliminar carpeta">' + ICO('papelera') + '</button>' +
       '</div>' +
       '<div class="folder-card-body"><div class="folder-card-name">' + _esc(f.name) + '</div><div class="folder-card-count">' + meta + '</div></div>' +
     '</div>';
@@ -4573,7 +4575,7 @@ function _lecDraw() {
       '</div>' +
       '<div class="lec-actions">' +
         '<button class="lec-more" data-ui-click="lec-menu" data-kind="book" data-id="' + _esc(b.id) + '" title="Más opciones" aria-label="Más opciones">⋯</button>' +
-        '<button class="lectura-lib-del" data-ui-click="book-delete" data-book-id="' + _esc(b.id) + '" title="Eliminar">🗑</button>' +
+        '<button class="lectura-lib-del" data-ui-click="book-delete" data-book-id="' + _esc(b.id) + '" title="Eliminar">' + ICO('papelera') + '</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -4663,7 +4665,7 @@ function _lecOpenMove() {
   const name = sel.kind === 'folder' ? d.folders.find(f => f.id === sel.id)?.name : _lecBooksCache.find(b => b.id === sel.id)?.title;
   document.getElementById('lecMoveTitle').textContent = 'Mover «' + (name || '') + '»';
   const row = (id, label, depth) => '<button class="btn-secondary lec-move-row" data-ui-click="lec-move-to" data-folder-id="' + _esc(id || '') + '" style="padding-left:' + (14 + depth * 18) + 'px"' + (id === here ? ' disabled' : '') + '>' +
-    (id ? '📁 ' : '🏠 ') + _esc(label) + (id === here ? ' · aquí' : '') + '</button>';
+    (id ? ICO('carpeta', true) : ICO('todas', true)) + _esc(label) + (id === here ? ' · aquí' : '') + '</button>';
   let html = row(null, 'Biblioteca', 0);
   const walk = (parent, depth) => {
     if (depth > 30) return;
@@ -4856,7 +4858,7 @@ function _renderFolderView() {
   // Carpeta "Todas mis palabras"
   html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="__all__">
     <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(var(--accent-rgb),.18),rgba(var(--blue-rgb),.12))">
-      <span class="folder-card-icon">📚</span>
+      <span class="folder-card-icon">${ICO('todas')}</span>
     </div>
     <div class="folder-card-body">
       <div class="folder-card-name">Todas</div>
@@ -4868,7 +4870,7 @@ function _renderFolderView() {
   if (unassigned > 0 || _folders.length === 0) {
     html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="__none__">
       <div class="folder-card-cover" style="background:linear-gradient(135deg,rgba(122,139,168,.15),rgba(62,79,106,.1))">
-        <span class="folder-card-icon">📂</span>
+        <span class="folder-card-icon">${ICO('abierta')}</span>
       </div>
       <div class="folder-card-body">
         <div class="folder-card-name">Sin carpeta</div>
@@ -4884,9 +4886,9 @@ function _renderFolderView() {
     const colLight = col + '30';
     html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="${_esc(f.id)}">
       <div class="folder-card-cover" style="background:${_folderCoverBg(col)}">
-        <span class="folder-card-icon">🗂️</span>
-        <button class="folder-edit-btn" data-ui-click="folder-edit" data-folder-id="${_esc(f.id)}" title="Editar carpeta">✏️</button>
-        <button class="folder-menu-btn" data-ui-click="folder-delete" data-folder-id="${_esc(f.id)}" title="Eliminar carpeta">🗑</button>
+        <span class="folder-card-icon">${ICO('carpeta')}</span>
+        <button class="folder-edit-btn" data-ui-click="folder-edit" data-folder-id="${_esc(f.id)}" title="Editar carpeta">${ICO('editar')}</button>
+        <button class="folder-menu-btn" data-ui-click="folder-delete" data-folder-id="${_esc(f.id)}" title="Eliminar carpeta">${ICO('papelera')}</button>
       </div>
       <div class="folder-card-body">
         <div class="folder-card-name">${_esc(f.name)}</div>
@@ -5141,8 +5143,8 @@ function _renderSelBar() {
   const selArr = [..._selSet];
   bar.innerHTML = `
     <span class="sel-count">${n} seleccionada${n!==1?'s':''}</span>
-    <button class="sel-action-btn primary" data-ui-click="selection-move" ${n===0?'disabled':''}>📁 Mover</button>
-    <button class="sel-action-btn danger" data-ui-click="selection-delete" ${n===0?'disabled':''}>🗑 Eliminar</button>
+    <button class="sel-action-btn primary" data-ui-click="selection-move" ${n===0?'disabled':''}>${ICO('carpeta', true)}Mover</button>
+    <button class="sel-action-btn danger" data-ui-click="selection-delete" ${n===0?'disabled':''}>${ICO('papelera', true)}Eliminar</button>
     <button class="sel-action-btn" data-ui-click="selection-toggle">✕ Cancelar</button>`;
 }
 
@@ -5159,7 +5161,7 @@ function showMoveModal() {
   // Opción "Sin carpeta"
   if (currentFid !== '__none__') {
     html += `<button class="folder-move-opt" data-ui-click="folder-move-none">
-      <span style="font-size:20px">📂</span>
+      <span style="font-size:20px;line-height:0">${ICO('abierta')}</span>
       <span style="font-size:13px;font-weight:500;color:var(--text)">Sin carpeta</span>
     </button>`;
   }
@@ -5272,10 +5274,10 @@ function showFolderMenu(folderId, triggerEl) {
 
   menu.innerHTML = `
     <button data-ui-click="folder-menu-edit" data-folder-id="${_esc(folderId)}" class="folder-context-hover" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;text-align:left">
-      ✏️ Editar
+      ${ICO('editar', true)}Editar
     </button>
     <button data-ui-click="folder-menu-delete" data-folder-id="${_esc(folderId)}" class="folder-context-hover" style="display:flex;align-items:center;gap:9px;width:100%;padding:12px 14px;background:none;border:none;font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--red);cursor:pointer;text-align:left">
-      🗑 Eliminar
+      ${ICO('papelera', true)}Eliminar
     </button>`;
 
   // Posicionar cerca del botón que llamó
@@ -5457,7 +5459,7 @@ function openRowMenu(gIdx) {
   _cellPopShow(`
     <div class="cell-pop-head"><span class="cell-pop-prop">Palabra</span><span class="cell-pop-word">${_esc(displayDE(w))} — ${_esc(w.es)}</span></div>
     <div class="cell-opt-list">
-      <button type="button" class="cell-opt danger" data-ui-click="cell-delete" data-index="${gIdx}">🗑 Eliminar palabra</button>
+      <button type="button" class="cell-opt danger" data-ui-click="cell-delete" data-index="${gIdx}">${ICO('papelera', true)}Eliminar palabra</button>
     </div>
     <div class="cell-pop-actions"><button type="button" class="cell-pop-btn" data-ui-click="cell-close">Cerrar</button></div>`, null);
 }

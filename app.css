@@ -2453,3 +2453,18 @@ body.lectura-reading #lecturaTitle{display:none}
 body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none}
 /* Vocabulario y juegos: también muestran el fondo común */
 #page-vocab-hub,#page-lista,#page-parejas,#page-crucigrama,#page-velocidad{background:none}
+
+
+/* ═══ 1.07.73 · Iconos propios: trazo fino + acento del tema ═══
+   El trazo usa el color del texto y el detalle usa var(--accent), así que cada paleta (Main, Minimal Clean,
+   Nature, Warm, Cool, Soft Tech) y cada modo colorea los iconos con su propio acento. */
+.ico{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;overflow:visible;vertical-align:-.14em}
+.ico-i{margin-right:.5em}
+.ws-card-cover-emoji,.hub-card-cover-emoji,.folder-card-icon,.import-zone-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--text);line-height:0}
+.ws-card-cover-emoji .ico,.hub-card-cover-emoji .ico,.folder-card-icon .ico,.import-zone-icon .ico{stroke-width:2}
+.import-zone-icon{color:var(--text2)}
+.row-btn .ico,.folder-edit-btn .ico,.folder-menu-btn .ico,.lectura-lib-del .ico{width:15px;height:15px}
+.ws-card-cover-emoji .ico{width:1.95em;height:1.95em}
+.hub-card-cover-emoji .ico{width:1.95em;height:1.95em}
+.folder-card-icon .ico{width:1.55em;height:1.55em}
+.import-zone-icon .ico{width:1.6em;height:1.6em}

@@ -22,6 +22,24 @@
 </head>
 <body>
 
+<!-- Iconos propios (trazo fino + acento del tema) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-vocab" viewBox="0 0 48 48"><rect vector-effect="non-scaling-stroke" x="7" y="9" width="10" height="30" rx="2.5"/><rect vector-effect="non-scaling-stroke" x="19" y="9" width="10" height="30" rx="2.5"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M7 17h10M19 17h10M7 33h10M19 33h10"/><rect vector-effect="non-scaling-stroke" x="31.5" y="12" width="10" height="30" rx="2.5" transform="rotate(12 36.5 27)"/></symbol>
+<symbol id="i-lectura" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M24 13C18 9.5 11 9.5 6 11.5v26C11 35.5 18 35.5 24 39c6-3.5 13-3.5 18-1.5v-26C37 9.5 30 9.5 24 13Z"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M24 13v26M11 17.5c3-.8 6-.6 9 .8M11 24c3-.8 6-.6 9 .8M28 18.3c3-1.4 6-1.6 9-.8M28 24.8c3-1.4 6-1.6 9-.8"/></symbol>
+<symbol id="i-gramatica" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M33 7l8 8-21 21-10 3 3-10Z"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M28.5 11.5l8 8M13 28l7 7"/><path vector-effect="non-scaling-stroke" d="M26 42h16"/></symbol>
+<symbol id="i-lista" viewBox="0 0 48 48"><rect vector-effect="non-scaling-stroke" x="9" y="6" width="30" height="36" rx="6"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M16.5 17h.01M16.5 24h.01M16.5 31h.01"/><path vector-effect="non-scaling-stroke" d="M23 17h10M23 24h10M23 31h7"/></symbol>
+<symbol id="i-parejas" viewBox="0 0 48 48"><rect vector-effect="non-scaling-stroke" x="6" y="12" width="21" height="27" rx="4.5" transform="rotate(-9 16.5 25.5)"/><g transform="rotate(-9 16.5 25.5)"><path vector-effect="non-scaling-stroke" d="M11.5 20h10M11.5 26h6"/></g><rect vector-effect="non-scaling-stroke" x="21" y="9" width="21" height="27" rx="4.5" transform="rotate(8 31.5 22.5)"/><g transform="rotate(8 31.5 22.5)"><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M26 23l4.2 4.2L38 19"/></g></symbol>
+<symbol id="i-crucigrama" viewBox="0 0 48 48"><rect vector-effect="non-scaling-stroke" x="7" y="7" width="34" height="34" rx="6"/><path vector-effect="non-scaling-stroke" d="M18.3 7v34M29.7 7v34M7 18.3h34M7 29.7h34"/><rect vector-effect="non-scaling-stroke" style="stroke:var(--accent);fill:rgba(var(--accent-rgb),.28)" x="29.7" y="7" width="11.3" height="11.3" rx="3"/><rect vector-effect="non-scaling-stroke" style="stroke:var(--accent);fill:rgba(var(--accent-rgb),.28)" x="7" y="29.7" width="11.3" height="11.3" rx="3"/></symbol>
+<symbol id="i-velocidad" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M28 5L11 27h11l-3 16 18-23H26Z"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M4 17h6M2 25h5M5 33h5"/></symbol>
+<symbol id="i-carpeta" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M6 14a4 4 0 0 1 4-4h9l4.5 5H38a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4Z"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M6 20h36"/></symbol>
+<symbol id="i-abierta" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M6 36V13a4 4 0 0 1 4-4h8l4 4.5h12a4 4 0 0 1 4 4V20"/><path vector-effect="non-scaling-stroke" d="M8.5 38.5l4-15a3 3 0 0 1 2.9-2.2H43a2 2 0 0 1 1.9 2.6L41 37a4 4 0 0 1-3.9 3H10a2 2 0 0 1-1.5-1.5Z"/></symbol>
+<symbol id="i-todas" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M24 6l18 9-18 9-18-9Z"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M6 24l18 9 18-9M6 32.5l18 9 18-9"/></symbol>
+<symbol id="i-editar" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M30 8l10 10L17 41l-11 2 2-11Z"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M26 12l10 10"/></symbol>
+<symbol id="i-papelera" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M8 13h32M18 13V8h12v5M12 13l2 28h20l2-28"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M20 21v14M28 21v14"/></symbol>
+<symbol id="i-enlace" viewBox="0 0 48 48"><path vector-effect="non-scaling-stroke" d="M21 27a8 8 0 0 0 11 0l6-6a8 8 0 0 0-11-11l-3 3"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M27 21a8 8 0 0 0-11 0l-6 6a8 8 0 0 0 11 11l3-3"/></symbol>
+<symbol id="i-calendario" viewBox="0 0 48 48"><rect vector-effect="non-scaling-stroke" x="7" y="10" width="34" height="31" rx="6"/><path vector-effect="non-scaling-stroke" d="M7 20h34M16 6v8M32 6v8"/><path vector-effect="non-scaling-stroke" style="stroke:var(--accent)" d="M16 28h.01M24 28h.01M32 28h.01M16 34h.01M24 34h.01"/></symbol>
+</defs></svg>
+
 <!-- Fondo ambiental común a todas las páginas -->
 <div class="home-canvas app-ambient" aria-hidden="true">
   <div class="home-grid-bg"></div>
@@ -133,7 +151,7 @@
       <!-- Vocabulario -->
       <button class="ws-card" data-ui-click="nav-vocab">
         <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(var(--accent-rgb),.18) 0%,rgba(var(--blue-rgb),.12) 100%)">
-          <span class="ws-card-cover-emoji">📚</span>
+          <span class="ws-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-vocab"/></svg></span>
         </div>
         <div class="ws-card-label">
           <div class="ws-card-title">Vocabulario</div>
@@ -144,7 +162,7 @@
       <!-- Lectura -->
       <button class="ws-card" data-ui-click="nav-reading">
         <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(var(--accent-rgb),.18) 0%,rgba(var(--blue-rgb),.12) 100%)">
-          <span class="ws-card-cover-emoji">📖</span>
+          <span class="ws-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-lectura"/></svg></span>
         </div>
         <div class="ws-card-label">
           <div class="ws-card-title">Lectura</div>
@@ -155,7 +173,7 @@
       <!-- Gramática -->
       <button class="ws-card" data-ui-click="nav-grammar">
         <div class="ws-card-cover" style="background:linear-gradient(135deg,rgba(var(--accent-rgb),.18) 0%,rgba(var(--blue-rgb),.12) 100%)">
-          <span class="ws-card-cover-emoji">✍️</span>
+          <span class="ws-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-gramatica"/></svg></span>
         </div>
         <div class="ws-card-label">
           <div class="ws-card-title">Gramática</div>
@@ -201,7 +219,7 @@
     <div class="hub-cards">
       <button class="hub-card" data-ui-click="nav-lista">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(var(--accent-rgb),.18) 0%,rgba(var(--accent-rgb),.06) 100%)">
-          <span class="hub-card-cover-emoji">📋</span>
+          <span class="hub-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-lista"/></svg></span>
         </div>
         <div class="hub-card-label">
           <div class="hub-card-title">Lista</div>
@@ -210,7 +228,7 @@
 
       <button class="hub-card" data-ui-click="nav-parejas">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(var(--blue-rgb),.18) 0%,rgba(var(--blue-rgb),.06) 100%)">
-          <span class="hub-card-cover-emoji">🃏</span>
+          <span class="hub-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-parejas"/></svg></span>
         </div>
         <div class="hub-card-label">
           <div class="hub-card-title">Parejas</div>
@@ -219,7 +237,7 @@
 
       <button class="hub-card" data-ui-click="nav-crucigrama">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(var(--purple-rgb),.18) 0%,rgba(var(--purple-rgb),.06) 100%)">
-          <span class="hub-card-cover-emoji">✏️</span>
+          <span class="hub-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-crucigrama"/></svg></span>
         </div>
         <div class="hub-card-label">
           <div class="hub-card-title">Crucigrama</div>
@@ -228,7 +246,7 @@
 
       <button class="hub-card" data-ui-click="nav-velocidad">
         <div class="hub-card-cover" style="background:linear-gradient(135deg,rgba(251,146,60,.18) 0%,rgba(251,146,60,.06) 100%)">
-          <span class="hub-card-cover-emoji">⚡</span>
+          <span class="hub-card-cover-emoji"><svg class="ico" aria-hidden="true"><use href="#i-velocidad"/></svg></span>
         </div>
         <div class="hub-card-label">
           <div class="hub-card-title">Velocidad</div>
@@ -309,7 +327,7 @@ CREATE POLICY "own_folders" ON user_folders
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 
 ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_folders(id) ON DELETE SET NULL;</code>
-      <button class="copy-sql-btn" data-ui-click="copy-sql">📋 Copiar SQL</button>
+      <button class="copy-sql-btn" data-ui-click="copy-sql"><svg class="ico ico-i" aria-hidden="true"><use href="#i-lista"/></svg>Copiar SQL</button>
     </div>
     <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
     <div id="wordList"></div>
@@ -373,7 +391,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <div class="top-bar-title">
       <span class="breadcrumb-dim">Vocabulario</span>
       <span class="breadcrumb-sep"> / </span>
-      ⚡ Velocidad
+      <svg class="ico ico-i" aria-hidden="true"><use href="#i-velocidad"/></svg>Velocidad
     </div>
   </div>
   <div class="inner-content" id="speedContent"></div>
@@ -526,7 +544,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   </div>
   <div class="page-head"><h1 class="prog-title">Gramática</h1></div>
   <div style="text-align:center;padding:40px 24px">
-    <div style="font-size:44px;margin-bottom:14px">🚧</div>
+    <div style="font-size:48px;margin-bottom:14px;color:var(--purple);line-height:0"><svg class="ico" aria-hidden="true"><use href="#i-gramatica"/></svg></div>
     <div style="font-size:19px;font-weight:700;color:var(--purple);margin-bottom:8px;letter-spacing:-.3px">Próximamente</div>
     <div style="font-size:13px;color:var(--text2);line-height:1.6">Esta sección está en construcción.</div>
   </div>
@@ -640,11 +658,11 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <!-- Upload / Biblioteca -->
     <div id="lecturaUpload" class="lectura-upload-zone">
       <button class="lectura-upload-btn" data-ui-click="reading-file-open">
-        📂 Subir PDF o EPUB
+        <svg class="ico ico-i" aria-hidden="true"><use href="#i-abierta"/></svg>Subir PDF o EPUB
       </button>
       <input type="file" id="lecturaFileIn" accept=".pdf,.epub" style="display:none" data-ui-change="reading-file">
       <div class="lectura-url-row">
-        <input class="form-input" id="lecturaUrlIn" aria-label="Dirección web" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="🔗 Pega un enlace web…" data-ui-enter="reading-url">
+        <input class="form-input" id="lecturaUrlIn" aria-label="Dirección web" type="url" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="Pega un enlace web…" data-ui-enter="reading-url">
         <button class="lectura-url-btn" data-ui-click="reading-url-open">Abrir</button>
       </div>
       <div id="lecturaLibrarySection" style="width:100%;max-width:560px;margin-top:32px"></div>
@@ -674,8 +692,8 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
           <button aria-label="Página anterior" class="lectura-nav-btn" data-ui-click="reading-prev">‹</button>
           <button aria-label="Página siguiente" class="lectura-nav-btn" data-ui-click="reading-next">›</button>
         </div>
-        <button data-ui-click="reading-url-prompt" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer">🔗 Enlace</button>
-        <button data-ui-click="reading-file-open" class="hover-border-button" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s">📂 Otro</button>
+        <button data-ui-click="reading-url-prompt" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer"><svg class="ico ico-i" aria-hidden="true"><use href="#i-enlace"/></svg>Enlace</button>
+        <button data-ui-click="reading-file-open" class="hover-border-button" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s"><svg class="ico ico-i" aria-hidden="true"><use href="#i-abierta"/></svg>Otro</button>
       </div>
     </div>
 
@@ -735,8 +753,8 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   <div class="modal-box">
     <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="lecMenuModal">✕</button>
     <h3 id="lecMenuTitle"></h3>
-    <button class="btn-secondary lec-menu-btn" data-ui-click="lec-rename">✏️ Renombrar</button>
-    <button class="btn-secondary lec-menu-btn" data-ui-click="lec-move">📂 Mover a…</button>
+    <button class="btn-secondary lec-menu-btn" data-ui-click="lec-rename"><svg class="ico ico-i" aria-hidden="true"><use href="#i-editar"/></svg>Renombrar</button>
+    <button class="btn-secondary lec-menu-btn" data-ui-click="lec-move"><svg class="ico ico-i" aria-hidden="true"><use href="#i-abierta"/></svg>Mover a…</button>
     <button class="btn-secondary lec-menu-btn lec-danger" id="lecMenuDelete" data-ui-click="lec-delete">🗑 Eliminar carpeta</button>
   </div>
 </div>
@@ -756,7 +774,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     </div>
     <div class="form-err" id="lecNameErr"></div>
     <button class="btn-primary" data-ui-click="lec-name-save">Guardar</button>
-    <button class="btn-secondary" id="lecMoveEditBtn" data-ui-click="lec-move-edit">📂 Mover a otra carpeta…</button>
+    <button class="btn-secondary" id="lecMoveEditBtn" data-ui-click="lec-move-edit"><svg class="ico ico-i" aria-hidden="true"><use href="#i-abierta"/></svg>Mover a otra carpeta…</button>
     <button class="btn-secondary" data-ui-modal-close="lecNameModal">Cancelar</button>
   </div>
 </div>
@@ -829,7 +847,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     <h3>Importar vocabulario</h3>
     <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">Formato CSV: <b style="color:var(--blue)">Tipo, Artículo, Alemán, Español</b></p>
     <div class="import-zone" id="importZone" data-ui-click="import-file-open" data-ui-dropzone role="button" tabindex="0" aria-label="Seleccionar archivo para importar">
-      <div class="import-zone-icon">📂</div>
+      <div class="import-zone-icon"><svg class="ico" aria-hidden="true"><use href="#i-abierta"/></svg></div>
       <div class="import-zone-text">Toca para elegir tu archivo CSV</div>
     </div>
     <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none" data-ui-change="import-file">
@@ -920,7 +938,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast" role="status" aria-live="polite"></div>
 
-<div id="buildBadge" class="build-badge">1.07.72</div>
+<div id="buildBadge" class="build-badge">1.07.73</div>
 
 <script src="app.js"></script>
 </body>

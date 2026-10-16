@@ -7,6 +7,7 @@ const TRANSLATIONS = {
     loginEmailPh: 'tu@correo.com',
     loginPassLabel: 'Contraseña',
     loginBtn: 'Entrar →',
+    loginRemember: 'Recuérdame',
     connecting: 'Conectando…',
     // Dropdown
     myAccount: 'Mi cuenta',
@@ -110,6 +111,7 @@ const TRANSLATIONS = {
     loginEmailPh: 'deine@email.de',
     loginPassLabel: 'Passwort',
     loginBtn: 'Einloggen →',
+    loginRemember: 'Angemeldet bleiben',
     connecting: 'Verbinden…',
     myAccount: 'Mein Konto',
     profile: 'Mein Profil',
@@ -244,6 +246,7 @@ function applyTranslations() {
   setPlaceholder('loginEmail', t('loginEmailPh'));
   setPlaceholder('loginPass', '••••••••');
   setText('loginBtn', t('loginBtn'));
+  setText('loginRememberTxt', t('loginRemember'));
   setFieldLabel(0, t('loginEmailLabel'));
   setFieldLabel(1, t('loginPassLabel'));
   // Home hero
@@ -327,11 +330,30 @@ const _cfg = (() => {
   return { url: `https://${p.join('')}.${h}`, key: k1 + k2 };
 })();
 
+// Sesión: con «Recuérdame» se guarda en localStorage (persiste); sin él, en sessionStorage (se borra al cerrar pestaña/app)
+const REMEMBER_KEY = 'remember_me';
+function _rememberOn() { try { return localStorage.getItem(REMEMBER_KEY) === '1'; } catch(e) { return false; } }
+function _setRemember(on) { try { on ? localStorage.setItem(REMEMBER_KEY, '1') : localStorage.removeItem(REMEMBER_KEY); } catch(e) {} }
+const _authStorage = {
+  _s() { return _rememberOn() ? localStorage : sessionStorage; },
+  getItem(k) { try { return this._s().getItem(k); } catch(e) { return null; } },
+  setItem(k, v) { try { this._s().setItem(k, v); } catch(e) {} },
+  removeItem(k) { try { localStorage.removeItem(k); } catch(e) {} try { sessionStorage.removeItem(k); } catch(e) {} }
+};
+// Sin «Recuérdame», elimina tokens antiguos que quedaron en localStorage (versiones anteriores)
+function _purgeLegacySession() {
+  if (_rememberOn()) return;
+  try {
+    Object.keys(localStorage).filter(k => /^sb-.*-auth-token/.test(k)).forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+}
+
 let _supabase = null;
 async function getSupabase() {
   if (_supabase) return _supabase;
+  _purgeLegacySession();
   await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js', 'sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R');
-  _supabase = window.supabase.createClient(_cfg.url, _cfg.key);
+  _supabase = window.supabase.createClient(_cfg.url, _cfg.key, { auth: { storage: _authStorage } });
   return _supabase;
 }
 // Cabecera con el token de sesión para las funciones /api (verificado en el servidor)
@@ -840,6 +862,7 @@ async function doLogin() {
       return;
     }
     const sb = await getSupabase();
+    _setRemember(!!document.getElementById('loginRemember')?.checked);
     const { data, error } = await sb.auth.signInWithPassword({
       email, password: pass, options: { captchaToken: _turnstileToken }
     });
@@ -896,6 +919,7 @@ async function doLogout() {
   _onLoginSuccessFired = false;
   try { localStorage.removeItem(STATE_KEY); } catch(e) {}
   try { const sb = await getSupabase(); await sb.auth.signOut(); } catch(e) {}
+  _setRemember(false);
   // Clear all sensitive state
   _clearLocalUserCache(_uid);
   currentUser = null; currentEmail = '';
@@ -912,6 +936,7 @@ async function doLogout() {
   // Reset form
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPass').value = '';
+  const _rm = document.getElementById('loginRemember'); if (_rm) _rm.checked = false;
   document.getElementById('loginError').textContent = '';
   // Reset password field visibility
   const passInp = document.getElementById('loginPass');

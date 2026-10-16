@@ -108,6 +108,10 @@
         </div>
       </div>
       <div id="loginTurnstile" class="login-turnstile" aria-label="Verificación de seguridad"></div>
+      <label class="login-remember" for="loginRemember">
+        <input type="checkbox" id="loginRemember">
+        <span id="loginRememberTxt">Recuérdame</span>
+      </label>
       <div class="login-error" id="loginError"></div>
       <button class="btn-login" id="loginBtn" data-ui-click="login">Entrar →</button>
     </div>
@@ -970,7 +974,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast" role="status" aria-live="polite"></div>
 
-<div id="buildBadge" class="build-badge">1.07.74</div>
+<div id="buildBadge" class="build-badge">1.07.75</div>
 
 <script src="app.js"></script>
 </body>

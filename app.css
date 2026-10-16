@@ -2489,3 +2489,7 @@ body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none
 .bonus-pop .ico{width:1em;height:1em}
 .goal-top .ico,.goal-item .ico{width:1.05em;height:1.05em;margin-right:.4em}
 .cell-opt-check .ico{width:1em;height:1em}
+
+/* ═══ 1.07.75 · Casilla «Recuérdame» en el login ═══ */
+.login-remember{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--text2);cursor:pointer;user-select:none}
+.login-remember input{width:16px;height:16px;margin:0;accent-color:var(--green);cursor:pointer}

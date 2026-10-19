@@ -4939,7 +4939,7 @@ async function loadFolders() {
 // ── Crear carpeta ────────────────────────────────────────────────
 async function createFolder(name, color, parentId) {
   if (!currentUser) return null;
-  const tempId = 'tmp_' + Date.now();
+  const tempId = 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);   // único aunque se creen dos carpetas seguidas
   color = _safeFolderColor(color);
   parentId = parentId || null;
   const newF = { id: tempId, name, color, parent_id: parentId };
@@ -5148,6 +5148,9 @@ function _renderFolderContent(folderId) {
     words = allWords.filter(w => w.folder_id === folderId);
   }
 
+  // Una carpeta es CONTENEDOR (tiene subcarpetas: solo se ven ellas) o LISTA (sin subcarpetas: muestra el vocabulario)
+  if (isRealFolder && _foldersChildren(folderId).length) { _renderContainerView(folderId, folderName, backLabel, allWords); return; }
+
   // Aplicar filtros tipo/dificultad/fecha
   if (activeFilter !== 'Todos') words = words.filter(w => w.tipo === activeFilter);
   if (listaDateFilter !== 'all') words = words.filter(w => _dateKeyMatch(w, listaDateFilter));
@@ -5269,25 +5272,63 @@ function _renderFolderContent(folderId) {
     </tr>`;
   }).join('');
 
-  // Subcarpetas de esta carpeta (+ tarjeta para crear una nueva)
-  let subHtml = '';
-  if (isRealFolder && !_selMode) {
-    subHtml = '<div class="folders-grid subfolders">' +
-      _foldersChildren(folderId).map(f => _folderCardHtml(f, allWords)).join('') +
-      `<div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="subfolder-new" aria-label="Nueva subcarpeta en ${_esc(folderName)}">
-        <div class="folder-card-new-inner">
-          <div class="folder-card-new-plus">＋</div>
-          <div class="folder-card-new-lbl">Nueva subcarpeta</div>
-        </div>
-      </div></div>`;
-  }
+  // Crear una subcarpeta convierte esta lista en contenedor (si tiene palabras, se pregunta antes)
+  const subRow = (isRealFolder && !_selMode)
+    ? `<div class="notion-add-row" role="button" tabindex="0" data-ui-click="subfolder-new">＋ Nueva subcarpeta</div>` : '';
 
   document.getElementById('wordList').innerHTML =
-    `${subHtml}<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>
-     <div class="notion-add-row" data-ui-click="add-open">＋ Nueva palabra</div>`;
+    `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>
+     <div class="notion-add-row" data-ui-click="add-open">＋ Nueva palabra</div>${subRow}`;
 
   // Sel-bar (barra de acciones de selección)
   _renderSelBar();
+}
+
+// Vista de una carpeta que contiene subcarpetas: solo tarjetas, sin tabla ni botones de palabras
+function _renderContainerView(folderId, folderName, backLabel, allWords) {
+  _selMode = false; _selSet.clear(); _editingIdx = null;
+  const topBar = document.getElementById('listaTopBar');
+  if (topBar) topBar.innerHTML = `
+    <div class="lista-top-bar-inner">
+      <button class="lista-back-btn" data-ui-click="folder-close">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+        ${_esc(backLabel)}
+      </button>
+      <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_esc(folderName)}">${_esc(folderName)}</span>
+    </div>`;
+  const lbl = document.getElementById('listaCountLbl');
+  if (lbl) lbl.textContent = '';
+  // Palabras sueltas heredadas (carpeta con palabras y subcarpetas a la vez): se ofrece ordenarlas
+  const loose = allWords.filter(w => w.folder_id === folderId).length;
+  const note = loose ? `<div class="loose-note"><span>Esta carpeta tiene <b>${loose} palabra${loose !== 1 ? 's' : ''}</b> sueltas y ahora solo puede contener subcarpetas.</span>
+      <button class="list-action-btn" type="button" data-ui-click="folder-fix">Mover a «Sin clasificar»</button></div>` : '';
+  document.getElementById('wordList').innerHTML = note +
+    '<div class="folders-grid subfolders">' +
+    _foldersChildren(folderId).map(f => _folderCardHtml(f, allWords)).join('') +
+    `<div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="subfolder-new" aria-label="Nueva subcarpeta en ${_esc(folderName)}">
+      <div class="folder-card-new-inner">
+        <div class="folder-card-new-plus">＋</div>
+        <div class="folder-card-new-lbl">Nueva subcarpeta</div>
+      </div>
+    </div></div>`;
+  _renderSelBar();
+}
+
+// Antes de meter una subcarpeta en pid: si pid tiene palabras, se mueven a una subcarpeta «Sin clasificar» (con confirmación)
+async function _prepareContainer(pid) {
+  const words = getWords(), idx = [];
+  words.forEach((w, i) => { if (w.folder_id === pid) idx.push(i); });
+  if (!idx.length) return true;
+  const n = idx.length, name = _folderPathNames(pid).join(' › ') || 'Esta carpeta';
+  if (!confirm(`«${name}» tiene ${n} palabra${n !== 1 ? 's' : ''}. Una carpeta no puede tener palabras y subcarpetas a la vez.\n\nSe creará la subcarpeta «Sin clasificar» y las palabras pasarán a ella. ¿Continuar?`)) return false;
+  const par = _folders.find(f => f.id === pid);
+  const subId = await createFolder('Sin clasificar', par ? par.color : FOLDER_DEFAULT_COLOR, pid);
+  await moveWordsToFolder(idx, subId);
+  return true;
+}
+async function fixLooseWords() {
+  if (!_currentFolderId || _currentFolderId === '__all__' || _currentFolderId === '__none__') return;
+  if (await _prepareContainer(_currentFolderId)) { showToast('✓ Palabras movidas a «Sin clasificar»'); renderLista(); }
 }
 
 function closeFolder() {
@@ -5396,6 +5437,10 @@ function showMoveModal() {
   // Carpetas existentes
   for (const { f, depth } of _folderTree()) {
     if (f.id === currentFid) continue;
+    if (_foldersChildren(f.id).length) {   // contenedor: no admite palabras, solo da contexto al árbol
+      html += `<div class="folder-move-group" style="padding-left:${14 + depth * 18}px">${_esc(f.name)}</div>`;
+      continue;
+    }
     html += `<button class="folder-move-opt" data-ui-click="folder-move" data-folder-id="${_esc(f.id)}" style="padding-left:${14 + depth * 18}px">
       <span style="width:14px;height:14px;border-radius:50%;background:${_safeFolderColor(f.color)};display:inline-block;flex-shrink:0"></span>
       <span style="font-size:13px;font-weight:500;color:var(--text)">${_esc(f.name)}</span>
@@ -5480,6 +5525,9 @@ async function saveFolderModal() {
   const colorEl = document.querySelector('.folder-color-swatch.active');
   const color = _safeFolderColor(colorEl?.dataset.color);
   const parentId = document.getElementById('folderParentSelect')?.value || null;
+  // Meter una carpeta dentro de otra la convierte en contenedor: si tiene palabras, se pregunta antes (el modal sigue abierto si cancela)
+  const curParent = _editingFolderId ? _folderParent(_folders.find(x => x.id === _editingFolderId)) : null;
+  if (parentId && parentId !== curParent && !(await _prepareContainer(parentId))) return;
   closeModal('folderModal');
   if (_editingFolderId) {
     await updateFolder(_editingFolderId, name, color, parentId);
@@ -5821,6 +5869,7 @@ function _handleUiClick(event) {
     case 'folder-delete': event.stopPropagation(); confirmDeleteFolder(el.dataset.folderId); break;
     case 'folder-new': showFolderModal(null); break;
     case 'subfolder-new': showFolderModal(null, false, _currentFolderId); break;
+    case 'folder-fix': fixLooseWords(); break;
     case 'folder-close': closeFolder(); break;
     case 'selection-toggle': toggleSelMode(); break;
     case 'list-filter-toggle': toggleListaFilterPanel(event); break;

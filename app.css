@@ -2560,3 +2560,8 @@ body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none
 }
 .loose-note b{color:var(--text);font-weight:600}
 .notion-add-row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* 1.07.78 · carpeta vacía: elegir subcarpeta o lista */
+.empty-choose{padding-top:16px;grid-template-columns:repeat(auto-fit,minmax(148px,1fr))}
+.empty-choose .folder-card.new-folder{min-height:128px}
+.empty-choose .folder-card-new-plus .ico{width:20px;height:20px;stroke-width:1.75}

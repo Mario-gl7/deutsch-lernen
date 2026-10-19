@@ -4869,6 +4869,7 @@ function _lecDeleteFolder() {
 // ── Estado carpetas ──────────────────────────────────────────────
 let _folders = [];           // Array de carpetas cargadas
 let _currentFolderId = null; // null = vista carpetas, string = dentro de carpeta
+let _listChosen = null;      // carpeta vacía que el usuario ha decidido que sea una lista (o que ya se ha mostrado como lista)
 let _selMode = false;        // Modo selección activo
 let _selSet  = new Set();    // IDs seleccionados (índice global en getWords())
 let _editingFolderId = null; // Para el modal de editar carpeta
@@ -5122,6 +5123,7 @@ function _folderCardHtml(f, words) {
 
 function openFolder(folderId) {
   _currentFolderId = folderId;
+  _listChosen = null;
   _selMode = false; _selSet.clear();
   _renderFolderContent(folderId);
 }
@@ -5150,6 +5152,9 @@ function _renderFolderContent(folderId) {
 
   // Una carpeta es CONTENEDOR (tiene subcarpetas: solo se ven ellas) o LISTA (sin subcarpetas: muestra el vocabulario)
   if (isRealFolder && _foldersChildren(folderId).length) { _renderContainerView(folderId, folderName, backLabel, allWords); return; }
+  // Carpeta vacía y sin decidir: se elige entre subcarpeta o lista (en vez de enseñar una tabla vacía)
+  if (isRealFolder && _listChosen !== folderId && !allWords.some(w => w.folder_id === folderId)) { _renderEmptyFolderView(folderId, folderName, backLabel); return; }
+  if (isRealFolder) _listChosen = folderId;
 
   // Aplicar filtros tipo/dificultad/fecha
   if (activeFilter !== 'Todos') words = words.filter(w => w.tipo === activeFilter);
@@ -5314,6 +5319,37 @@ function _renderContainerView(folderId, folderName, backLabel, allWords) {
   _renderSelBar();
 }
 
+// Carpeta vacía: dos tarjetas para elegir qué va a ser (contenedor de subcarpetas o lista de vocabulario)
+function _renderEmptyFolderView(folderId, folderName, backLabel) {
+  _selMode = false; _selSet.clear(); _editingIdx = null;
+  const topBar = document.getElementById('listaTopBar');
+  if (topBar) topBar.innerHTML = `
+    <div class="lista-top-bar-inner">
+      <button class="lista-back-btn" data-ui-click="folder-close">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
+        ${_esc(backLabel)}
+      </button>
+      <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_esc(folderName)}">${_esc(folderName)}</span>
+    </div>`;
+  const lbl = document.getElementById('listaCountLbl');
+  if (lbl) lbl.textContent = '';
+  document.getElementById('wordList').innerHTML = `<div class="folders-grid subfolders empty-choose">
+    <div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="subfolder-new" aria-label="Nueva subcarpeta en ${_esc(folderName)}">
+      <div class="folder-card-new-inner">
+        <div class="folder-card-new-plus">${ICO('carpeta')}</div>
+        <div class="folder-card-new-lbl">Nueva subcarpeta</div>
+      </div>
+    </div>
+    <div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="list-new" aria-label="Nueva lista de vocabulario en ${_esc(folderName)}">
+      <div class="folder-card-new-inner">
+        <div class="folder-card-new-plus">${ICO('lista')}</div>
+        <div class="folder-card-new-lbl">Nueva lista</div>
+      </div>
+    </div>
+  </div>`;
+  _renderSelBar();
+}
+
 // Antes de meter una subcarpeta en pid: si pid tiene palabras, se mueven a una subcarpeta «Sin clasificar» (con confirmación)
 async function _prepareContainer(pid) {
   const words = getWords(), idx = [];
@@ -5337,6 +5373,7 @@ function closeFolder() {
   const up = f ? _folderParent(f) : null;
   _selMode = false; _selSet.clear();
   _editingIdx = null;
+  _listChosen = null;
   if (up && _folders.some(x => x.id === up)) { openFolder(up); return; }
   _currentFolderId = null;
   loadFolders().then(() => _renderFolderView());
@@ -5870,6 +5907,7 @@ function _handleUiClick(event) {
     case 'folder-new': showFolderModal(null); break;
     case 'subfolder-new': showFolderModal(null, false, _currentFolderId); break;
     case 'folder-fix': fixLooseWords(); break;
+    case 'list-new': _listChosen = _currentFolderId; renderLista(); break;
     case 'folder-close': closeFolder(); break;
     case 'selection-toggle': toggleSelMode(); break;
     case 'list-filter-toggle': toggleListaFilterPanel(event); break;

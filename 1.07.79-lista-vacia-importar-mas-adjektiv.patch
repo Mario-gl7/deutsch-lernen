@@ -1,0 +1,293 @@
+diff --git a/app.css b/app.css
+index dcf12e2..ff87c51 100644
+--- a/app.css
++++ b/app.css
+@@ -648,7 +648,7 @@ body.light .home-orb-1{background:radial-gradient(circle,rgba(var(--accent-rgb),
+   border:1px solid var(--border);padding:1px 6px;border-radius:4px;margin-top:3px;
+ }
+ .tipo-badge.Verb{color:var(--orange);border-color:rgba(251,146,60,.3)}
+-.tipo-badge.Adjektive{color:var(--purple);border-color:rgba(var(--purple-rgb),.3)}
++.tipo-badge.Adjektiv{color:var(--purple);border-color:rgba(var(--purple-rgb),.3)}
+ .tipo-badge.Redewendung{color:var(--red);border-color:rgba(248,113,113,.3)}
+ .tipo-badge.Adverb{color:var(--blue);border-color:rgba(var(--blue-rgb),.3)}
+ .tipo-badge.Nomen{color:var(--green);border-color:rgba(var(--accent-rgb),.3)}
+@@ -2565,3 +2565,9 @@ body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none
+ .empty-choose{padding-top:16px;grid-template-columns:repeat(auto-fit,minmax(148px,1fr))}
+ .empty-choose .folder-card.new-folder{min-height:128px}
+ .empty-choose .folder-card-new-plus .ico{width:20px;height:20px;stroke-width:1.75}
++
++/* ── 1.07.79 · Desplegable «＋» de la lista (Nueva palabra / Nueva subcarpeta) ── */
++.add-menu-panel{min-width:190px;padding:5px}
++.add-menu-item{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border:0;border-radius:var(--r-md,8px);background:transparent;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:background .15s}
++.add-menu-item:hover,.add-menu-item:focus-visible{background:var(--surface2)}
++.add-menu-item svg{width:16px;height:16px;flex:none}
+diff --git a/app.js b/app.js
+index ed3f5b7..e47d679 100644
+--- a/app.js
++++ b/app.js
+@@ -1052,7 +1052,10 @@ let _dbReady = false;  // true once tables confirmed to exist
+ function _lsKey(kind) { return kind + '_' + (currentUser?.id || 'anon'); }
+ function _cacheWords(w)    { try { localStorage.setItem(_lsKey('words'), JSON.stringify(w)); } catch(e){} }
+ function _cacheProgress(p) { try { localStorage.setItem(_lsKey('prog'),  JSON.stringify(p)); } catch(e){} }
+-function _cachedWords()    { try { const s=localStorage.getItem(_lsKey('words')); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
++// Tipos canónicos (en alemán). «Adjektive» (nombre antiguo) se convierte a «Adjektiv».
++const _TIPO_CANON = { nomen:'Nomen', verb:'Verb', adjektiv:'Adjektiv', adjektive:'Adjektiv', redewendung:'Redewendung', adverb:'Adverb' };
++function _normTipo(t) { const s = String(t || '').trim(); return _TIPO_CANON[s.toLowerCase()] || s; }
++function _cachedWords()    { try { const s=localStorage.getItem(_lsKey('words')); if (!s) return null; const a = JSON.parse(s); if (Array.isArray(a)) a.forEach(w => { if (w && w.tipo) w.tipo = _normTipo(w.tipo); }); return a; } catch(e){ return null; } }
+ function _cachedProgress() { try { const s=localStorage.getItem(_lsKey('prog'));  return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+ 
+ // ── Sync status indicator ──
+@@ -1143,7 +1146,7 @@ async function _fetchWordsFromDB() {
+       if (baseWords && baseWords.length > 0) { await _seedWords(baseWords); return baseWords; }
+       return [];
+     }
+-    const words = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
++    const words = data.map(r => ({ tipo:_normTipo(r.tipo), articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
+     _cacheWords(words);
+     return words;
+   } catch(e) {
+@@ -1161,7 +1164,7 @@ async function _seedWords(words) {
+     const { data, error } = await sb.from('user_words').insert(rows).select('id,tipo,articulo,de,es');
+     if (error) throw error;
+     if (data) {
+-      const withIds = data.map(r => ({ tipo:r.tipo||'', articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
++      const withIds = data.map(r => ({ tipo:_normTipo(r.tipo), articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id }));
+       _cacheWords(withIds);
+       _setSynced(data);
+     }
+@@ -1760,7 +1763,8 @@ function getSortedWords(words) {
+ }
+ 
+ // ═══════════════════ LISTA ═══════════════════
+-const TIPOS_KEYS = ['Todos','Nomen','Verb','Adjektive','Redewendung','Adverb'];
++const TIPOS_KEYS = ['Todos','Nomen','Verb','Adjektiv','Redewendung','Adverb'];
++try { if (localStorage.getItem('speedTipo') === 'Adjektive') localStorage.setItem('speedTipo', 'Adjektiv'); } catch(e) {}
+ const DIFF_FILTER_KEYS = ['Todas','🔴 Difícil','🟢 Fácil','📊 Normal','🆕 Nuevas'];
+ let activeFilter = 'Todos', vocabDiffFilter = 'Todas', listaDateFilter = 'all';
+ let _editingIdx = null;
+@@ -1810,6 +1814,7 @@ function toggleListaFilterPanel(e) {
+   if (!panel || !btn) return;
+   const isOpen = panel.classList.contains('open');
+   if (!isOpen) {
++    closeListaAddMenu();
+     _buildFilterPanelChips();
+     panel.classList.add('open');
+     btn.classList.add('open');
+@@ -1828,6 +1833,29 @@ function toggleListaFilterPanel(e) {
+   }
+ }
+ 
++function closeListaAddMenu() {
++  document.getElementById('listaAddPanel')?.classList.remove('open');
++  document.getElementById('listaAddBtn')?.setAttribute('aria-expanded', 'false');
++}
++function toggleListaAddMenu(e) {
++  e.stopPropagation();
++  const panel = document.getElementById('listaAddPanel');
++  const btn   = document.getElementById('listaAddBtn');
++  if (!panel || !btn) return;
++  if (panel.classList.contains('open')) { closeListaAddMenu(); return; }
++  document.getElementById('listaFilterPanel')?.classList.remove('open');
++  document.getElementById('listaFilterBtn')?.classList.remove('open');
++  panel.classList.add('open');
++  btn.setAttribute('aria-expanded', 'true');
++  const rect = btn.getBoundingClientRect();
++  const panelW = 200;
++  let left = rect.left;
++  if (left + panelW > window.innerWidth - 8) left = window.innerWidth - panelW - 8;
++  if (left < 8) left = 8;
++  panel.style.top = (rect.bottom + 5) + 'px';
++  panel.style.left = left + 'px';
++}
++
+ function resetListaFilters() {
+   activeFilter = 'Todos'; vocabDiffFilter = 'Todas'; listaDateFilter = 'all';
+   _buildFilterPanelChips();
+@@ -1837,6 +1865,7 @@ function resetListaFilters() {
+ 
+ // Close filter panel on outside click
+ document.addEventListener('click', e => {
++  if (!e.target.closest('#listaAddBtn')) closeListaAddMenu();
+   const wrap = document.getElementById('listaFilterWrap');
+   if (wrap && !wrap.contains(e.target)) {
+     document.getElementById('listaFilterPanel')?.classList.remove('open');
+@@ -1861,7 +1890,7 @@ function renderLista() {
+ 
+   document.getElementById('listaCountLbl').textContent = `${words.length} ${t('words')}`;
+ 
+-  const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
++  const TIPO_OPT = ['','Nomen','Verb','Adjektiv','Redewendung','Adverb'];
+   const ART_OPT  = ['','der','die','das'];
+ 
+   const thead = `<thead>
+@@ -2068,7 +2097,7 @@ function parseCSV(text) {
+     const cols = parseCSVLine(lines[i]);
+     const de = (cols[idxDE]||'').trim(), es = (cols[idxES]||'').trim();
+     if (!de||!es) continue;
+-    let tipo = idxTipo>=0?(cols[idxTipo]||'').trim():'';
++    let tipo = idxTipo>=0?_normTipo(cols[idxTipo]):'';
+     let articulo = idxArt>=0?(cols[idxArt]||'').trim():'';
+     let finalDE = de, finalArt = articulo;
+     if (!finalArt&&/^(der|die|das)\s+/i.test(de)) { const m=de.match(/^(der|die|das)\s+(.+)$/i); if(m){finalArt=m[1].toLowerCase();finalDE=m[2];} }
+@@ -2419,7 +2448,7 @@ function renderSpeedSetup() {
+ 
+         <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-top:8px;margin-bottom:2px">Tipo de palabras</div>
+         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center" id="speedTipoWrap">
+-          ${['Todos',...['Nomen','Verb','Adjektive','Redewendung','Adverb']].map(k=>{
++          ${['Todos',...['Nomen','Verb','Adjektiv','Redewendung','Adverb']].map(k=>{
+             const active = (localStorage.getItem('speedTipo')||'Todos') === k;
+             return `<button data-ui-click="speed-type" data-value="${k}" id="speedTipo_${k}"
+               style="padding:5px 12px;border-radius:20px;border:1px solid ${active?'rgba(251,146,60,.4)':'var(--border)'};
+@@ -2455,7 +2484,7 @@ function setSpeedDuration(s) {
+ 
+ function setSpeedTipo(k) {
+   localStorage.setItem('speedTipo', k);
+-  ['Todos',...['Nomen','Verb','Adjektive','Redewendung','Adverb']].forEach(v => {
++  ['Todos',...['Nomen','Verb','Adjektiv','Redewendung','Adverb']].forEach(v => {
+     const btn = document.getElementById(`speedTipo_${v}`);
+     if (!btn) return;
+     const active = v === k;
+@@ -4869,6 +4898,7 @@ function _lecDeleteFolder() {
+ // ── Estado carpetas ──────────────────────────────────────────────
+ let _folders = [];           // Array de carpetas cargadas
+ let _currentFolderId = null; // null = vista carpetas, string = dentro de carpeta
++let _listPick = null;        // carpeta vacía en la que se ha pulsado «Nueva lista»: se elige entre lista vacía o importar
+ let _listChosen = null;      // carpeta vacía que el usuario ha decidido que sea una lista (o que ya se ha mostrado como lista)
+ let _selMode = false;        // Modo selección activo
+ let _selSet  = new Set();    // IDs seleccionados (índice global en getWords())
+@@ -5123,7 +5153,7 @@ function _folderCardHtml(f, words) {
+ 
+ function openFolder(folderId) {
+   _currentFolderId = folderId;
+-  _listChosen = null;
++  _listChosen = null; _listPick = null;
+   _selMode = false; _selSet.clear();
+   _renderFolderContent(folderId);
+ }
+@@ -5153,7 +5183,10 @@ function _renderFolderContent(folderId) {
+   // Una carpeta es CONTENEDOR (tiene subcarpetas: solo se ven ellas) o LISTA (sin subcarpetas: muestra el vocabulario)
+   if (isRealFolder && _foldersChildren(folderId).length) { _renderContainerView(folderId, folderName, backLabel, allWords); return; }
+   // Carpeta vacía y sin decidir: se elige entre subcarpeta o lista (en vez de enseñar una tabla vacía)
+-  if (isRealFolder && _listChosen !== folderId && !allWords.some(w => w.folder_id === folderId)) { _renderEmptyFolderView(folderId, folderName, backLabel); return; }
++  if (isRealFolder && _listChosen !== folderId && !allWords.some(w => w.folder_id === folderId)) {
++    if (_listPick === folderId) _renderListStartView(folderId, folderName); else _renderEmptyFolderView(folderId, folderName, backLabel);
++    return;
++  }
+   if (isRealFolder) _listChosen = folderId;
+ 
+   // Aplicar filtros tipo/dificultad/fecha
+@@ -5174,7 +5207,13 @@ function _renderFolderContent(folderId) {
+         ${_esc(backLabel)}
+       </button>
+       <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_esc(folderName)}">${_esc(folderName)}</span>
+-      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="add-open" aria-label="Añadir palabra" title="Añadir palabra">＋</button>
++      <div class="filter-dropdown-wrap" id="listaAddWrap">
++        <button class="list-action-btn" id="listaAddBtn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="add-menu-toggle" aria-haspopup="menu" aria-expanded="false" aria-label="Añadir" title="Añadir">＋</button>
++        <div class="filter-dropdown-panel add-menu-panel" id="listaAddPanel" role="menu">
++          <button type="button" class="add-menu-item" role="menuitem" data-ui-click="add-open">${ICO('nuevo', true)}Nueva palabra</button>
++          <button type="button" class="add-menu-item" role="menuitem" data-ui-click="subfolder-new">${ICO('carpeta', true)}Nueva subcarpeta</button>
++        </div>
++      </div>
+       <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="import-open" aria-label="Importar vocabulario en esta carpeta" title="Importar vocabulario">${ICO('subir')}</button>
+       <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="selection-toggle" aria-label="Seleccionar palabras" title="Seleccionar palabras">${ICO('seleccion')}</button>
+       <div class="filter-dropdown-wrap" id="listaFilterWrap">
+@@ -5210,7 +5249,7 @@ function _renderFolderContent(folderId) {
+   if (lbl) lbl.textContent = `${words.length} ${t('words')}`;
+ 
+   // Tabla
+-  const TIPO_OPT = ['','Nomen','Verb','Adjektive','Redewendung','Adverb'];
++  const TIPO_OPT = ['','Nomen','Verb','Adjektiv','Redewendung','Adverb'];
+   const ART_OPT  = ['','der','die','das'];
+   const allSelChecked = words.length > 0 && words.every(w => {
+     const gi = allWords.findIndex(x => x === w);
+@@ -5350,6 +5389,37 @@ function _renderEmptyFolderView(folderId, folderName, backLabel) {
+   _renderSelBar();
+ }
+ 
++// Tras «Nueva lista»: dos tarjetas, lista vacía o importar (en vez de enseñar directamente una tabla vacía)
++function _renderListStartView(folderId, folderName) {
++  _selMode = false; _selSet.clear(); _editingIdx = null;
++  const topBar = document.getElementById('listaTopBar');
++  if (topBar) topBar.innerHTML = `
++    <div class="lista-top-bar-inner">
++      <button class="lista-back-btn" data-ui-click="list-pick-back">
++        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
++        Atrás
++      </button>
++      <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_esc(folderName)}">${_esc(folderName)}</span>
++    </div>`;
++  const lbl = document.getElementById('listaCountLbl');
++  if (lbl) lbl.textContent = '';
++  document.getElementById('wordList').innerHTML = `<div class="folders-grid subfolders empty-choose">
++    <div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="list-empty" aria-label="Crear una lista vacía en ${_esc(folderName)}">
++      <div class="folder-card-new-inner">
++        <div class="folder-card-new-plus">${ICO('lista')}</div>
++        <div class="folder-card-new-lbl">Lista vacía</div>
++      </div>
++    </div>
++    <div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="list-import" aria-label="Importar vocabulario en ${_esc(folderName)}">
++      <div class="folder-card-new-inner">
++        <div class="folder-card-new-plus">${ICO('subir')}</div>
++        <div class="folder-card-new-lbl">Importar</div>
++      </div>
++    </div>
++  </div>`;
++  _renderSelBar();
++}
++
+ // Antes de meter una subcarpeta en pid: si pid tiene palabras, se mueven a una subcarpeta «Sin clasificar» (con confirmación)
+ async function _prepareContainer(pid) {
+   const words = getWords(), idx = [];
+@@ -5373,7 +5443,7 @@ function closeFolder() {
+   const up = f ? _folderParent(f) : null;
+   _selMode = false; _selSet.clear();
+   _editingIdx = null;
+-  _listChosen = null;
++  _listChosen = null; _listPick = null;
+   if (up && _folders.some(x => x.id === up)) { openFolder(up); return; }
+   _currentFolderId = null;
+   loadFolders().then(() => _renderFolderView());
+@@ -5661,7 +5731,7 @@ loadUserData = async function() {
+ 
+ // ── Edición de celdas en popup (estilo Notion) ───────────────────
+ const _CELL_FIELDS = {
+-  tipo:     { label:'Tipo',     kind:'select', opts:['Nomen','Verb','Adjektive','Redewendung','Adverb'] },
++  tipo:     { label:'Tipo',     kind:'select', opts:['Nomen','Verb','Adjektiv','Redewendung','Adverb'] },
+   articulo: { label:'Artículo', kind:'select', opts:['der','die','das'] },
+   de:       { label:'Alemán',   kind:'text',   required:true },
+   es:       { label:'Español',  kind:'text',   required:true }
+@@ -5907,7 +5977,11 @@ function _handleUiClick(event) {
+     case 'folder-new': showFolderModal(null); break;
+     case 'subfolder-new': showFolderModal(null, false, _currentFolderId); break;
+     case 'folder-fix': fixLooseWords(); break;
+-    case 'list-new': _listChosen = _currentFolderId; renderLista(); break;
++    case 'list-new': _listPick = _currentFolderId; renderLista(); break;
++    case 'list-empty': _listChosen = _currentFolderId; _listPick = null; renderLista(); break;
++    case 'list-import': showImportModal(); break;
++    case 'list-pick-back': _listPick = null; renderLista(); break;
++    case 'add-menu-toggle': toggleListaAddMenu(event); break;
+     case 'folder-close': closeFolder(); break;
+     case 'selection-toggle': toggleSelMode(); break;
+     case 'list-filter-toggle': toggleListaFilterPanel(event); break;
+diff --git a/index.html b/index.html
+index 31063f8..c4203cf 100644
+--- a/index.html
++++ b/index.html
+@@ -853,7 +853,7 @@ ALTER TABLE user_folders ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES user
+           <option value="">—</option>
+           <option value="Nomen">Nomen</option>
+           <option value="Verb">Verb</option>
+-          <option value="Adjektive">Adjektive</option>
++          <option value="Adjektiv">Adjektiv</option>
+           <option value="Adverb">Adverb</option>
+           <option value="Redewendung">Redewendung</option>
+         </select>
+@@ -997,7 +997,7 @@ ALTER TABLE user_folders ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES user
+ 
+ <div class="toast hide" id="toast" role="status" aria-live="polite"></div>
+ 
+-<div id="buildBadge" class="build-badge">1.07.78</div>
++<div id="buildBadge" class="build-badge">1.07.79</div>
+ 
+ <script src="app.js"></script>
+ </body>

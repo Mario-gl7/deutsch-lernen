@@ -1459,13 +1459,13 @@ function _scopeFolderWords() {
   const sc = _scopeGet(), fl = _scopeFolders();
   let w = getWords();
   if (sc.folder === '__none__') w = w.filter(x => !x.folder_id);
-  else if (sc.folder !== 'all' && (!fl.length || fl.some(f => f.id === sc.folder))) w = w.filter(x => x.folder_id === sc.folder);
+  else if (sc.folder !== 'all' && (!fl.length || fl.some(f => f.id === sc.folder))) { const ids = _folderDescIds(sc.folder, fl); w = w.filter(x => ids.has(x.folder_id)); }
   return w;
 }
 function _scopeWords() { const sc = _scopeGet(); return _scopeFolderWords().filter(w => _dateKeyMatch(w, sc.date)); }
 function _scopePickerHtml(ctx) {
   const sc = _scopeGet(), fl = _scopeFolders();
-  const fOpts = [['all', 'Todas las carpetas'], ['__none__', 'Sin carpeta'], ...fl.map(f => [f.id, f.name])];
+  const fOpts = [['all', 'Todas las carpetas'], ['__none__', 'Sin carpeta'], ..._folderTree(fl).map(({ f, depth }) => [f.id, '\u00A0\u00A0'.repeat(depth) + f.name])];
   const fSel = fOpts.map(([v, l]) => `<option value="${_esc(v)}" ${v === sc.folder ? 'selected' : ''}>${_esc(l)}</option>`).join('');
   return `<div class="game-scope">
     <label class="gs-row"><span>${ICO('carpeta', true)}Carpeta</span><select class="form-input" data-ui-change="game-scope" data-kind="folder" data-ctx="${ctx}">${fSel}</select></label>
@@ -1988,9 +1988,24 @@ function saveWord() {
 }
 
 // ═══════════════════ IMPORT ═══════════════════
-let importParsed = null;
+// La importación se hace desde dentro de una carpeta: las palabras entran en esa carpeta.
+// Antes de guardar se buscan repetidas (en todo el vocabulario y dentro del propio archivo).
+let importParsed = null, _importDest = null, _importPlan = null;
+function _importDestId() {
+  const id = _currentFolderId;
+  return (id && id !== '__all__' && id !== '__none__' && _folders.some(f => f.id === id)) ? id : null;
+}
+function _importDestName() { return _importDest ? (_folderPathNames(_importDest).join(' › ') || 'Carpeta') : 'Sin carpeta'; }
 function showImportModal() {
-  importParsed = null;
+  importParsed = null; _importPlan = null;
+  _importDest = _importDestId();
+  const dest = document.getElementById('importDest');
+  if (dest) dest.innerHTML = `${ICO('carpeta', true)}<span>Se importará en</span> <b>${_esc(_importDestName())}</b>`;
+  // «Reemplazar» solo vacía la carpeta de destino: en «Todas»/«Sin carpeta» no se ofrece
+  const addOpt = document.querySelector('input[name="importMode"][value="add"]');
+  if (addOpt) addOpt.checked = true;
+  const modeRow = document.getElementById('importModeRow');
+  if (modeRow) modeRow.style.display = _importDest ? 'flex' : 'none';
   document.getElementById('importPreview').style.display = 'none';
   document.getElementById('importConfirmBtn').disabled = true;
   document.getElementById('importConfirmBtn').style.opacity = '.5';
@@ -2005,13 +2020,38 @@ function processImportFile(file) {
     const parsed = parseCSV(e.target.result);
     if (!parsed||parsed.length===0) { showToast(t('toastImportFail')); return; }
     importParsed = parsed;
+    const plan = _buildImportPlan(parsed, _importDest, 'add');
+    const nDup = plan.dups.length + plan.inFile;
     const prev = document.getElementById('importPreview');
     prev.style.display = 'block';
-    prev.innerHTML = `${ICO('check', true)}<b>${parsed.length} palabras</b> encontradas · Ej: ${_esc(displayDE(parsed[0]))} → ${_esc(parsed[0].es)}`;
+    prev.innerHTML = `${ICO('check', true)}<b>${parsed.length} palabras</b> encontradas · Ej: ${_esc(displayDE(parsed[0]))} → ${_esc(parsed[0].es)}` +
+      (nDup ? `<br>${ICO('alerta', true)}<b>${nDup} repetida${nDup !== 1 ? 's' : ''}</b> · te preguntaré qué hacer con ellas` : '');
     document.getElementById('importConfirmBtn').disabled = false;
     document.getElementById('importConfirmBtn').style.opacity = '1';
   };
   reader.readAsText(file, 'utf-8');
+}
+
+// Repetida = mismo alemán (sin mayúsculas ni espacios de más) y mismo artículo; si ambas tienen tipo, también el mismo
+function _impNorm(x) { return String(x || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+function _impKey(w) { return _impNorm(w.de) + '\u0001' + _impNorm(w.articulo); }
+function _impTipoOk(a, b) { return !a.tipo || !b.tipo || _impNorm(a.tipo) === _impNorm(b.tipo); }
+function _buildImportPlan(rows, dest, mode) {
+  let base = getWords();
+  if (mode === 'replace') base = base.filter(w => (w.folder_id || null) !== dest);   // se vacía solo la carpeta de destino
+  const byKey = new Map();
+  base.forEach((w, i) => { const k = _impKey(w); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(i); });
+  const seen = new Map(), fresh = [], dups = [];
+  let inFile = 0;
+  rows.forEach(r => {
+    const k = _impKey(r);
+    if ((seen.get(k) || []).some(o => _impTipoOk(o, r))) { inFile++; return; }      // repetida dentro del propio archivo
+    if (!seen.has(k)) seen.set(k, []);
+    seen.get(k).push(r);
+    const hit = (byKey.get(k) || []).find(i => _impTipoOk(base[i], r));
+    if (hit !== undefined) dups.push({ row: r, idx: hit }); else fresh.push(r);
+  });
+  return { base, fresh, dups, inFile };
 }
 function parseCSV(text) {
   text = text.replace(/^\uFEFF/, '');
@@ -2045,11 +2085,78 @@ function parseCSVLine(line) {
 function confirmImport() {
   if (!importParsed||importParsed.length===0) return;
   const mode = document.querySelector('input[name="importMode"]:checked').value;
-  let words = mode==='replace' ? [] : getWords();
-  words = words.concat(importParsed); saveWords(words);
-  closeModal('importModal'); renderLista(); updateStats();
-  showToast(`✓ ${importParsed.length} ${t('words')} ${t('toastImported')}`);
-  importParsed = null;
+  const dest = _importDest;
+  if (mode === 'replace' && dest) {
+    const n = getWords().filter(w => w.folder_id === dest).length;
+    if (n > 0 && !confirm(`¿Reemplazar las ${n} palabras de «${_importDestName()}»? Las subcarpetas no se tocan.`)) return;
+  }
+  const plan = _buildImportPlan(importParsed, dest, mode);
+  if (!plan.dups.length) { closeModal('importModal'); _applyImport(plan, []); return; }
+  // Hay repetidas: se pregunta qué hacer con cada una antes de guardar nada
+  _importPlan = plan;
+  const ex = i => plan.base[plan.dups[i].idx];
+  const list = document.getElementById('dupList');
+  list.innerHTML = plan.dups.map((d, i) => {
+    const e = ex(i), n = d.row;
+    const same = _impNorm(e.es) === _impNorm(n.es) && _impNorm(e.tipo) === _impNorm(n.tipo || e.tipo);
+    const where = e.folder_id ? (_folderPathNames(e.folder_id).join(' › ') || 'Carpeta') : 'Sin carpeta';
+    return `<div class="dup-row">
+      <div class="dup-word">${_esc(displayDE(n))}${same ? '<span class="dup-tag">idéntica</span>' : ''}</div>
+      <div class="dup-cmp">
+        <span><em>Ya está</em>${_esc(e.es)} <small>· ${_esc(where)}</small></span>
+        <span><em>Nueva</em>${_esc(n.es)}</span>
+      </div>
+      <div class="dup-choice" role="radiogroup" aria-label="Qué hacer con ${_esc(displayDE(n))}">
+        <label class="dup-opt"><input type="radio" name="dup-${i}" value="skip" checked><span>Omitir</span></label>
+        <label class="dup-opt"><input type="radio" name="dup-${i}" value="replace"><span>Reemplazar</span></label>
+      </div>
+    </div>`;
+  }).join('');
+  const nd = plan.dups.length;
+  document.getElementById('dupSummary').innerHTML =
+    `<b>${nd} palabra${nd !== 1 ? 's' : ''} ya existe${nd !== 1 ? 'n' : ''}</b> en tu vocabulario. ` +
+    `Se importarán ${plan.fresh.length} nueva${plan.fresh.length !== 1 ? 's' : ''}; elige qué hacer con las repetidas.` +
+    (plan.inFile ? ` Además se ignoran ${plan.inFile} repetida${plan.inFile !== 1 ? 's' : ''} dentro del propio archivo.` : '');
+  closeModal('importModal');
+  openModal('importDupModal');
+}
+function setDupAll(v) {
+  document.querySelectorAll('#dupList input[type="radio"]').forEach(r => { if (r.value === v) r.checked = true; });
+}
+function applyDupChoices() {
+  if (!_importPlan) return;
+  const choices = _importPlan.dups.map((_, i) => document.querySelector(`#dupList input[name="dup-${i}"]:checked`)?.value || 'skip');
+  closeModal('importDupModal');
+  _applyImport(_importPlan, choices);
+}
+function cancelDupImport() {
+  closeModal('importDupModal');
+  _importPlan = null;
+  showToast('Importación cancelada: no se ha guardado nada');
+}
+function _applyImport(plan, choices) {
+  const dest = _importDest;
+  const words = plan.base;                    // palabras existentes (si se reemplaza la carpeta, ya sin las de esa carpeta)
+  const prog = getProgress(), movedKeys = [];
+  let replaced = 0, skipped = 0;
+  plan.dups.forEach((d, i) => {
+    if (choices[i] !== 'replace') { skipped++; return; }
+    const w = words[d.idx], oldDE = w.de;     // se conserva _id y fecha de alta; el resto toma lo importado
+    w.tipo = d.row.tipo || w.tipo || ''; w.articulo = d.row.articulo || ''; w.de = d.row.de; w.es = d.row.es; w.folder_id = dest;
+    if (oldDE !== w.de && prog[oldDE]) { prog[w.de] = prog[oldDE]; delete prog[oldDE]; movedKeys.push(w.de); }
+    replaced++;
+  });
+  if (movedKeys.length) saveProgress(prog, movedKeys);
+  const add = plan.fresh.map(r => ({ tipo: r.tipo, articulo: r.articulo, de: r.de, es: r.es, folder_id: dest }));
+  saveWords(words.concat(add));
+  _importPlan = null; importParsed = null;
+  renderLista(); updateStats();
+  const pl = (n, w) => `${n} ${w}${n !== 1 ? 's' : ''}`;
+  const parts = [pl(add.length, 'nueva')];
+  if (replaced) parts.push(pl(replaced, 'reemplazada'));
+  if (skipped) parts.push(pl(skipped, 'omitida'));
+  if (plan.inFile) parts.push(pl(plan.inFile, 'repetida') + ' en el archivo');
+  showToast('✓ Importación' + (dest ? ` en «${_importDestName()}»` : '') + ': ' + parts.join(' · '));
 }
 
 // ═══════════════════ MATCHING ═══════════════════
@@ -4769,10 +4876,46 @@ const FOLDER_COLORS = ['#4ade80','#60a5fa','#f87171','#fb923c','#a78bfa','#f472b
 const FOLDER_DEFAULT_COLOR = '#4ade80';
 function _safeFolderColor(color) { return FOLDER_COLORS.includes(color) ? color : FOLDER_DEFAULT_COLOR; }
 
+// ── Subcarpetas: cada carpeta puede tener parent_id (otra carpeta) ──
+let _folderParentDB = true;   // false si la BD aún no tiene la columna parent_id (migración 1.07.76 sin ejecutar)
+function _folderParent(f) { return (f && typeof f.parent_id === 'string' && f.parent_id) ? f.parent_id : null; }
+function _normFolder(x) { return { ...x, color: _safeFolderColor(x.color), parent_id: _folderParent(x) }; }
+function _folderNoParentCol(error) { return !!error && (error.code === '42703' || /parent_id/i.test(error.message || '')); }
+// Hijas directas de pid (null = raíz; una carpeta cuyo padre no existe cuenta como raíz)
+function _foldersChildren(pid, list) {
+  const fl = list || _folders, ids = new Set(fl.map(f => f.id));
+  return fl.filter(f => { const p = _folderParent(f); return pid === null ? (!p || p === f.id || !ids.has(p)) : (p === pid && f.id !== pid); });
+}
+// La carpeta y todas sus descendientes (Set de ids)
+function _folderDescIds(id, list) {
+  const fl = list || _folders, out = new Set([id]);
+  let grew = true;
+  while (grew) { grew = false; fl.forEach(f => { const p = _folderParent(f); if (p && out.has(p) && !out.has(f.id)) { out.add(f.id); grew = true; } }); }
+  return out;
+}
+function _folderPathNames(id, list) {
+  const fl = list || _folders, names = [];
+  let cur = fl.find(f => f.id === id), guard = 0;
+  while (cur && guard++ < 25) { names.unshift(cur.name); const p = _folderParent(cur); cur = p ? fl.find(f => f.id === p) : null; }
+  return names;
+}
+// Árbol en orden (padre, luego sus hijas): [{ f, depth }]
+function _folderTree(list, exclude) {
+  const fl = list || _folders, out = [];
+  const walk = (pid, depth, seen) => _foldersChildren(pid, fl).forEach(f => {
+    if (seen.has(f.id) || (exclude && exclude.has(f.id))) return;
+    out.push({ f, depth });
+    walk(f.id, depth + 1, new Set([...seen, f.id]));
+  });
+  walk(null, 0, new Set());
+  return out;
+}
+function _folderWordTotal(id, words) { const ids = _folderDescIds(id); return words.filter(w => ids.has(w.folder_id)).length; }
+
 // ── Caché de carpetas en localStorage ───────────────────────────
 function _lsFoldersKey() { return 'folders_' + (currentUser?.id || 'anon'); }
-function _cacheFolders(f) { try { localStorage.setItem(_lsFoldersKey(), JSON.stringify((f || []).map(x => ({ ...x, color: _safeFolderColor(x.color) })))); } catch(e) {} }
-function _cachedFolders() { try { const s = localStorage.getItem(_lsFoldersKey()); return s ? JSON.parse(s).map(x => ({ ...x, color: _safeFolderColor(x.color) })) : []; } catch(e) { return []; } }
+function _cacheFolders(f) { try { localStorage.setItem(_lsFoldersKey(), JSON.stringify((f || []).map(_normFolder))); } catch(e) {} }
+function _cachedFolders() { try { const s = localStorage.getItem(_lsFoldersKey()); return s ? JSON.parse(s).map(_normFolder) : []; } catch(e) { return []; } }
 
 // ── Cargar carpetas de Supabase ──────────────────────────────────
 async function loadFolders() {
@@ -4780,33 +4923,42 @@ async function loadFolders() {
   if (!currentUser || !_dbReady) return;
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb
-      .from('user_folders')
-      .select('id,name,color,created_at')
-      .eq('user_id', currentUser.id)
-      .order('created_at');
+    const localParent = new Map(_folders.map(f => [f.id, _folderParent(f)]));
+    const q = cols => sb.from('user_folders').select(cols).eq('user_id', currentUser.id).order('created_at');
+    let res = await q('id,name,color,parent_id,created_at');
+    if (res.error && _folderNoParentCol(res.error)) { _folderParentDB = false; res = await q('id,name,color,created_at'); }
+    else if (!res.error) _folderParentDB = true;
+    const { data, error } = res;
     if (error) { if (error.code === '42P01') return; throw error; }
-    _folders = (data || []).map(x => ({ ...x, color: _safeFolderColor(x.color) }));
+    // sin columna en la BD, las subcarpetas se conservan solo en este dispositivo
+    _folders = (data || []).map(x => _normFolder(_folderParentDB ? x : { ...x, parent_id: localParent.get(x.id) || null }));
     _cacheFolders(_folders);
   } catch(e) { console.warn('[folders] load:', e.message); }
 }
 
 // ── Crear carpeta ────────────────────────────────────────────────
-async function createFolder(name, color) {
+async function createFolder(name, color, parentId) {
   if (!currentUser) return null;
   const tempId = 'tmp_' + Date.now();
   color = _safeFolderColor(color);
-  const newF = { id: tempId, name, color };
+  parentId = parentId || null;
+  const newF = { id: tempId, name, color, parent_id: parentId };
   _folders.push(newF);
   _cacheFolders(_folders);
   if (!_dbReady) return tempId;
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb
-      .from('user_folders')
-      .insert({ user_id: currentUser.id, name, color: color || FOLDER_DEFAULT_COLOR })
-      .select('id,name,color').single();
-    if (error) throw error;
+    const base = { user_id: currentUser.id, name, color: color || FOLDER_DEFAULT_COLOR };
+    const dbParent = (parentId && !String(parentId).startsWith('tmp_')) ? parentId : null;
+    let res = _folderParentDB
+      ? await sb.from('user_folders').insert({ ...base, parent_id: dbParent }).select('id,name,color,parent_id').single()
+      : await sb.from('user_folders').insert(base).select('id,name,color').single();
+    if (res.error && _folderParentDB && _folderNoParentCol(res.error)) {
+      _folderParentDB = false;
+      res = await sb.from('user_folders').insert(base).select('id,name,color').single();
+    }
+    if (res.error) throw res.error;
+    const data = _normFolder({ ...res.data, parent_id: parentId });
     // Reemplazar id temporal
     const idx = _folders.findIndex(f => f.id === tempId);
     if (idx >= 0) _folders[idx] = data;
@@ -4822,15 +4974,21 @@ async function createFolder(name, color) {
   }
 }
 
-async function updateFolder(id, name, color) {
+async function updateFolder(id, name, color, parentId) {
   color = _safeFolderColor(color);
   const f = _folders.find(x => x.id === id);
-  if (f) { f.name = name; f.color = color; }
+  if (f) { f.name = name; f.color = color; if (parentId !== undefined) f.parent_id = parentId || null; }
   _cacheFolders(_folders);
   if (!_dbReady) return;
   try {
     const sb = await getSupabase();
-    await sb.from('user_folders').update({ name, color }).eq('id', id).eq('user_id', currentUser.id);
+    const patch = { name, color };
+    if (parentId !== undefined && _folderParentDB) patch.parent_id = (parentId && !String(parentId).startsWith('tmp_')) ? parentId : null;
+    let { error } = await sb.from('user_folders').update(patch).eq('id', id).eq('user_id', currentUser.id);
+    if (error && 'parent_id' in patch && _folderNoParentCol(error)) {
+      _folderParentDB = false; delete patch.parent_id;
+      await sb.from('user_folders').update(patch).eq('id', id).eq('user_id', currentUser.id);
+    }
   } catch(e) { console.warn('[folders] update:', e.message); }
 }
 
@@ -4839,11 +4997,15 @@ async function deleteFolder(id) {
   const words = getWords();
   words.forEach(w => { if (w.folder_id === id) w.folder_id = null; });
   saveWords(words);
+  // Las subcarpetas suben un nivel (a la carpeta padre de la eliminada)
+  const gone = _folders.find(f => f.id === id), up = gone ? _folderParent(gone) : null;
+  _folders.forEach(f => { if (_folderParent(f) === id) f.parent_id = up; });
   _folders = _folders.filter(f => f.id !== id);
   _cacheFolders(_folders);
   if (!_dbReady) return;
   try {
     const sb = await getSupabase();
+    if (_folderParentDB) await sb.from('user_folders').update({ parent_id: (up && !String(up).startsWith('tmp_')) ? up : null }).eq('parent_id', id).eq('user_id', currentUser.id);
     await sb.from('user_folders').delete().eq('id', id).eq('user_id', currentUser.id);
   } catch(e) { console.warn('[folders] delete:', e.message); }
 }
@@ -4883,7 +5045,6 @@ function _renderFolderView() {
   if (topBar) topBar.innerHTML = `
     <div class="lista-top-bar-inner">
       <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="add-open">＋ Añadir</button>
-      <button class="list-action-btn" style="flex:none;padding:7px 14px" data-ui-click="import-open">${ICO('subir', true)}Importar</button>
     </div>`;
 
   // Count label
@@ -4892,9 +5053,7 @@ function _renderFolderView() {
 
   // Contar palabras por carpeta
   const words = getWords();
-  const countByFolder = {};
   const unassigned = words.filter(w => !w.folder_id).length;
-  words.forEach(w => { if (w.folder_id) countByFolder[w.folder_id] = (countByFolder[w.folder_id]||0) + 1; });
 
   let html = '<div class="folders-grid">';
 
@@ -4922,23 +5081,8 @@ function _renderFolderView() {
     </div>`;
   }
 
-  // Carpetas del usuario
-  for (const f of _folders) {
-    const count = countByFolder[f.id] || 0;
-    const col = _safeFolderColor(f.color);
-    const colLight = col + '30';
-    html += `<div class="folder-card" data-ui-click="folder-open" data-folder-id="${_esc(f.id)}">
-      <div class="folder-card-cover" style="background:${_folderCoverBg(col)}">
-        <span class="folder-card-icon">${ICO('carpeta')}</span>
-        <button class="folder-edit-btn" data-ui-click="folder-edit" data-folder-id="${_esc(f.id)}" title="Editar carpeta">${ICO('editar')}</button>
-        <button class="folder-menu-btn" data-ui-click="folder-delete" data-folder-id="${_esc(f.id)}" title="Eliminar carpeta">${ICO('papelera')}</button>
-      </div>
-      <div class="folder-card-body">
-        <div class="folder-card-name">${_esc(f.name)}</div>
-        <div class="folder-card-count">${count} palabras</div>
-      </div>
-    </div>`;
-  }
+  // Carpetas del usuario (solo las de primer nivel; las subcarpetas se ven al entrar)
+  for (const f of _foldersChildren(null)) html += _folderCardHtml(f, words);
 
   // Botón nueva carpeta
   html += `<div class="folder-card new-folder" data-ui-click="folder-new">
@@ -4957,6 +5101,25 @@ function _renderFolderView() {
   if (selBar) selBar.classList.remove('active');
 }
 
+// Tarjeta de carpeta (raíz y subcarpetas). Las palabras cuentan también las de sus subcarpetas.
+function _folderCardHtml(f, words) {
+  const col = _safeFolderColor(f.color);
+  const total = _folderWordTotal(f.id, words);
+  const subs = _foldersChildren(f.id).length;
+  const sub = subs ? ` · ${subs} subcarpeta${subs !== 1 ? 's' : ''}` : '';
+  return `<div class="folder-card" role="button" tabindex="0" data-ui-click="folder-open" data-folder-id="${_esc(f.id)}">
+      <div class="folder-card-cover" style="background:${_folderCoverBg(col)}">
+        <span class="folder-card-icon">${ICO('carpeta')}</span>
+        <button class="folder-edit-btn" data-ui-click="folder-edit" data-folder-id="${_esc(f.id)}" title="Editar carpeta" aria-label="Editar carpeta ${_esc(f.name)}">${ICO('editar')}</button>
+        <button class="folder-menu-btn" data-ui-click="folder-delete" data-folder-id="${_esc(f.id)}" title="Eliminar carpeta" aria-label="Eliminar carpeta ${_esc(f.name)}">${ICO('papelera')}</button>
+      </div>
+      <div class="folder-card-body">
+        <div class="folder-card-name">${_esc(f.name)}</div>
+        <div class="folder-card-count">${total} palabras${sub}</div>
+      </div>
+    </div>`;
+}
+
 function openFolder(folderId) {
   _currentFolderId = folderId;
   _selMode = false; _selSet.clear();
@@ -4971,13 +5134,17 @@ function _renderFolderContent(folderId) {
   // Filtrar palabras según carpeta
   let words;
   let folderName;
+  let backLabel = 'Carpetas';
+  const isRealFolder = folderId !== '__all__' && folderId !== '__none__';
   if (folderId === '__all__') {
     words = allWords; folderName = 'Todas';
   } else if (folderId === '__none__') {
     words = allWords.filter(w => !w.folder_id); folderName = 'Sin carpeta';
   } else {
     const f = _folders.find(x => x.id === folderId);
-    folderName = f ? f.name : 'Carpeta';
+    folderName = f ? _folderPathNames(folderId).join(' › ') : 'Carpeta';
+    const par = f && _folderParent(f) ? _folders.find(x => x.id === _folderParent(f)) : null;
+    if (par) backLabel = par.name;
     words = allWords.filter(w => w.folder_id === folderId);
   }
 
@@ -4996,11 +5163,12 @@ function _renderFolderContent(folderId) {
     <div class="lista-top-bar-inner">
       <button class="lista-back-btn" data-ui-click="folder-close">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="10,2 4,8 10,14"/></svg>
-        Carpetas
+        ${_esc(backLabel)}
       </button>
-      <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(folderName)}</span>
-      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="add-open">＋</button>
-      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="selection-toggle">${ICO('seleccion')}</button>
+      <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_esc(folderName)}">${_esc(folderName)}</span>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="add-open" aria-label="Añadir palabra" title="Añadir palabra">＋</button>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="import-open" aria-label="Importar vocabulario en esta carpeta" title="Importar vocabulario">${ICO('subir')}</button>
+      <button class="list-action-btn" style="flex:none;padding:6px 11px;font-size:11px" data-ui-click="selection-toggle" aria-label="Seleccionar palabras" title="Seleccionar palabras">${ICO('seleccion')}</button>
       <div class="filter-dropdown-wrap" id="listaFilterWrap">
         <button class="filter-dropdown-btn" id="listaFilterBtn" data-ui-click="list-filter-toggle">
           <span id="listaFilterBtnLabel">Filtros</span>
@@ -5101,8 +5269,21 @@ function _renderFolderContent(folderId) {
     </tr>`;
   }).join('');
 
+  // Subcarpetas de esta carpeta (+ tarjeta para crear una nueva)
+  let subHtml = '';
+  if (isRealFolder && !_selMode) {
+    subHtml = '<div class="folders-grid subfolders">' +
+      _foldersChildren(folderId).map(f => _folderCardHtml(f, allWords)).join('') +
+      `<div class="folder-card new-folder" role="button" tabindex="0" data-ui-click="subfolder-new" aria-label="Nueva subcarpeta en ${_esc(folderName)}">
+        <div class="folder-card-new-inner">
+          <div class="folder-card-new-plus">＋</div>
+          <div class="folder-card-new-lbl">Nueva subcarpeta</div>
+        </div>
+      </div></div>`;
+  }
+
   document.getElementById('wordList').innerHTML =
-    `<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>
+    `${subHtml}<table class="vocab-table">${thead}<tbody>${rows}</tbody></table>
      <div class="notion-add-row" data-ui-click="add-open">＋ Nueva palabra</div>`;
 
   // Sel-bar (barra de acciones de selección)
@@ -5110,9 +5291,13 @@ function _renderFolderContent(folderId) {
 }
 
 function closeFolder() {
-  _currentFolderId = null;
+  // Dentro de una subcarpeta, «atrás» sube a su carpeta padre; en el primer nivel vuelve a la raíz
+  const f = _folders.find(x => x.id === _currentFolderId);
+  const up = f ? _folderParent(f) : null;
   _selMode = false; _selSet.clear();
   _editingIdx = null;
+  if (up && _folders.some(x => x.id === up)) { openFolder(up); return; }
+  _currentFolderId = null;
   loadFolders().then(() => _renderFolderView());
 }
 
@@ -5209,9 +5394,9 @@ function showMoveModal() {
     </button>`;
   }
   // Carpetas existentes
-  for (const f of _folders) {
+  for (const { f, depth } of _folderTree()) {
     if (f.id === currentFid) continue;
-    html += `<button class="folder-move-opt" data-ui-click="folder-move" data-folder-id="${_esc(f.id)}">
+    html += `<button class="folder-move-opt" data-ui-click="folder-move" data-folder-id="${_esc(f.id)}" style="padding-left:${14 + depth * 18}px">
       <span style="width:14px;height:14px;border-radius:50%;background:${_safeFolderColor(f.color)};display:inline-block;flex-shrink:0"></span>
       <span style="font-size:13px;font-weight:500;color:var(--text)">${_esc(f.name)}</span>
     </button>`;
@@ -5251,13 +5436,22 @@ async function deleteSelWords() {
 // ── Modal carpeta (crear / editar) ───────────────────────────────
 let _folderMoveAfterCreate = false;
 
-function showFolderModal(folderId, moveAfter) {
+function showFolderModal(folderId, moveAfter, parentId) {
   _editingFolderId = folderId || null;
   _folderMoveAfterCreate = !!moveAfter;
   const isEdit = !!folderId;
   const f = isEdit ? _folders.find(x => x.id === folderId) : null;
+  const preParent = isEdit ? _folderParent(f) : ((parentId && _folders.some(x => x.id === parentId)) ? parentId : null);
   const titleEl = document.getElementById('folderModalTitle');
-  if (titleEl) titleEl.textContent = isEdit ? 'Editar carpeta' : 'Nueva carpeta';
+  if (titleEl) titleEl.textContent = isEdit ? 'Editar carpeta' : (preParent ? 'Nueva subcarpeta' : 'Nueva carpeta');
+  // «Dentro de»: raíz o cualquier carpeta (al editar, sin ella misma ni sus subcarpetas)
+  const parSel = document.getElementById('folderParentSelect');
+  if (parSel) {
+    const nbsp = '\u00A0\u00A0';
+    const excl = isEdit ? _folderDescIds(folderId) : null;
+    parSel.innerHTML = `<option value="">— Primer nivel —</option>` +
+      _folderTree(null, excl).map(({ f: x, depth }) => `<option value="${_esc(x.id)}" ${x.id === preParent ? 'selected' : ''}>${nbsp.repeat(depth)}${_esc(x.name)}</option>`).join('');
+  }
   const nameEl = document.getElementById('folderNameInput');
   if (nameEl) { nameEl.value = isEdit ? (f?.name||'') : ''; }
   const errEl = document.getElementById('folderModalErr');
@@ -5285,18 +5479,19 @@ async function saveFolderModal() {
   if (!name) { if(errEl) errEl.textContent = 'El nombre es obligatorio'; return; }
   const colorEl = document.querySelector('.folder-color-swatch.active');
   const color = _safeFolderColor(colorEl?.dataset.color);
+  const parentId = document.getElementById('folderParentSelect')?.value || null;
   closeModal('folderModal');
   if (_editingFolderId) {
-    await updateFolder(_editingFolderId, name, color);
+    await updateFolder(_editingFolderId, name, color, parentId);
     showToast('✓ Carpeta actualizada');
-    _renderFolderView();
+    renderLista();
   } else {
-    const newId = await createFolder(name, color);
-    showToast('✓ Carpeta creada: ' + name);
+    const newId = await createFolder(name, color, parentId);
+    showToast((parentId ? '✓ Subcarpeta creada: ' : '✓ Carpeta creada: ') + name);
     if (_folderMoveAfterCreate && _selSet.size > 0) {
       await confirmMoveWords(newId);
     } else {
-      _renderFolderView();
+      renderLista();
     }
   }
 }
@@ -5345,13 +5540,15 @@ async function confirmDeleteFolder(folderId) {
   const f = _folders.find(x => x.id === folderId);
   if (!f) return;
   const count = getWords().filter(w => w.folder_id === folderId).length;
-  const msg = count > 0
+  const subs = _foldersChildren(folderId).length;
+  let msg = count > 0
     ? `¿Eliminar la carpeta "${f.name}"? Las ${count} palabras pasarán a "Sin carpeta".`
     : `¿Eliminar la carpeta "${f.name}"?`;
+  if (subs > 0) msg += ` Sus ${subs} subcarpeta${subs !== 1 ? 's' : ''} subirán un nivel.`;
   if (!confirm(msg)) return;
   await deleteFolder(folderId);
   showToast('🗑 Carpeta eliminada');
-  _renderFolderView();
+  renderLista();
 }
 
 // ── Estilo inline para folder-move-opt ──────────────────────────
@@ -5588,6 +5785,9 @@ function _handleUiClick(event) {
     case 'save-word': saveWord(); break;
     case 'import-file-open': document.getElementById('importFileInput').click(); break;
     case 'import-confirm': confirmImport(); break;
+    case 'dup-all': setDupAll(el.dataset.value); break;
+    case 'dup-apply': applyDupChoices(); break;
+    case 'dup-cancel': cancelDupImport(); break;
     case 'list-filter-type': setListaFilter(el.dataset.value); break;
     case 'list-filter-diff': setListaDiff(el.dataset.value); break;
     case 'row-save': saveEditRow(index); break;
@@ -5620,6 +5820,7 @@ function _handleUiClick(event) {
     case 'folder-edit': event.stopPropagation(); showFolderModal(el.dataset.folderId); break;
     case 'folder-delete': event.stopPropagation(); confirmDeleteFolder(el.dataset.folderId); break;
     case 'folder-new': showFolderModal(null); break;
+    case 'subfolder-new': showFolderModal(null, false, _currentFolderId); break;
     case 'folder-close': closeFolder(); break;
     case 'selection-toggle': toggleSelMode(); break;
     case 'list-filter-toggle': toggleListaFilterPanel(event); break;
@@ -5704,6 +5905,7 @@ document.addEventListener('keydown', event => {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const el = event.target && event.target.closest ? event.target.closest('[role="button"][data-ui-click]') : null;
   if (!el || el.tagName === 'BUTTON') return;
+  if (event.target !== el && event.target.closest && event.target.closest('button')) return;   // un botón dentro de la tarjeta usa su propia acción
   event.preventDefault();
   el.click();
 });

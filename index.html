@@ -362,7 +362,9 @@ ALTER TABLE user_folders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_folders" ON user_folders
   USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 
-ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_folders(id) ON DELETE SET NULL;</code>
+ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_folders(id) ON DELETE SET NULL;
+
+ALTER TABLE user_folders ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES user_folders(id) ON DELETE SET NULL;</code>
       <button class="copy-sql-btn" data-ui-click="copy-sql"><svg class="ico ico-i" aria-hidden="true"><use href="#i-lista"/></svg>Copiar SQL</button>
     </div>
     <div class="word-count-lbl" id="listaCountLbl" style="padding:6px 16px 2px;font-size:11px;color:var(--text3)"></div>
@@ -760,6 +762,10 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
              data-ui-enter="save-folder">
     </div>
     <div class="form-row">
+      <div class="form-label"><label for="folderParentSelect">Dentro de</label></div>
+      <select class="form-input" id="folderParentSelect"></select>
+    </div>
+    <div class="form-row">
       <div class="form-label">Color</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap" id="folderColorPicker"></div>
     </div>
@@ -881,6 +887,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
   <div class="modal-box">
     <button aria-label="Cerrar" class="modal-close-x" data-ui-modal-close="importModal"><svg class="ico" aria-hidden="true"><use href="#i-cruz"/></svg></button>
     <h3>Importar vocabulario</h3>
+    <div class="import-dest" id="importDest"></div>
     <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">Formato CSV: <b style="color:var(--blue)">Tipo, Artículo, Alemán, Español</b></p>
     <div class="import-zone" id="importZone" data-ui-click="import-file-open" data-ui-dropzone role="button" tabindex="0" aria-label="Seleccionar archivo para importar">
       <div class="import-zone-icon"><svg class="ico" aria-hidden="true"><use href="#i-abierta"/></svg></div>
@@ -888,12 +895,28 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
     </div>
     <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none" data-ui-change="import-file">
     <div class="import-preview" id="importPreview"></div>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div id="importModeRow" style="display:flex;gap:8px;margin-bottom:14px">
       <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="add" checked style="accent-color:var(--green)"> Añadir</label>
-      <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="replace" style="accent-color:var(--green)"> Reemplazar</label>
+      <label class="radio-opt" style="flex:1"><input type="radio" name="importMode" value="replace" style="accent-color:var(--green)"> Vaciar y cargar</label>
     </div>
     <button class="btn-primary" id="importConfirmBtn" data-ui-click="import-confirm" disabled style="opacity:.5">Importar</button>
     <button class="btn-secondary" data-ui-modal-close="importModal">Cancelar</button>
+  </div>
+</div>
+
+<!-- Import: palabras repetidas -->
+<div class="modal-overlay" id="importDupModal" data-ui-overlay="importDupModal">
+  <div class="modal-box dup-box" role="dialog" aria-modal="true" aria-labelledby="dupTitle">
+    <button aria-label="Cancelar importación" class="modal-close-x" data-ui-click="dup-cancel"><svg class="ico" aria-hidden="true"><use href="#i-cruz"/></svg></button>
+    <h3 id="dupTitle">Palabras repetidas</h3>
+    <p class="dup-summary" id="dupSummary" aria-live="polite"></p>
+    <div class="dup-bulk">
+      <button class="list-action-btn" type="button" data-ui-click="dup-all" data-value="skip">Omitir todas</button>
+      <button class="list-action-btn" type="button" data-ui-click="dup-all" data-value="replace">Reemplazar todas</button>
+    </div>
+    <div class="dup-list" id="dupList"></div>
+    <button class="btn-primary" type="button" data-ui-click="dup-apply">Continuar importación</button>
+    <button class="btn-secondary" type="button" data-ui-click="dup-cancel">Cancelar importación</button>
   </div>
 </div>
 
@@ -974,7 +997,7 @@ ALTER TABLE user_words ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES user_f
 
 <div class="toast hide" id="toast" role="status" aria-live="polite"></div>
 
-<div id="buildBadge" class="build-badge">1.07.75</div>
+<div id="buildBadge" class="build-badge">1.07.76</div>
 
 <script src="app.js"></script>
 </body>

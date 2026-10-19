@@ -148,3 +148,7 @@ create policy "own_rows" on public.user_goals
 -- ── Actividad: respuestas correctas y segundos de estudio ──
 alter table public.user_activity add column if not exists correct integer not null default 0 check (correct >= 0);
 alter table public.user_activity add column if not exists seconds integer not null default 0 check (seconds >= 0);
+
+-- ── Subcarpetas (1.07.76) ──
+alter table public.user_folders add column if not exists parent_id uuid references public.user_folders(id) on delete set null;
+create index if not exists user_folders_parent_idx on public.user_folders(parent_id);

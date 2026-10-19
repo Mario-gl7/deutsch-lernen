@@ -2493,3 +2493,57 @@ body:not(.lectura-reading) #page-lectura:not(.fullscreen-reader){background:none
 /* ═══ 1.07.75 · Casilla «Recuérdame» en el login ═══ */
 .login-remember{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;color:var(--text2);cursor:pointer;user-select:none}
 .login-remember input{width:16px;height:16px;margin:0;accent-color:var(--green);cursor:pointer}
+
+/* ═══════════════════ 1.07.76 · IMPORTAR DENTRO DE CARPETA, REPETIDAS Y SUBCARPETAS ═══════════════════ */
+.subfolders{padding:10px 12px 4px;grid-template-columns:repeat(auto-fill,minmax(148px,1fr))}
+.subfolders .folder-card{min-height:96px}
+.subfolders .folder-card-cover{height:52px}
+.subfolders .folder-card.new-folder{min-height:96px}
+.subfolders .folder-card-new-inner{padding:12px 8px}
+.folder-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.import-dest{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin:-6px 0 12px;font-size:12px;color:var(--text2);line-height:1.4;
+}
+.import-dest b{color:var(--text);font-weight:600;overflow-wrap:anywhere}
+
+.dup-box{display:flex;flex-direction:column;max-width:520px}
+.dup-summary{font-size:13px;color:var(--text2);line-height:1.5;margin:-4px 0 12px;text-wrap:pretty}
+.dup-summary b{color:var(--text);font-weight:600}
+.dup-bulk{display:flex;gap:8px;margin-bottom:10px}
+.dup-bulk .list-action-btn{flex:1;justify-content:center}
+.dup-list{
+  display:flex;flex-direction:column;gap:8px;margin-bottom:14px;
+  max-height:min(44dvh,360px);overflow-y:auto;overscroll-behavior:contain;
+  padding-right:2px;
+}
+.dup-row{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+  padding:10px 12px;display:flex;flex-direction:column;gap:6px;
+}
+.dup-word{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
+.dup-tag{
+  flex:none;font-size:10px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;
+  color:var(--text3);border:1px solid var(--border2);border-radius:999px;padding:1px 7px;
+}
+.dup-cmp{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--text2);min-width:0}
+.dup-cmp span{overflow-wrap:anywhere}
+.dup-cmp em{
+  font-style:normal;font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--text3);display:inline-block;min-width:54px;margin-right:6px;
+}
+.dup-cmp small{color:var(--text3);font-size:11px}
+.dup-choice{display:flex;gap:6px;margin-top:2px}
+.dup-opt{flex:1;position:relative;cursor:pointer}
+.dup-opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.dup-opt span{
+  display:block;text-align:center;padding:7px 8px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--surface);
+  font-size:12px;font-weight:500;color:var(--text2);
+  transition:background-color .15s,border-color .15s,color .15s;
+}
+.dup-opt:hover span{border-color:var(--border2);color:var(--text)}
+.dup-opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.dup-opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.dup-opt span{transition:none}}

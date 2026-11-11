@@ -2010,7 +2010,7 @@ function saveWord() {
   if (!de) { err.textContent = t('errDeRequired'); return; }
   if (!es) { err.textContent = t('errEsRequired'); return; }
   err.textContent = '';
-  const words = getWords(); words.push({tipo, articulo, de, es}); saveWords(words);
+  const words = getWords(); words.push({tipo, articulo, de, es, folder_id: _importDestId()}); saveWords(words);   // entra en la carpeta/lista abierta
   closeModal('addModal'); renderLista(); updateStats();
   if (typeof _highlightSavedWords === 'function') _highlightSavedWords();
   showToast(t('toastAdded') + (articulo ? articulo + ' ' : '') + de);

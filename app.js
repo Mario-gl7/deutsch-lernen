@@ -1047,6 +1047,7 @@ let _pendingProgressSave = {};
 let _progressDebounceTimer = null;
 let _wordsDebounceTimer = null;
 let _dbReady = false;  // true once tables confirmed to exist
+let _localRev = 0, _lastPull = 0, _pulling = false;   // control de la sincronización entre dispositivos
 
 // ── LS key scoped by user id (not email, safer) ──
 function _lsKey(kind) { return kind + '_' + (currentUser?.id || 'anon'); }
@@ -1113,6 +1114,7 @@ async function loadUserData() {
   } catch(e) {
     setSyncState('error');
   }
+  _lastPull = Date.now();
   updateStats();
   _actBaseline();
   await _fetchActivityFromDB();
@@ -1123,6 +1125,44 @@ async function loadUserData() {
   _renderGoalsCard();
   _goalStart();
 }
+
+
+// ── Sincronización entre dispositivos ───────────────────────────
+// Antes los datos solo se bajaban al abrir sesión: un dispositivo que seguía abierto (la PWA se queda en memoria)
+// no veía lo que se importaba en otro. Ahora se vuelven a bajar palabras y carpetas al volver a la app.
+async function _pullRemote(force) {
+  if (!currentUser || !_dbReady || _pulling) return;
+  if (!force && Date.now() - _lastPull < 15000) return;
+  if (_wordsPending || _folders.some(f => String(f.id).startsWith('tmp_'))) return;   // hay cambios locales sin enviar
+  _pulling = true;
+  try {
+    await _flushChain;
+    const rev = _localRev;
+    const sb = await getSupabase();
+    const { data, error } = await sb.from('user_words')
+      .select('id,tipo,articulo,de,es,folder_id,created_at').eq('user_id', currentUser.id).order('created_at');
+    if (error) throw error;
+    if (rev !== _localRev || _wordsPending) return;           // cambió algo mientras tanto: no se pisa
+    const local = getWords();
+    if (!data.length && local.length) return;                  // respuesta vacía sospechosa: no se toca
+    const words = data.map(r => ({ tipo:_normTipo(r.tipo), articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
+    const sig = a => a.map(w => (w._id || '') + _wordFp(w)).sort().join('|');
+    let changed = sig(words) !== sig(local);
+    if (changed) { _cacheWords(words); _setSynced(data); updateStats(); }
+    else _setSynced(data);
+    const beforeF = JSON.stringify(_folders.map(_normFolder));
+    await loadFolders();
+    if (JSON.stringify(_folders.map(_normFolder)) !== beforeF) changed = true;
+    _lastPull = Date.now();
+    if (changed && currentPage === 'lista' && !_selMode && _editingIdx === null) renderLista();
+  } catch(e) { console.warn('[sync] pull:', e.message); }
+  finally { _pulling = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _pullRemote(); });
+window.addEventListener('focus', () => _pullRemote());
+window.addEventListener('online', () => _pullRemote(true));
+window.addEventListener('pageshow', () => _pullRemote());
+setInterval(() => { if (document.visibilityState === 'visible') _pullRemote(); }, 60000);
 
 // ── Fetch words from DB ──
 async function _fetchWordsFromDB() {
@@ -1176,6 +1216,7 @@ function saveWords(words) {
   // palabras nuevas (aún sin id de la BD): fecha de alta = hoy
   words.forEach(w => { if (!w._id && !w.added) w.added = _dayKey(); });
   _cacheWords(words);
+  _localRev++;
   updateStats();
   if (!_dbReady) return;
   _wordsPending = true;
@@ -1227,12 +1268,13 @@ function _flushWords(words) {
   return _flushChain;
 }
 
-async function _flushWordsNow(words) {
+async function _flushWordsNow(words) {   // (words se ignora: se relee la copia local)
   if (!currentUser || !_dbReady) return;
   setSyncState('syncing', 'Guardando…');
   try {
     const sb  = await getSupabase();
     const uid = currentUser.id;
+    words = getWords();   // siempre lo último guardado en local (con los ids que ya dio la BD): evita insertar dos veces la misma palabra
     // Si no sabemos qué hay en la BD (p. ej. tras cambiar de usuario), lo consultamos antes de tocar nada
     if (!_synced || _syncedUser !== uid) {
       const { data, error } = await sb.from('user_words').select('id,tipo,articulo,de,es,folder_id').eq('user_id', uid);
@@ -4945,7 +4987,7 @@ function _folderWordTotal(id, words) { const ids = _folderDescIds(id); return wo
 
 // ── Caché de carpetas en localStorage ───────────────────────────
 function _lsFoldersKey() { return 'folders_' + (currentUser?.id || 'anon'); }
-function _cacheFolders(f) { try { localStorage.setItem(_lsFoldersKey(), JSON.stringify((f || []).map(_normFolder))); } catch(e) {} }
+function _cacheFolders(f) { _localRev++; try { localStorage.setItem(_lsFoldersKey(), JSON.stringify((f || []).map(_normFolder))); } catch(e) {} }
 function _cachedFolders() { try { const s = localStorage.getItem(_lsFoldersKey()); return s ? JSON.parse(s).map(_normFolder) : []; } catch(e) { return []; } }
 
 // ── Cargar carpetas de Supabase ──────────────────────────────────

@@ -920,6 +920,7 @@ async function doLogout() {
   try { localStorage.removeItem(STATE_KEY); } catch(e) {}
   try { const sb = await getSupabase(); await sb.auth.signOut(); } catch(e) {}
   _setRemember(false);
+  _stopRealtime();
   // Clear all sensitive state
   _clearLocalUserCache(_uid);
   currentUser = null; currentEmail = '';
@@ -1131,12 +1132,19 @@ async function loadUserData() {
 // Antes los datos solo se bajaban al abrir sesión: un dispositivo que seguía abierto (la PWA se queda en memoria)
 // no veía lo que se importaba en otro. Ahora se vuelven a bajar palabras y carpetas al volver a la app.
 async function _pullRemote(force) {
-  if (!currentUser || !_dbReady || _pulling) return;
+  if (!currentUser || !_dbReady) return;
+  if (_pulling) { if (force) _pullAgain = true; return; }
   if (!force && Date.now() - _lastPull < 15000) return;
-  if (_wordsPending || _folders.some(f => String(f.id).startsWith('tmp_'))) return;   // hay cambios locales sin enviar
+  if (_wordsPending || _folders.some(f => String(f.id).startsWith('tmp_'))) { if (force) _pullAgain = true; return; }   // hay cambios locales sin enviar: se baja al terminar de enviarlos
   _pulling = true;
   try {
     await _flushChain;
+    // Si quedan cambios locales que la BD aún no tiene (envío fallido o a medias), se envían primero:
+    // bajar la BD ahora haría desaparecer lo que acabas de importar/editar.
+    if (_hasUnsynced(getWords())) {
+      await _flushWords(getWords());
+      if (_hasUnsynced(getWords())) { _pullAgain = true; return; }
+    }
     const rev = _localRev;
     const sb = await getSupabase();
     const { data, error } = await sb.from('user_words')
@@ -1154,15 +1162,69 @@ async function _pullRemote(force) {
     await loadFolders();
     if (JSON.stringify(_folders.map(_normFolder)) !== beforeF) changed = true;
     _lastPull = Date.now();
-    if (changed && currentPage === 'lista' && !_selMode && _editingIdx === null) renderLista();
+    if (changed && currentPage === 'lista' && !_selMode && _editingIdx === null) {
+      // si la carpeta abierta ya no existe (borrada en otro dispositivo) se vuelve a la vista de carpetas
+      if (_currentFolderId && _currentFolderId !== '__all__' && _currentFolderId !== '__none__' && !_folders.some(f => f.id === _currentFolderId)) _currentFolderId = null;
+      renderLista();
+    }
   } catch(e) { console.warn('[sync] pull:', e.message); }
-  finally { _pulling = false; }
+  finally { _pulling = false; if (_pullAgain) { _pullAgain = false; _scheduleRemotePull(); } }
+}
+
+// ¿Hay cambios locales que la BD todavía no tiene (palabras nuevas, editadas o borradas)?
+function _hasUnsynced(words) {
+  if (!_synced || _syncedUser !== (currentUser && currentUser.id)) return true;
+  const keep = new Set();
+  for (const w of words) {
+    if (!w._id || !_synced.has(w._id) || _synced.get(w._id) !== _wordFp(w)) return true;
+    keep.add(w._id);
+  }
+  for (const id of _synced.keys()) if (!keep.has(id)) return true;
+  return false;
+}
+
+// ── Aviso en tiempo real entre dispositivos (Supabase Realtime) ──
+// Cada dispositivo, al terminar de guardar un cambio, emite una señal por el canal del usuario;
+// los demás dispositivos abiertos la reciben y se actualizan en menos de un segundo.
+// (Opcional: supabase-migration-1.07.84.sql añade además el aviso directo desde la propia BD.)
+let _rtChannel = null, _rtDbChannel = null, _rtUser = null, _rtTimer = null, _pullAgain = false;
+function _scheduleRemotePull() {
+  clearTimeout(_rtTimer);
+  _rtTimer = setTimeout(() => _pullRemote(true), 700);
+}
+function _notifyChanged() {
+  try { if (_rtChannel) _rtChannel.send({ type: 'broadcast', event: 'changed', payload: { t: Date.now() } }); } catch(e) {}
+}
+async function _startRealtime() {
+  if (!currentUser || !_dbReady) return;
+  if (_rtChannel && _rtUser === currentUser.id) return;
+  _stopRealtime();
+  try {
+    const sb = await getSupabase();
+    const uid = currentUser.id;
+    _rtUser = uid;
+    _rtChannel = sb.channel('sync-' + uid, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'changed' }, () => _scheduleRemotePull())
+      .subscribe(st => { if (st === 'SUBSCRIBED') _scheduleRemotePull(); });
+    // canal aparte: si la BD no tiene Realtime activado en las tablas, solo falla este y la señal entre dispositivos sigue funcionando
+    _rtDbChannel = sb.channel('db-' + uid);
+    ['user_words', 'user_folders'].forEach(table =>
+      _rtDbChannel.on('postgres_changes', { event: '*', schema: 'public', table, filter: 'user_id=eq.' + uid }, () => _scheduleRemotePull()));
+    _rtDbChannel.subscribe();
+  } catch(e) { console.warn('[sync] realtime:', e.message); }
+}
+function _stopRealtime() {
+  clearTimeout(_rtTimer);
+  try {
+    if (_supabase) { if (_rtChannel) _supabase.removeChannel(_rtChannel); if (_rtDbChannel) _supabase.removeChannel(_rtDbChannel); }
+  } catch(e) {}
+  _rtChannel = _rtDbChannel = _rtUser = null;
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _pullRemote(); });
 window.addEventListener('focus', () => _pullRemote());
 window.addEventListener('online', () => _pullRemote(true));
 window.addEventListener('pageshow', () => _pullRemote());
-setInterval(() => { if (document.visibilityState === 'visible') _pullRemote(); }, 60000);
+setInterval(() => { if (document.visibilityState === 'visible') _pullRemote(); }, 30000);   // respaldo por si falla el tiempo real
 
 // ── Fetch words from DB ──
 async function _fetchWordsFromDB() {
@@ -1320,6 +1382,8 @@ async function _flushWordsNow(words) {   // (words se ignora: se relee la copia 
     }
     _flushRetries = 0;
     setSyncState('ok', 'Guardado ✓');
+    if (toInsert.length || toUpdate.length || toDelete.length) _notifyChanged();   // avisa a los demás dispositivos
+    if (_pullAgain) _scheduleRemotePull();
   } catch(e) {
     console.warn('[sync] flushWords:', e.message);
     setSyncState('error', 'Error al guardar');
@@ -5040,6 +5104,7 @@ async function createFolder(name, color, parentId) {
     const words = getWords();
     words.forEach(w => { if (w.folder_id === tempId) w.folder_id = data.id; });
     saveWords(words);
+    _notifyChanged();
     return data.id;
   } catch(e) {
     console.warn('[folders] create:', e.message);
@@ -5062,6 +5127,7 @@ async function updateFolder(id, name, color, parentId) {
       _folderParentDB = false; delete patch.parent_id;
       await sb.from('user_folders').update(patch).eq('id', id).eq('user_id', currentUser.id);
     }
+    _notifyChanged();
   } catch(e) { console.warn('[folders] update:', e.message); }
 }
 
@@ -5080,6 +5146,7 @@ async function deleteFolder(id) {
     const sb = await getSupabase();
     if (_folderParentDB) await sb.from('user_folders').update({ parent_id: (up && !String(up).startsWith('tmp_')) ? up : null }).eq('parent_id', id).eq('user_id', currentUser.id);
     await sb.from('user_folders').delete().eq('id', id).eq('user_id', currentUser.id);
+    _notifyChanged();
   } catch(e) { console.warn('[folders] delete:', e.message); }
 }
 
@@ -5761,6 +5828,7 @@ const _origLoadUserData = loadUserData;
 loadUserData = async function() {
   await _origLoadUserData();
   await loadFolders();
+  _startRealtime();
 };
 
 (function(){

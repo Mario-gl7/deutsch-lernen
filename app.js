@@ -910,7 +910,7 @@ function onLoginSuccess(user) {
 // Borra del dispositivo las cachés que se vuelven a descargar de Supabase al entrar
 function _clearLocalUserCache(uid) {
   if (!uid) return;
-  ['words_', 'prog_', 'folders_', 'wsynced_'].forEach(k => { try { localStorage.removeItem(k + uid); } catch(e) {} });
+  ['words_', 'prog_', 'folders_', 'wsynced_', 'wdirty_'].forEach(k => { try { localStorage.removeItem(k + uid); } catch(e) {} });
 }
 
 async function doLogout() {
@@ -1246,7 +1246,7 @@ async function _fetchWordsFromDB() {
     }
     let words = data.map(r => ({ tipo:_normTipo(r.tipo), articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
     // cambios de este dispositivo que no llegaron a enviarse (recarga durante una importación/borrado): se conservan y se reenvían
-    const ops = _localOps(prevLocal, prevSynced);
+    const ops = _localOps(prevLocal, prevSynced, _isDirty());
     if (ops.ins.length || ops.upd.length || ops.del.size) {
       words = _applyOps(words, ops, new Set((prevLocal || []).filter(w => w._id).map(w => w._id)));
       _cacheWords(words);
@@ -1283,6 +1283,7 @@ function saveWords(words) {
   _localRev++;
   updateStats();
   if (!_dbReady) return;
+  try { localStorage.setItem(_dirtyKey(), '1'); } catch(e) {}
   _wordsPending = true;
   clearTimeout(_wordsDebounceTimer);
   _wordsDebounceTimer = setTimeout(() => { _wordsPending = false; _flushWords(words); }, 900);
@@ -1307,25 +1308,34 @@ let _syncedUser = null;
 let _flushChain = Promise.resolve();
 let _flushRetries = 0;
 
-// Supabase devuelve como máximo 1000 filas por consulta: se pide por páginas (y con orden estable) para traer todas las palabras
-async function _selectAllWords(sb, uid, cols) {
+// Supabase corta cada consulta a un máximo de filas (1000 por defecto). Se pide por páginas hasta que no quede nada:
+// se avanza según lo que devuelve de verdad el servidor, así funciona aunque el tope sea otro y no hay límite de palabras.
+async function _selectAllRows(sb, table, uid, cols, orderCols) {
   const out = [], PAGE = 1000;
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb.from('user_words').select(cols).eq('user_id', uid)
-      .order('created_at').order('id').range(from, from + PAGE - 1);
+  let prevFirst = null;
+  for (let from = 0, guard = 0; guard < 10000; guard++) {
+    let q = sb.from(table).select(cols).eq('user_id', uid);
+    orderCols.forEach(c => { q = q.order(c); });
+    const { data, error } = await q.range(from, from + PAGE - 1);
     if (error) return { data: null, error };
-    out.push(...(data || []));
-    if (!data || data.length < PAGE) break;
+    if (!data || !data.length) break;
+    if (prevFirst !== null && JSON.stringify(data[0]) === prevFirst) break;   // el servidor repite la misma página: no seguir
+    prevFirst = JSON.stringify(data[0]);
+    out.push(...data);
+    from += data.length;
   }
   return { data: out, error: null };
 }
+function _selectAllWords(sb, uid, cols) { return _selectAllRows(sb, 'user_words', uid, cols, ['created_at', 'id']); }
 // Lo último que sabemos que hay en la BD se guarda también en el dispositivo: así, si recargas antes de que
 // termine de enviarse una importación o un borrado, al volver a abrir se detectan esos cambios y se reenvían.
+function _dirtyKey() { return 'wdirty_' + (currentUser ? currentUser.id : 'anon'); }
+function _isDirty() { try { return localStorage.getItem(_dirtyKey()) === '1'; } catch(e) { return false; } }
 function _syncKey() { return 'wsynced_' + (currentUser ? currentUser.id : 'anon'); }
 function _persistSynced() { try { if (_synced) localStorage.setItem(_syncKey(), JSON.stringify([..._synced])); } catch(e) {} }
 function _loadPersistedSynced() { try { const s = localStorage.getItem(_syncKey()); return s ? new Map(JSON.parse(s)) : null; } catch(e) { return null; } }
 // Cambios hechos en este dispositivo que la BD aún no tenía (comparando la copia local con lo último sincronizado)
-function _localOps(L, S) {
+function _localOps(L, S, intentional) {
   const ops = { ins: [], upd: [], del: new Set() };
   if (!L || !S) return ops;
   const have = new Set();
@@ -1335,7 +1345,8 @@ function _localOps(L, S) {
     if (S.has(w._id) && S.get(w._id) !== _wordFp(w)) ops.upd.push(w);
   });
   const del = [...S.keys()].filter(id => !have.has(id));
-  if (!(del.length > 20 && del.length > S.size * 0.5)) del.forEach(id => ops.del.add(id));   // freno: caché local vacía por error ≠ borrado
+  // freno: una caché local vacía por error no es un borrado; pero si el usuario borró a propósito (marca de cambio pendiente), se respeta
+  if (intentional || !(del.length > 20 && del.length > S.size * 0.5)) del.forEach(id => ops.del.add(id));
   return ops;
 }
 function _applyOps(words, ops, localIds) {
@@ -1382,6 +1393,7 @@ function _flushWords(words) {
 async function _flushWordsNow(words) {   // (words se ignora: se relee la copia local)
   if (!currentUser || !_dbReady) return;
   setSyncState('syncing', 'Guardando…');
+  const revAtStart = _localRev;
   try {
     const sb  = await getSupabase();
     const uid = currentUser.id;
@@ -1398,7 +1410,7 @@ async function _flushWordsNow(words) {   // (words se ignora: se relee la copia 
     const toDelete = [..._synced.keys()].filter(id => !keep.has(id));
 
     // Freno de seguridad: si de golpe faltaran más de la mitad de las palabras (p. ej. caché local vacía por error), no se borra nada
-    if (toDelete.length > 20 && toDelete.length > _synced.size * 0.5) {
+    if (toDelete.length > 20 && toDelete.length > _synced.size * 0.5 && !_isDirty()) {
       console.warn('[sync] borrado masivo bloqueado:', toDelete.length, 'de', _synced.size);
       setSyncState('error', 'Cambio sospechoso: recarga la app');
       return;
@@ -1412,9 +1424,25 @@ async function _flushWordsNow(words) {   // (words se ignora: se relee la copia 
       (data || []).forEach(r => _synced.set(r.id, _wordFp(r)));
       _assignIds(data || []);
     }
-    // 2) Actualizar modificadas
-    for (let i = 0; i < toUpdate.length; i += 10) {
-      await Promise.all(toUpdate.slice(i, i + 10).map(async w => {
+    // 2) Actualizar modificadas. Mover palabras de carpeta (o borrar una carpeta) cambia solo folder_id:
+    //    esas se agrupan y se envían de 100 en 100 en vez de una petición por palabra
+    const folderOnly = new Map(), others = [];
+    toUpdate.forEach(w => {
+      const old = String(_synced.get(w._id)).split('\u0001');
+      const same = old[0] === (w.tipo || '') && old[1] === (w.articulo || '') && old[2] === (w.de || '') && old[3] === (w.es || '');
+      if (same) { const f = w.folder_id || ''; if (!folderOnly.has(f)) folderOnly.set(f, []); folderOnly.get(f).push(w); }
+      else others.push(w);
+    });
+    for (const [f, ws] of folderOnly) {
+      for (let i = 0; i < ws.length; i += 100) {
+        const chunk = ws.slice(i, i + 100);
+        const { error } = await sb.from('user_words').update({ folder_id: f || null }).in('id', chunk.map(w => w._id)).eq('user_id', uid);
+        if (error) throw error;
+        chunk.forEach(w => _synced.set(w._id, _wordFp(w)));
+      }
+    }
+    for (let i = 0; i < others.length; i += 10) {
+      await Promise.all(others.slice(i, i + 10).map(async w => {
         const { error } = await sb.from('user_words')
           .update({ tipo:w.tipo||'', articulo:w.articulo||'', de:w.de, es:w.es, folder_id:w.folder_id||null })
           .eq('id', w._id).eq('user_id', uid);
@@ -1430,6 +1458,7 @@ async function _flushWordsNow(words) {   // (words se ignora: se relee la copia 
       ids.forEach(id => _synced.delete(id));
     }
     _persistSynced();
+    if (_localRev === revAtStart) { try { localStorage.removeItem(_dirtyKey()); } catch(e) {} }   // todo enviado: ya no hay cambios pendientes
     _flushRetries = 0;
     setSyncState('ok', 'Guardado ✓');
     if (toInsert.length || toUpdate.length || toDelete.length) _notifyChanged();   // avisa a los demás dispositivos
@@ -1447,10 +1476,7 @@ async function _fetchProgressFromDB() {
   if (!currentUser) return null;
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb
-      .from('user_progress')
-      .select('word_de,seen,correct,difficulty,next_review')
-      .eq('user_id', currentUser.id);
+    const { data, error } = await _selectAllRows(sb, 'user_progress', currentUser.id, 'word_de,seen,correct,difficulty,next_review', ['word_de']);
     if (error) { if (error.code === '42P01') return null; throw error; }
     if (!data || data.length === 0) return {};
     const p = {};

@@ -910,7 +910,7 @@ function onLoginSuccess(user) {
 // Borra del dispositivo las cachés que se vuelven a descargar de Supabase al entrar
 function _clearLocalUserCache(uid) {
   if (!uid) return;
-  ['words_', 'prog_', 'folders_'].forEach(k => { try { localStorage.removeItem(k + uid); } catch(e) {} });
+  ['words_', 'prog_', 'folders_', 'wsynced_'].forEach(k => { try { localStorage.removeItem(k + uid); } catch(e) {} });
 }
 
 async function doLogout() {
@@ -1147,8 +1147,7 @@ async function _pullRemote(force) {
     }
     const rev = _localRev;
     const sb = await getSupabase();
-    const { data, error } = await sb.from('user_words')
-      .select('id,tipo,articulo,de,es,folder_id,created_at').eq('user_id', currentUser.id).order('created_at');
+    const { data, error } = await _selectAllWords(sb, currentUser.id, 'id,tipo,articulo,de,es,folder_id,created_at');
     if (error) throw error;
     if (rev !== _localRev || _wordsPending) return;           // cambió algo mientras tanto: no se pisa
     const local = getWords();
@@ -1231,11 +1230,8 @@ async function _fetchWordsFromDB() {
   if (!currentUser) return null;
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb
-      .from('user_words')
-      .select('id,tipo,articulo,de,es,folder_id,created_at')
-      .eq('user_id', currentUser.id)
-      .order('created_at');
+    const prevSynced = _loadPersistedSynced(), prevLocal = _cachedWords();   // antes de tocar nada
+    const { data, error } = await _selectAllWords(sb, currentUser.id, 'id,tipo,articulo,de,es,folder_id,created_at');
     if (error) {
       // Table might not exist yet
       if (error.code === '42P01') { _dbReady = false; showSetupBanner(); return null; }
@@ -1248,8 +1244,14 @@ async function _fetchWordsFromDB() {
       if (baseWords && baseWords.length > 0) { await _seedWords(baseWords); return baseWords; }
       return [];
     }
-    const words = data.map(r => ({ tipo:_normTipo(r.tipo), articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
-    _cacheWords(words);
+    let words = data.map(r => ({ tipo:_normTipo(r.tipo), articulo:r.articulo||'', de:r.de, es:r.es, _id:r.id, folder_id:r.folder_id||null, added: r.created_at ? _dayKey(r.created_at) : '' }));
+    // cambios de este dispositivo que no llegaron a enviarse (recarga durante una importación/borrado): se conservan y se reenvían
+    const ops = _localOps(prevLocal, prevSynced);
+    if (ops.ins.length || ops.upd.length || ops.del.size) {
+      words = _applyOps(words, ops, new Set((prevLocal || []).filter(w => w._id).map(w => w._id)));
+      _cacheWords(words);
+      setTimeout(() => _flushWords(getWords()), 300);
+    } else _cacheWords(words);
     return words;
   } catch(e) {
     console.warn('[sync] fetchWords:', e.message);
@@ -1305,10 +1307,57 @@ let _syncedUser = null;
 let _flushChain = Promise.resolve();
 let _flushRetries = 0;
 
+// Supabase devuelve como máximo 1000 filas por consulta: se pide por páginas (y con orden estable) para traer todas las palabras
+async function _selectAllWords(sb, uid, cols) {
+  const out = [], PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb.from('user_words').select(cols).eq('user_id', uid)
+      .order('created_at').order('id').range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return { data: out, error: null };
+}
+// Lo último que sabemos que hay en la BD se guarda también en el dispositivo: así, si recargas antes de que
+// termine de enviarse una importación o un borrado, al volver a abrir se detectan esos cambios y se reenvían.
+function _syncKey() { return 'wsynced_' + (currentUser ? currentUser.id : 'anon'); }
+function _persistSynced() { try { if (_synced) localStorage.setItem(_syncKey(), JSON.stringify([..._synced])); } catch(e) {} }
+function _loadPersistedSynced() { try { const s = localStorage.getItem(_syncKey()); return s ? new Map(JSON.parse(s)) : null; } catch(e) { return null; } }
+// Cambios hechos en este dispositivo que la BD aún no tenía (comparando la copia local con lo último sincronizado)
+function _localOps(L, S) {
+  const ops = { ins: [], upd: [], del: new Set() };
+  if (!L || !S) return ops;
+  const have = new Set();
+  L.forEach(w => {
+    if (!w._id) { ops.ins.push(w); return; }
+    have.add(w._id);
+    if (S.has(w._id) && S.get(w._id) !== _wordFp(w)) ops.upd.push(w);
+  });
+  const del = [...S.keys()].filter(id => !have.has(id));
+  if (!(del.length > 20 && del.length > S.size * 0.5)) del.forEach(id => ops.del.add(id));   // freno: caché local vacía por error ≠ borrado
+  return ops;
+}
+function _applyOps(words, ops, localIds) {
+  let out = words.filter(w => !ops.del.has(w._id));
+  const byId = new Map(out.map(w => [w._id, w]));
+  ops.upd.forEach(u => { const w = byId.get(u._id); if (w) { w.tipo = u.tipo; w.articulo = u.articulo; w.de = u.de; w.es = u.es; w.folder_id = u.folder_id || null; } });
+  // palabras nuevas: si la BD ya tiene una igual que este dispositivo no conocía (envío cuya respuesta se perdió), no se duplica
+  const pool = new Map();
+  out.forEach(w => { if (!localIds.has(w._id)) { const k = _wordFp(w); pool.set(k, (pool.get(k) || 0) + 1); } });
+  ops.ins.forEach(w => {
+    const k = _wordFp(w), n = pool.get(k) || 0;
+    if (n > 0) { pool.set(k, n - 1); return; }
+    out.push(w);
+  });
+  return out;
+}
+
 function _wordFp(w) { return [w.tipo || '', w.articulo || '', w.de || '', w.es || '', w.folder_id || ''].join('\u0001'); }
 function _setSynced(rows) {
   _synced = new Map((rows || []).map(r => [r.id, _wordFp(r)]));
   _syncedUser = currentUser ? currentUser.id : null;
+  _persistSynced();
 }
 
 // Asigna a la caché local los ids que acaba de dar la BD a las palabras nuevas
@@ -1339,7 +1388,7 @@ async function _flushWordsNow(words) {   // (words se ignora: se relee la copia 
     words = getWords();   // siempre lo último guardado en local (con los ids que ya dio la BD): evita insertar dos veces la misma palabra
     // Si no sabemos qué hay en la BD (p. ej. tras cambiar de usuario), lo consultamos antes de tocar nada
     if (!_synced || _syncedUser !== uid) {
-      const { data, error } = await sb.from('user_words').select('id,tipo,articulo,de,es,folder_id').eq('user_id', uid);
+      const { data, error } = await _selectAllWords(sb, uid, 'id,tipo,articulo,de,es,folder_id');
       if (error) throw error;
       _setSynced(data);
     }
@@ -1380,12 +1429,14 @@ async function _flushWordsNow(words) {   // (words se ignora: se relee la copia 
       if (error) throw error;
       ids.forEach(id => _synced.delete(id));
     }
+    _persistSynced();
     _flushRetries = 0;
     setSyncState('ok', 'Guardado ✓');
     if (toInsert.length || toUpdate.length || toDelete.length) _notifyChanged();   // avisa a los demás dispositivos
     if (_pullAgain) _scheduleRemotePull();
   } catch(e) {
     console.warn('[sync] flushWords:', e.message);
+    _persistSynced();
     setSyncState('error', 'Error al guardar');
     if (_flushRetries < 3) { _flushRetries++; setTimeout(() => _flushWords(getWords()), 8000 * _flushRetries); }
   }
@@ -2174,8 +2225,9 @@ function _impTipoOk(a, b) { return !a.tipo || !b.tipo || _impNorm(a.tipo) === _i
 function _buildImportPlan(rows, dest, mode) {
   let base = getWords();
   if (mode === 'replace') base = base.filter(w => (w.folder_id || null) !== dest);   // se vacía solo la carpeta de destino
+  // repetida = ya está en la carpeta de destino; las palabras de otras carpetas no cuentan
   const byKey = new Map();
-  base.forEach((w, i) => { const k = _impKey(w); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(i); });
+  base.forEach((w, i) => { if ((w.folder_id || null) !== (dest || null)) return; const k = _impKey(w); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(i); });
   const seen = new Map(), fresh = [], dups = [];
   let inFile = 0;
   rows.forEach(r => {
@@ -2249,7 +2301,7 @@ function confirmImport() {
   }).join('');
   const nd = plan.dups.length;
   document.getElementById('dupSummary').innerHTML =
-    `<b>${nd} palabra${nd !== 1 ? 's' : ''} ya existe${nd !== 1 ? 'n' : ''}</b> en tu vocabulario. ` +
+    `<b>${nd} palabra${nd !== 1 ? 's' : ''} ya existe${nd !== 1 ? 'n' : ''}</b> en «${_esc(_importDestName())}». ` +
     `Se importarán ${plan.fresh.length} nueva${plan.fresh.length !== 1 ? 's' : ''}; elige qué hacer con las repetidas.` +
     (plan.inFile ? ` Además se ignoran ${plan.inFile} repetida${plan.inFile !== 1 ? 's' : ''} dentro del propio archivo.` : '');
   closeModal('importModal');
@@ -2284,6 +2336,7 @@ function _applyImport(plan, choices) {
   if (movedKeys.length) saveProgress(prog, movedKeys);
   const add = plan.fresh.map(r => ({ tipo: r.tipo, articulo: r.articulo, de: r.de, es: r.es, folder_id: dest }));
   saveWords(words.concat(add));
+  if (_dbReady) { clearTimeout(_wordsDebounceTimer); _wordsPending = false; _flushWords(getWords()); }   // sin esperar al temporizador
   _importPlan = null; importParsed = null;
   renderLista(); updateStats();
   const pl = (n, w) => `${n} ${w}${n !== 1 ? 's' : ''}`;
